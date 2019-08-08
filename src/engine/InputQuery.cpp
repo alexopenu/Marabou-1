@@ -22,7 +22,7 @@
 
 InputQuery::InputQuery()
     : _networkLevelReasoner( NULL )
-    , _sbt( NULL )
+    , _sbt( NULL ), _costFunction( NULL)
 {
 }
 
@@ -65,10 +65,25 @@ void InputQuery::addEquation( const Equation &equation )
     _equations.append( equation );
 }
 
+void InputQuery::setCostFunction(Equation *costFunction)
+{
+    _costFunction = costFunction;
+}
+
+
+
+const Equation *InputQuery::getCostFunction() const
+{
+    return _costFunction;
+}
+
 unsigned InputQuery::getNumberOfVariables() const
 {
     return _numberOfVariables;
 }
+
+
+
 
 double InputQuery::getLowerBound( unsigned variable ) const
 {
@@ -104,6 +119,7 @@ List<Equation> &InputQuery::getEquations()
 {
     return _equations;
 }
+
 
 void InputQuery::removeEquationsByIndex( const Set<unsigned> indices )
 {
@@ -466,6 +482,8 @@ NetworkLevelReasoner *InputQuery::getNetworkLevelReasoner() const
 {
     return _networkLevelReasoner;
 }
+
+
 
 //
 // Local Variables:

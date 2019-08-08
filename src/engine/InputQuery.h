@@ -39,6 +39,11 @@ public:
 
     void addEquation( const Equation &equation );
 
+    // Where should memory for this be allocated?
+    void setCostFunction(Equation *costFunction);
+    const Equation *getCostFunction() const;
+
+
     unsigned getNumberOfVariables() const;
     double getLowerBound( unsigned variable ) const;
     double getUpperBound( unsigned variable ) const;
@@ -47,6 +52,7 @@ public:
 
     const List<Equation> &getEquations() const;
     List<Equation> &getEquations();
+
     void removeEquationsByIndex( const Set<unsigned> indices );
 
     void addPiecewiseLinearConstraint( PiecewiseLinearConstraint *constraint );
@@ -118,7 +124,7 @@ public:
     void printInputOutputBounds() const;
 
     /*
-      Adjsut the input/output variable mappings because variables have been merged
+      Adjust the input/output variable mappings because variables have been merged
       or have become fixed
     */
     void adjustInputOutputMapping( const Map<unsigned, unsigned> &oldIndexToNewIndex,
@@ -136,6 +142,7 @@ private:
     Map<unsigned, double> _lowerBounds;
     Map<unsigned, double> _upperBounds;
     List<PiecewiseLinearConstraint *> _plConstraints;
+    Equation *_costFunction;
 
     Map<unsigned, double> _solution;
 

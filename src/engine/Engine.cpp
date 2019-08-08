@@ -186,6 +186,7 @@ bool Engine::solve( unsigned timeoutInSeconds )
                 throw InfeasibleQueryException();
             }
 
+            // Currently we do not handle PL constraints in phase TWO
             if ( _phase == ONE && allVarsWithinBounds() )
             {
                 // The linear portion of the problem has been solved.
@@ -226,8 +227,8 @@ bool Engine::solve( unsigned timeoutInSeconds )
                 continue;
             }
 
-            // We have out-of-bounds variables.
-            // Or we are performing phase TWO of the simplex algorithm
+            // We have out-of-bounds variables
+            // or we are performing phase TWO of the simplex algorithm
             performSimplexStep();
             continue;
         }
@@ -262,7 +263,7 @@ bool Engine::solve( unsigned timeoutInSeconds )
         {
             if (_phase == TWO)
             {
-                // Simplex phase two has finished
+                // Simplex phase two got stuck; hopefully we have an optimal assignment
                 printf( "\nEngine::solve: found an optimal (minimal) solution for the cost function\n" );
                 printf("\nThe cost function is: ");
                 _costFunctionManager->dumpCostFunction();
@@ -1088,6 +1089,15 @@ bool Engine::processInputQuery( InputQuery &inputQuery, bool preprocess )
 
         struct timespec end = TimeUtils::sampleMicro();
         _statistics.setPreprocessingTime( TimeUtils::timePassed( start, end ) );
+
+        if (_phase == TWO)
+        {
+            // phase two: the query should not be infeasible
+            printf("\nInfeasible query in phase two");
+            //throw(ReluplexError::INFEASIBLE_PHASE_TWO_ERROR,"Engine::processInputQuery");
+            _exitCode = Engine::PHASETWOFAILUER;
+            return false;
+        }
 
         _exitCode = Engine::UNSAT;
         return false;

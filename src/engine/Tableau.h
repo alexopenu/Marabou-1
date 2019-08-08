@@ -237,8 +237,8 @@ public:
     /*
       Performs a degenerate pivot: just switches the entering and
       leaving variable. The leaving variable is required to be within
-      bounds, so that is remains within bounds as a non-basic
-      variable. Assignment values are unchanged (and the assignment is
+      bounds, so that it remains within bounds as a non-basic
+      variable. Assignment values are unchanged (and the assignment is(?)
       remains valid).
      */
     void performDegeneratePivot();

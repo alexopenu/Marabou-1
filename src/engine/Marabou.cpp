@@ -89,7 +89,7 @@ void Marabou::solveQuery()
     if ( _engine.processInputQuery( _inputQuery ) )
         _engine.solve();
 
-    if ( _engine.getExitCode() == Engine::SAT )
+    if (( _engine.getExitCode() == Engine::SAT ) || ( _engine.getExitCode() == Engine::PHASETWOSUCCESS ))
         _engine.extractSolution( _inputQuery );
 }
 
@@ -99,6 +99,11 @@ void Marabou::displayResults( unsigned long long microSecondsElapsed ) const
     String resultString;
 
     if ( result == Engine::UNSAT )
+    {
+        resultString = "UNSAT";
+        printf( "UNSAT\n" );
+    }
+    else if ( result == Engine::PHASETWOFAILURE )
     {
         resultString = "UNSAT";
         printf( "UNSAT\n" );
@@ -117,6 +122,24 @@ void Marabou::displayResults( unsigned long long microSecondsElapsed ) const
         for ( unsigned i = 0; i < _inputQuery.getNumOutputVariables(); ++i )
             printf( "\ty%u = %8.4lf\n", i, _inputQuery.getSolutionValue( _inputQuery.outputVariableByIndex( i ) ) );
         printf( "\n" );
+    }
+    else if ( result == Engine::PHASETWOSUCCESS )
+    {
+        resultString = "SAT";
+        printf( "Cost function minimization succeeded\n\n" );
+
+        printf( "Input assignment:\n" );
+        for ( unsigned i = 0; i < _inputQuery.getNumInputVariables(); ++i )
+            printf( "\tx%u = %8.4lf\n", i, _inputQuery.getSolutionValue( _inputQuery.inputVariableByIndex( i ) ) );
+
+        printf( "\n" );
+        printf( "Output:\n" );
+        for ( unsigned i = 0; i < _inputQuery.getNumOutputVariables(); ++i )
+            printf( "\ty%u = %8.4lf\n", i, _inputQuery.getSolutionValue( _inputQuery.outputVariableByIndex( i ) ) );
+        printf( "\n" );
+
+        printf("Minimal cost function value: \n");
+
     }
     else if ( result == Engine::TIMEOUT )
     {

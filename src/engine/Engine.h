@@ -53,7 +53,7 @@ public:
         TIMEOUT = 3,
         QUIT_REQUESTED = 4,
         PHASETWOSUCCESS = 5,
-        PHASETWOFAILUER = 6,
+        PHASETWOFAILURE = 6,
 
         NOT_DONE = 999,
     };
@@ -85,6 +85,8 @@ public:
       method can be used to extract the solution.
      */
     void extractSolution( InputQuery &inputQuery );
+
+
 
     /*
       Methods for storing and restoring the state of the engine.

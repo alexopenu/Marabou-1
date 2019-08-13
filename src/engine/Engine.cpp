@@ -1095,7 +1095,7 @@ bool Engine::processInputQuery( InputQuery &inputQuery, bool preprocess )
             // phase two: the query should not be infeasible
             printf("\nInfeasible query in phase two");
             //throw(ReluplexError::INFEASIBLE_PHASE_TWO_ERROR,"Engine::processInputQuery");
-            _exitCode = Engine::PHASETWOFAILUER;
+            _exitCode = Engine::PHASETWOFAILURE;
             return false;
         }
 

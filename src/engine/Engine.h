@@ -43,7 +43,7 @@ class String;
 class Engine : public IEngine, public SignalHandler::Signalable
 {
 public:
-    Engine();
+    Engine( unsigned verbosity = 2 );
     ~Engine();
 
     enum ExitCode {
@@ -52,8 +52,10 @@ public:
         ERROR = 2,
         TIMEOUT = 3,
         QUIT_REQUESTED = 4,
+
         PHASETWOSUCCESS = 5,
         PHASETWOFAILURE = 6,
+
 
         NOT_DONE = 999,
     };
@@ -137,10 +139,16 @@ public:
     void clearViolatedPLConstraints();
 
     /*
+      Set the Engine's level of verbosity
+    */
+    void setVerbosity( unsigned verbosity );
+
+    /*
       PSA: The following two methods are for DnC only and should be used very
       cauciously.
      */
     void resetSmtCore();
+
 
     void resetExitCode();
 
@@ -243,6 +251,11 @@ private:
     bool _preprocessingEnabled;
 
     /*
+      Is the initial state stored?
+    */
+    bool _initialStateStored;
+
+    /*
       Work memory (of size m)
     */
     double *_work;
@@ -292,6 +305,24 @@ private:
       evaluation of topology-based bound tightening.
      */
     NetworkLevelReasoner *_networkLevelReasoner;
+
+    /*
+      Verbosity level:
+      0: print out minimal information
+      1: print out statistics only in the beginning and the end
+      2: print out statistics during solving
+    */
+    unsigned _verbosity;
+
+    /*
+      Records for checking whether the solution process is, overall,
+      making progress. _lastNumVisitedStates stores the previous number
+      of visited tree states, and _lastIterationWithProgress stores the
+      last iteration number where the number of visited tree states was
+      observed to increase.
+    */
+    unsigned _lastNumVisitedStates;
+    unsigned long long _lastIterationWithProgress;
 
     /*
       Perform a simplex step: compute the cost function, pick the
@@ -414,6 +445,19 @@ private:
       Check whether a timeout value has been provided and exceeded.
     */
     bool shouldExitDueToTimeout( unsigned timeout ) const;
+
+    /*
+      Evaluate the network on legal inputs; obtain the assignment
+      for as many intermediate nodes as possible; and then try
+      to assign these values to the corresponding variables.
+    */
+    void warmStart();
+
+    /*
+      Check whether the number of visited tree states has increased
+      recently. If not, request a precision restoration.
+    */
+    void checkOverallProgress();
 
     /*
       Helper functions for input query preprocessing

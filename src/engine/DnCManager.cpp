@@ -18,24 +18,34 @@
 #include "DivideStrategy.h"
 #include "DnCManager.h"
 #include "DnCWorker.h"
+
+#include "GetCPUData.h"
 #include "LargestIntervalDivider.h"
 #include "MStringf.h"
+#include "MarabouError.h"
 #include "PiecewiseLinearCaseSplit.h"
 #include "PropertyParser.h"
 #include "QueryDivider.h"
-#include "ReluplexError.h"
+#include "TimeUtils.h"
+#include "Vector.h"
 
 #include <atomic>
 #include <chrono>
 #include <cmath>
 #include <thread>
 
-static void dncSolve( WorkerQueue *workload, std::shared_ptr<Engine> engine,
-                      std::atomic_uint &numUnsolvedSubQueries,
-                      std::atomic_bool &shouldQuitSolving,
-                      unsigned threadId, unsigned onlineDivides,
-                      float timeoutFactor, DivideStrategy divideStrategy )
+
+void DnCManager::dncSolve( WorkerQueue *workload, std::shared_ptr<Engine> engine,
+                           std::atomic_uint &numUnsolvedSubQueries,
+                           std::atomic_bool &shouldQuitSolving,
+                           unsigned threadId, unsigned onlineDivides,
+                           float timeoutFactor, DivideStrategy divideStrategy )
 {
+    unsigned cpuId = 0;
+    getCPUId( cpuId );
+    log( Stringf( "Thread #%u on CPU %u", threadId, cpuId ) );
+
+
     DnCWorker worker( workload, engine, std::ref( numUnsolvedSubQueries ),
                       std::ref( shouldQuitSolving ), threadId, onlineDivides,
                       timeoutFactor, divideStrategy );
@@ -45,7 +55,8 @@ static void dncSolve( WorkerQueue *workload, std::shared_ptr<Engine> engine,
 DnCManager::DnCManager( unsigned numWorkers, unsigned initialDivides,
                         unsigned initialTimeout, unsigned onlineDivides,
                         float timeoutFactor, DivideStrategy divideStrategy,
-                        String networkFilePath, String propertyFilePath )
+                        String networkFilePath, String propertyFilePath,
+                        unsigned verbosity )
     : _numWorkers( numWorkers )
     , _initialDivides( initialDivides )
     , _initialTimeout( initialTimeout )
@@ -56,6 +67,9 @@ DnCManager::DnCManager( unsigned numWorkers, unsigned initialDivides,
     , _propertyFilePath( propertyFilePath )
     , _exitCode( DnCManager::NOT_DONE )
     , _workload( NULL )
+    , _timeoutReached( false )
+    , _numUnsolvedSubQueries( 0 )
+    , _verbosity( verbosity )
 {
 }
 
@@ -80,58 +94,78 @@ void DnCManager::freeMemoryIfNeeded()
     }
 }
 
-void DnCManager::solve()
+
+void DnCManager::solve( unsigned timeoutInSeconds )
 {
+    enum {
+        MICROSECONDS_IN_SECOND = 1000000
+    };
+
+    unsigned long long timeoutInMicroSeconds = timeoutInSeconds * MICROSECONDS_IN_SECOND;
+    struct timespec startTime = TimeUtils::sampleMicro();
+
+    // Preprocess the input query and create an engine for each of the threads
     if ( !createEngines() )
     {
         _exitCode = DnCManager::UNSAT;
-        printResult();
         return;
     }
 
+    // Prepare the mechanism through which we can ask the engines to quit
     List<std::atomic_bool *> quitThreads;
     for ( unsigned i = 0; i < _numWorkers; ++i )
         quitThreads.append( _engines[i]->getQuitRequested() );
 
-    // Conduct the initial division of the input region
+    // Partition the input query into initial subqueries, and place these
+    // queries in the queue
     _workload = new WorkerQueue( 0 );
     if ( !_workload )
-        throw ReluplexError( ReluplexError::ALLOCATION_FAILED, "DnCManager::workload" );
+        throw MarabouError( MarabouError::ALLOCATION_FAILED, "DnCManager::workload" );
 
     SubQueries subQueries;
     initialDivide( subQueries );
 
     // Create objects shared across workers
-    std::atomic_uint numUnsolvedSubqueries( subQueries.size() );
+
+    _numUnsolvedSubQueries = subQueries.size();
     std::atomic_bool shouldQuitSolving( false );
     WorkerQueue *workload = new WorkerQueue( 0 );
-    bool pushed = false;
-    (void)pushed;
     for ( auto &subQuery : subQueries )
     {
-        pushed = workload->push( subQuery );
-        ASSERT( pushed );
+        if ( !workload->push( subQuery ) )
+        {
+            // This should never happen
+            ASSERT( false );
+        }
     }
 
     // Spawn threads and start solving
-    std::list<std::thread> threads; // TODO: change this to List (compliation error)
+    std::list<std::thread> threads;
+
     for ( unsigned threadId = 0; threadId < _numWorkers; ++threadId )
     {
         threads.push_back( std::thread( dncSolve, workload,
                                         _engines[ threadId ],
-                                        std::ref( numUnsolvedSubqueries ),
+
+                                        std::ref( _numUnsolvedSubQueries ),
                                         std::ref( shouldQuitSolving ),
                                         threadId, _onlineDivides,
                                         _timeoutFactor, _divideStrategy ) );
     }
 
-    // Wait until either all subqueries are solved or a satisfying assignment is
-    // found by some worker
-    while ( numUnsolvedSubqueries.load() > 0 &&
-            !shouldQuitSolving.load() )
-        std::this_thread::sleep_for( std::chrono::milliseconds( 100 ) );
 
-    // Now that we are done, quit all workers
+    // Wait until either all subQueries are solved or a satisfying assignment is
+    // found by some worker
+    while ( _numUnsolvedSubQueries.load() > 0 &&
+            !shouldQuitSolving.load() &&
+            !_timeoutReached )
+    {
+        updateTimeoutReached( startTime, timeoutInMicroSeconds );
+        std::this_thread::sleep_for( std::chrono::milliseconds( 100 ) );
+    }
+
+    // Now that we are done, tell all workers to quit
+
     for ( auto &quitThread : quitThreads )
         *quitThread = true;
 
@@ -139,7 +173,7 @@ void DnCManager::solve()
         thread.join();
 
     updateDnCExitCode();
-    printResult();
+
     return;
 }
 
@@ -152,13 +186,13 @@ void DnCManager::updateDnCExitCode()
 {
     bool hasSat = false;
     bool hasError = false;
-    bool hasNotDone = false;
     bool hasQuitRequested = false;
     for ( auto &engine : _engines )
     {
-        Engine::ExitCode result = engine->getExitCode( );
+        Engine::ExitCode result = engine->getExitCode();
         if ( result == Engine::SAT )
         {
+            _engineWithSATAssignment = engine;
             hasSat = true;
             break;
         }
@@ -166,42 +200,96 @@ void DnCManager::updateDnCExitCode()
             hasError = true;
         else if ( result == Engine::QUIT_REQUESTED )
             hasQuitRequested = true;
-        else if ( result == Engine::NOT_DONE )
-            hasNotDone = true;
     }
     if ( hasSat )
         _exitCode = DnCManager::SAT;
-    else if ( hasError )
-        _exitCode = DnCManager::ERROR;
+    else if ( _timeoutReached )
+        _exitCode = DnCManager::TIMEOUT;
     else if ( hasQuitRequested )
         _exitCode = DnCManager::QUIT_REQUESTED;
-    else if ( hasNotDone )
-        _exitCode = DnCManager::NOT_DONE;
-    else
+    else if ( hasError )
+        _exitCode = DnCManager::ERROR;
+    else if ( _numUnsolvedSubQueries.load() == 0 )
         _exitCode = DnCManager::UNSAT;
+    else
+    {
+        ASSERT( false ); // This should never happen
+        _exitCode = DnCManager::NOT_DONE;
+    }
 }
 
-void DnCManager::printResult()
+String DnCManager::getResultString()
 {
     switch ( _exitCode )
     {
     case DnCManager::SAT:
-        std::cout << "DnCManager::solve SAT query" << std::endl;
-        break;
+        return "SAT";
     case DnCManager::UNSAT:
-        std::cout << "DnCManager::solve UNSAT query" << std::endl;
+        return "UNSAT";
+    case DnCManager::ERROR:
+        return "ERROR";
+    case DnCManager::NOT_DONE:
+        return "NOT_DONE";
+    case DnCManager::QUIT_REQUESTED:
+        return "QUIT_REQUESTED";
+    case DnCManager::TIMEOUT:
+        return "TIMEOUT";
+    default:
+        ASSERT( false );
+        return "";
+    }
+}
+
+void DnCManager::printResult()
+{
+    std::cout << std::endl;
+    switch ( _exitCode )
+    {
+    case DnCManager::SAT:
+    {
+        std::cout << "SAT\n" << std::endl;
+
+        ASSERT( _engineWithSATAssignment != nullptr );
+
+        InputQuery *inputQuery = _engineWithSATAssignment->getInputQuery();
+        _engineWithSATAssignment->extractSolution( *( inputQuery ) );
+
+        Vector<double> inputVector( inputQuery->getNumInputVariables() );
+        Vector<double> outputVector( inputQuery->getNumOutputVariables() );
+        double *inputs( inputVector.data() );
+        double *outputs( outputVector.data() );
+
+        printf( "Input assignment:\n" );
+        for ( unsigned i = 0; i < inputQuery->getNumInputVariables(); ++i )
+        {
+            printf( "\tx%u = %lf\n", i, inputQuery->getSolutionValue( inputQuery->inputVariableByIndex( i ) ) );
+            inputs[i] = inputQuery->getSolutionValue( inputQuery->inputVariableByIndex( i ) );
+        }
+
+        _engineWithSATAssignment->getInputQuery()->getNetworkLevelReasoner()
+            ->evaluate( inputs, outputs );
+
+        printf( "\n" );
+        printf( "Output:\n" );
+        for ( unsigned i = 0; i < inputQuery->getNumOutputVariables(); ++i )
+            printf( "\ty%u = %lf\n", i, outputs[i] );
+        printf( "\n" );
+        break;
+    }
+    case DnCManager::UNSAT:
+        std::cout << "UNSAT" << std::endl;
         break;
     case DnCManager::ERROR:
-        std::cout << "DnCManager::solve ERROR" << std::endl;
+        std::cout << "ERROR" << std::endl;
         break;
     case DnCManager::NOT_DONE:
-        std::cout << "DnCManager::solve NOT_DONE" << std::endl;
+        std::cout << "NOT_DONE" << std::endl;
         break;
     case DnCManager::QUIT_REQUESTED:
-        std::cout << "DnCManager::solve QUIT_REQUESTED" << std::endl;
+        std::cout << "QUIT_REQUESTED" << std::endl;
         break;
     case DnCManager::TIMEOUT:
-        std::cout << "DnCManager::solve TIMEOUT" << std::endl;
+        std::cout << "TIMEOUT" << std::endl;
         break;
     default:
         ASSERT( false );
@@ -213,12 +301,15 @@ bool DnCManager::createEngines()
     // Create the base engine
     _baseEngine = std::make_shared<Engine>();
     InputQuery *baseInputQuery = new InputQuery();
-    // inputQuery is owned by engine
+
+    // InputQuery is owned by engine
+
     AcasParser acasParser( _networkFilePath );
     acasParser.generateQuery( *baseInputQuery );
 
     if ( _propertyFilePath != "" )
-        PropertyParser( ).parse( _propertyFilePath, *baseInputQuery );
+        PropertyParser().parse( _propertyFilePath, *baseInputQuery );
+
 
     if ( !_baseEngine->processInputQuery( *baseInputQuery ) )
         // Solved by preprocessing, we are done!
@@ -227,12 +318,13 @@ bool DnCManager::createEngines()
     // Create engines for each thread
     for ( unsigned i = 0; i < _numWorkers; ++i )
     {
-        auto engine = std::make_shared<Engine>();
+        auto engine = std::make_shared<Engine>( _verbosity );
         InputQuery *inputQuery = new InputQuery();
         *inputQuery = *baseInputQuery;
         engine->processInputQuery( *inputQuery );
         _engines.append( engine );
     }
+
     return true;
 }
 
@@ -243,13 +335,13 @@ void DnCManager::initialDivide( SubQueries &subQueries )
     if ( _divideStrategy == DivideStrategy::LargestInterval )
     {
         queryDivider = std::unique_ptr<QueryDivider>
-            ( new LargestIntervalDivider( inputVariables, _timeoutFactor ) );
+            ( new LargestIntervalDivider( inputVariables ) );
     }
     else
     {
         // Default
         queryDivider = std::unique_ptr<QueryDivider>
-            ( new LargestIntervalDivider( inputVariables, _timeoutFactor ) );
+            ( new LargestIntervalDivider( inputVariables ) );
     }
 
     String queryId = "";
@@ -278,11 +370,24 @@ void DnCManager::initialDivide( SubQueries &subQueries )
                                                  Tightening::UB ) );
     }
 
-    // Construct the new subquery and add it to subqueries
-    SubQuery subQuery( queryId, split, _initialTimeout );
+    queryDivider->createSubQueries( pow( 2, _initialDivides ), queryId,
+                                    *split, _initialTimeout, subQueries );
+}
 
-    queryDivider->createSubQueries( pow( 2, _initialDivides ), subQuery,
-                                    subQueries );
+void DnCManager::updateTimeoutReached( timespec startTime, unsigned long long
+                                       timeoutInMicroSeconds )
+{
+    if ( timeoutInMicroSeconds == 0 )
+        return;
+    struct timespec now = TimeUtils::sampleMicro();
+    _timeoutReached = TimeUtils::timePassed( startTime, now ) >=
+        timeoutInMicroSeconds;
+}
+
+void DnCManager::log( const String &message )
+{
+    if ( GlobalConfiguration::DNC_MANAGER_LOGGING )
+        printf( "DnCManager: %s\n", message.ascii() );
 }
 
 //

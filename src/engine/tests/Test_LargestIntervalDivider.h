@@ -39,7 +39,11 @@ public:
 
         // Initiate the divider
         queryDivider = std::unique_ptr<LargestIntervalDivider>
+<<<<<<< HEAD
             ( new LargestIntervalDivider( inputVariables, timeoutFactor ) );
+=======
+            ( new LargestIntervalDivider( inputVariables ) );
+>>>>>>> alex-new-master
     }
 
     void tearDown()
@@ -114,6 +118,7 @@ public:
         previousSplit->storeBoundTightening( bound5 );
         previousSplit->storeBoundTightening( bound6 );
 
+<<<<<<< HEAD
         SubQuery previousSubQuery;
         previousSubQuery._queryId = queryId;
         previousSubQuery._split = std::move( previousSplit );
@@ -123,6 +128,14 @@ public:
         SubQueries subQueries;
         queryDivider->createSubQueries( numNewSubQueries, previousSubQuery,
                                    subQueries );
+=======
+        // Divide the previousSplit
+        SubQueries subQueries;
+        queryDivider->createSubQueries( numNewSubQueries, queryId,
+                                        *previousSplit, (unsigned)
+                                        timeoutInSeconds * timeoutFactor,
+                                        subQueries );
+>>>>>>> alex-new-master
 
         // The following four splits should be created by the queryDivider
         Vector<PiecewiseLinearCaseSplit> newSplits;
@@ -196,6 +209,7 @@ public:
                                                         timeoutFactor );
         unsigned index = 0;
         for ( const auto &subQuery : subQueries )
+<<<<<<< HEAD
             {
                 TS_ASSERT( subQuery->_queryId == queryId +
                            Stringf( "-%u", index + 1 ) )
@@ -203,6 +217,17 @@ public:
                 TS_ASSERT( subQuery->_timeoutInSeconds == correctTimeoutInSeconds );
                 index++;
             }
+=======
+        {
+            TS_ASSERT( subQuery->_queryId == queryId +
+                       Stringf( "-%u", index + 1 ) )
+                TS_ASSERT( *(subQuery->_split) == newSplits[index] );
+            TS_ASSERT( subQuery->_timeoutInSeconds == correctTimeoutInSeconds );
+            ++index;
+
+            delete subQuery;
+        }
+>>>>>>> alex-new-master
     }
 };
 

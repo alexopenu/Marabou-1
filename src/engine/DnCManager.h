@@ -19,7 +19,6 @@
 #include "DivideStrategy.h"
 #include "Engine.h"
 #include "SubQuery.h"
-
 #include "Vector.h"
 
 #include <atomic>
@@ -44,7 +43,6 @@ public:
                 DivideStrategy divideStrategy, String networkFilePath,
                 String propertyFilePath, unsigned verbosity );
 
-
     ~DnCManager();
 
     void freeMemoryIfNeeded();
@@ -52,15 +50,12 @@ public:
     /*
       Perform the Divide-and-conquer solving
     */
-
     void solve( unsigned timeoutInSeconds );
-
 
     /*
       Return the DnCExitCode of the DnCManager
     */
     DnCExitCode getExitCode() const;
-
 
     /*
       Get the string representation of the exitcode
@@ -173,7 +168,6 @@ private:
     */
     WorkerQueue *_workload;
 
-
     /*
       Whether the timeout has been reached
     */
@@ -188,7 +182,6 @@ private:
       The level of verbosity
     */
     unsigned _verbosity;
-
 };
 
 #endif // __DnCManager_h__

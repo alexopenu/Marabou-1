@@ -1846,21 +1846,29 @@ bool Engine::shouldExitDueToTimeout( unsigned timeout ) const
     return _statistics.getTotalTime() / MILLISECONDS_TO_SECONDS > timeout;
 }
 
+void Engine::reset()
+{
+    resetStatistics();
+    clearViolatedPLConstraints();
+    resetSmtCore();
+    resetBoundTighteners();
+    resetExitCode();
+}
 
 Engine::Phase Engine::getPhase() const {
     return _phase;
 }
 
 
-void Engine::resetStatistics( const Statistics &statistics )
+void Engine::resetStatistics()
 {
+    Statistics statistics;
     _statistics = statistics;
     _smtCore.setStatistics( &_statistics );
     _tableau->setStatistics( &_statistics );
     _rowBoundTightener->setStatistics( &_statistics );
     _constraintBoundTightener->setStatistics( &_statistics );
     _preprocessor.setStatistics( &_statistics );
-    _activeEntryStrategy = _projectedSteepestEdgeRule;
     _activeEntryStrategy->setStatistics( &_statistics );
 
     _statistics.stampStartingTime();

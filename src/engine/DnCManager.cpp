@@ -49,7 +49,10 @@ void DnCManager::dncSolve( WorkerQueue *workload, std::shared_ptr<Engine> engine
     DnCWorker worker( workload, engine, std::ref( numUnsolvedSubQueries ),
                       std::ref( shouldQuitSolving ), threadId, onlineDivides,
                       timeoutFactor, divideStrategy );
-    worker.run();
+    while ( !shouldQuitSolving.load() )
+    {
+        worker.popOneSubQueryAndSolve();
+    }
 }
 
 DnCManager::DnCManager( unsigned numWorkers, unsigned initialDivides,
@@ -156,13 +159,15 @@ void DnCManager::solve( unsigned timeoutInSeconds )
 
     // Wait until either all subQueries are solved or a satisfying assignment is
     // found by some worker
-    while ( _numUnsolvedSubQueries.load() > 0 &&
-            !shouldQuitSolving.load() &&
-            !_timeoutReached )
+    while ( !shouldQuitSolving.load() )
     {
         updateTimeoutReached( startTime, timeoutInMicroSeconds );
-        std::this_thread::sleep_for( std::chrono::milliseconds( 100 ) );
+        if ( _timeoutReached )
+            shouldQuitSolving = true;
+        else
+            std::this_thread::sleep_for( std::chrono::milliseconds( 100 ) );
     }
+
 
     // Now that we are done, tell all workers to quit
 

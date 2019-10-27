@@ -35,6 +35,10 @@
 
 #include <atomic>
 
+#ifdef _WIN32
+#undef ERROR
+#endif
+
 class EngineState;
 class InputQuery;
 class PiecewiseLinearConstraint;
@@ -46,6 +50,8 @@ public:
     Engine( unsigned verbosity = 2 );
     ~Engine();
 
+
+/*
     enum ExitCode {
         UNSAT = 0,
         SAT = 1,
@@ -59,6 +65,8 @@ public:
 
         NOT_DONE = 999,
     };
+*/
+
 
     /*
         Phase of simplex -- one (no optimization) or two (with optimization)
@@ -129,9 +137,15 @@ public:
     void applySplit( const PiecewiseLinearCaseSplit &split );
 
     /*
+      Reset the state of the engine, before solving a new query
+      (as part of DnC mode).
+    */
+    void reset();
+
+    /*
       Reset the statistics object
     */
-    void resetStatistics( const Statistics &statistics );
+    void resetStatistics();
 
     /*
       Clear the violated PL constraints
@@ -145,7 +159,7 @@ public:
 
     /*
       PSA: The following two methods are for DnC only and should be used very
-      cauciously.
+      cautiously.
      */
     void resetSmtCore();
 

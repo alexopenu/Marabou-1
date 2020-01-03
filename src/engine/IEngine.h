@@ -31,6 +31,19 @@ class IEngine
 public:
     virtual ~IEngine() {};
 
+    // SIMPLEX_ONE means we will ony run phase 1
+    // SIMPLEX_TWO means that we will run phase 1 followed by phase 2
+    enum SimplexType {
+        SIMPLEX_ONE = 1,
+        SIMPLEX_TWO = 2,
+    };
+
+    enum Phase {
+        ONE = 1,
+        TWO = 2,
+    };
+
+
     enum ExitCode {
         UNSAT = 0,
         SAT = 1,

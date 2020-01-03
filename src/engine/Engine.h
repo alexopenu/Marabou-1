@@ -47,7 +47,8 @@ class String;
 class Engine : public IEngine, public SignalHandler::Signalable
 {
 public:
-    Engine( unsigned verbosity = 2 );
+    //Engine( unsigned verbosity = 2 );
+    Engine( unsigned verbosity = 2 , SimplexType simplexType = SIMPLEX_ONE);
     ~Engine();
 
     /*
@@ -55,6 +56,9 @@ public:
       (a timeout of 0 means no time limit). Returns true if found, false if infeasible.
     */
     bool solve( unsigned timeoutInSeconds = 0 );
+
+    bool solve_phaseone( unsigned timeoutInSeconds = 0 );
+    bool solve_phasetwo( unsigned timeoutInSeconds = 0 );
 
     /*
       Process the input query and pass the needed information to the
@@ -147,6 +151,9 @@ private:
         PERFORMED_STRONG_RESTORATION = 1,
         PERFORMED_WEAK_RESTORATION = 2,
     };
+
+    Phase _phase;
+    SimplexType _simplexType;
 
 
     /*

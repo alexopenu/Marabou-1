@@ -28,6 +28,7 @@
 #include "TableauRow.h"
 #include "TimeUtils.h"
 
+/*
 Engine::Engine( unsigned verbosity )
     : _rowBoundTightener( *_tableau )
     , _symbolicBoundTightener( NULL )
@@ -47,6 +48,41 @@ Engine::Engine( unsigned verbosity )
     , _verbosity( verbosity )
     , _lastNumVisitedStates( 0 )
     , _lastIterationWithProgress( 0 )
+    , _simplexType( SIMPLEX_ONE )
+{
+    _smtCore.setStatistics( &_statistics );
+    _tableau->setStatistics( &_statistics );
+    _rowBoundTightener->setStatistics( &_statistics );
+    _constraintBoundTightener->setStatistics( &_statistics );
+    _preprocessor.setStatistics( &_statistics );
+
+    _activeEntryStrategy = _projectedSteepestEdgeRule;
+    _activeEntryStrategy->setStatistics( &_statistics );
+
+    _statistics.stampStartingTime();
+}
+*/
+
+Engine::Engine( unsigned verbosity, SimplexType simplexType)
+        : _rowBoundTightener( *_tableau )
+        , _symbolicBoundTightener( NULL )
+        , _smtCore( this )
+        , _numPlConstraintsDisabledByValidSplits( 0 )
+        , _preprocessingEnabled( false )
+        , _initialStateStored( false )
+        , _work( NULL )
+        , _basisRestorationRequired( Engine::RESTORATION_NOT_NEEDED )
+        , _basisRestorationPerformed( Engine::NO_RESTORATION_PERFORMED )
+        , _costFunctionManager( _tableau )
+        , _quitRequested( false )
+        , _exitCode( Engine::NOT_DONE )
+        , _constraintBoundTightener( *_tableau )
+        , _numVisitedStatesAtPreviousRestoration( 0 )
+        , _networkLevelReasoner( NULL )
+        , _verbosity( verbosity )
+        , _lastNumVisitedStates( 0 )
+        , _lastIterationWithProgress( 0 )
+        , _simplexType( simplexType )
 {
     _smtCore.setStatistics( &_statistics );
     _tableau->setStatistics( &_statistics );
@@ -99,7 +135,38 @@ void Engine::adjustWorkMemorySize()
         throw MarabouError( MarabouError::ALLOCATION_FAILED, "Engine::work" );
 }
 
+
 bool Engine::solve( unsigned timeoutInSeconds )
+{
+    if ( _simplexType == SIMPLEX_ONE )
+    {
+        _phase = ONE;
+        return solve_phaseone( timeoutInSeconds );
+
+        // Does this work? An exception is thrown in
+    }
+    else
+    {
+        // running a two phase simplex
+       _phase =  ONE;
+
+       while( true )
+       {
+            if ( !( solve_phaseone(timeoutInSeconds )) )
+                // again, will this work, or an exception will be thrown before we get here?
+                return false;
+            else
+            {
+                // We have a solution to phase 1, time to run phase 2
+
+
+            }
+       }
+    }
+
+}
+
+bool Engine::solve_phasetwo( unsigned timeoutInSeconds ) // copied implementatiom from phaseone
 {
     SignalHandler::getInstance()->initialize();
     SignalHandler::getInstance()->registerClient( this );
@@ -112,6 +179,217 @@ bool Engine::solve( unsigned timeoutInSeconds )
         mainLoopStatistics();
         printf( "\n---\n" );
     }
+
+
+    struct timespec mainLoopStart = TimeUtils::sampleMicro();
+    while ( true )
+    {
+        struct timespec mainLoopEnd = TimeUtils::sampleMicro();
+        _statistics.addTimeMainLoop( TimeUtils::timePassed( mainLoopStart, mainLoopEnd ) );
+        mainLoopStart = mainLoopEnd;
+
+        if ( shouldExitDueToTimeout( timeoutInSeconds ) )
+        {
+            if ( _verbosity > 0 )
+            {
+                printf( "\n\nEngine: quitting due to timeout...\n\n" );
+                printf( "Final statistics:\n" );
+                _statistics.print();
+            }
+
+            _exitCode = Engine::TIMEOUT;
+            _statistics.timeout();
+            return false;
+        }
+
+        if ( _quitRequested )
+        {
+            if ( _verbosity > 0 )
+            {
+                printf( "\n\nEngine: quitting due to external request...\n\n" );
+                printf( "Final statistics:\n" );
+                _statistics.print();
+            }
+
+            _exitCode = Engine::QUIT_REQUESTED;
+            return false;
+        }
+
+        try
+        {
+            DEBUG( _tableau->verifyInvariants() );
+
+            if ( _verbosity > 1 )
+                mainLoopStatistics();
+
+            // Check whether progress has been made recently
+            checkOverallProgress();
+
+            // If the basis has become malformed, we need to restore it
+            if ( basisRestorationNeeded() )
+            {
+                if ( _basisRestorationRequired == Engine::STRONG_RESTORATION_NEEDED )
+                {
+                    performPrecisionRestoration( PrecisionRestorer::RESTORE_BASICS );
+                    _basisRestorationPerformed = Engine::PERFORMED_STRONG_RESTORATION;
+                }
+                else
+                {
+                    performPrecisionRestoration( PrecisionRestorer::DO_NOT_RESTORE_BASICS );
+                    _basisRestorationPerformed = Engine::PERFORMED_WEAK_RESTORATION;
+                }
+
+                _numVisitedStatesAtPreviousRestoration = _statistics.getNumVisitedTreeStates();
+                _basisRestorationRequired = Engine::RESTORATION_NOT_NEEDED;
+                continue;
+            }
+
+            // Restoration is not required
+            _basisRestorationPerformed = Engine::NO_RESTORATION_PERFORMED;
+
+            // Possible restoration due to precision degradation
+            if ( shouldCheckDegradation() && highDegradation() )
+            {
+                performPrecisionRestoration( PrecisionRestorer::RESTORE_BASICS );
+                continue;
+            }
+
+            if ( _tableau->basisMatrixAvailable() )
+                explicitBasisBoundTightening();
+
+            // Perform any SmtCore-initiated case splits
+            if ( _smtCore.needToSplit() )
+            {
+                _smtCore.performSplit();
+
+                do
+                {
+                    performSymbolicBoundTightening();
+                }
+                while ( applyAllValidConstraintCaseSplits() );
+                continue;
+            }
+
+            if ( !_tableau->allBoundsValid() )
+            {
+                // Some variable bounds are invalid, so the query is unsat
+                throw InfeasibleQueryException();
+                // to-do: throw a special exception: should not happen
+            }
+
+            if ( allVarsWithinBounds() )
+            {
+                // The linear portion of the problem has been solved.
+                // Check the status of the PL constraints
+                collectViolatedPlConstraints();
+
+                // If all constraints are satisfied, we are possibly done
+                if ( allPlConstraintsHold() )
+                {
+                    if ( _tableau->getBasicAssignmentStatus() !=
+                         ITableau::BASIC_ASSIGNMENT_JUST_COMPUTED )
+                    {
+                        if ( _verbosity > 0 )
+                        {
+                            printf( "Before declaring SAT, recomputing...\n" );
+                        }
+                        // Make sure that the assignment is precise before declaring success
+                        _tableau->computeAssignment();
+                        continue;
+                    }
+                    if ( _verbosity > 0 )
+                    {
+                        printf( "\nEngine::solve: SAT assignment found\n" );
+                        _statistics.print();
+                    }
+                    _exitCode = Engine::SAT;
+                    return true;
+                }
+
+                // We have violated piecewise-linear constraints.
+                performConstraintFixingStep();
+
+                // Finally, take this opporunity to tighten any bounds
+                // and perform any valid case splits.
+                tightenBoundsOnConstraintMatrix();
+                applyAllBoundTightenings();
+                // For debugging purposes
+                checkBoundCompliancyWithDebugSolution();
+
+                while ( applyAllValidConstraintCaseSplits() )
+                    performSymbolicBoundTightening();
+
+                continue;
+            }
+
+            // We have out-of-bounds variables.
+            performSimplexStep();
+            continue;
+        }
+        catch ( const MalformedBasisException & )
+        {
+            // Debug
+            printf( "MalformedBasisException caught!\n" );
+            //
+
+            if ( _basisRestorationPerformed == Engine::NO_RESTORATION_PERFORMED )
+            {
+                if ( _numVisitedStatesAtPreviousRestoration != _statistics.getNumVisitedTreeStates() )
+                {
+                    // We've tried a strong restoration before, and it didn't work. Do a weak restoration
+                    _basisRestorationRequired = Engine::WEAK_RESTORATION_NEEDED;
+                }
+                else
+                {
+                    _basisRestorationRequired = Engine::STRONG_RESTORATION_NEEDED;
+                }
+            }
+            else if ( _basisRestorationPerformed == Engine::PERFORMED_STRONG_RESTORATION )
+                _basisRestorationRequired = Engine::WEAK_RESTORATION_NEEDED;
+            else
+            {
+                printf( "Engine: Cannot restore tableau!\n" );
+                _exitCode = Engine::ERROR;
+                return false;
+            }
+        }
+        catch ( const InfeasibleQueryException & )
+        {
+            // The current query is unsat, and we need to pop.
+            // If we're at level 0, the whole query is unsat.
+            if ( !_smtCore.popSplit() )
+            {
+                if ( _verbosity > 0 )
+                {
+                    printf( "\nEngine::solve: UNSAT query\n" );
+                    _statistics.print();
+                }
+                _exitCode = Engine::UNSAT;
+                return false;
+            }
+        }
+        catch ( ... )
+        {
+            _exitCode = Engine::ERROR;
+            printf( "Engine: Unknown error!\n" );
+            return false;
+        }
+    }}
+
+bool Engine::solve_phaseone( unsigned timeoutInSeconds )
+{
+    SignalHandler::getInstance()->initialize();
+    SignalHandler::getInstance()->registerClient( this );
+
+    storeInitialEngineState();
+
+    if ( _verbosity > 0 )
+    {
+        printf( "\nEngine::solve: Initial statistics\n" );
+        mainLoopStatistics();
+        printf( "\n---\n" );
+    }
+
 
     struct timespec mainLoopStart = TimeUtils::sampleMicro();
     while ( true )

@@ -85,3 +85,11 @@ class MarabouNetworkNNetProperty(MarabouNetworkNNetExtendedParent.MarabouNetwork
 
 
 
+    # def writePropertyToFile(self,property_filename: str):
+    #     '''
+    #         Write Property to file in the correct format
+    #     '''
+    #
+    #     TO IMPLEMENT
+
+

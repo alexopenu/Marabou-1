@@ -56,6 +56,7 @@ class MarabouNNetMCMH:
 
     #returns TRUE if variable is within bounds
     #asserts that the variable is legal
+    #NOTE: we are assuming that the bounds have been tightened after the property has been encorporated.
 
     def variableWithinBounds(self,variable,value):
         assert variable >= 0
@@ -97,8 +98,8 @@ class MarabouNNetMCMH:
         return output_variable-self.marabou_nnet.numVars+self.marabou_nnet.outputSize
 
 
-    #Creates a list of outputs of the input "extreme"
-    #Checks whether all these outputs are legal (within bounds)
+    #Creates a list of outputs of the "extreme" input values
+    #Checks whether all these outputs are legal (within bounds and satisfy the equations)
     #Creates a list of "empiric bounds" for the output variables based on the results
     def outputsOfInputExtremes(self):
         outputs = []
@@ -137,20 +138,20 @@ class MarabouNNetMCMH:
             print("output = ", output)
             outputs.append(output)
 
-            if self.outputOutOfBounds(output)[0]: #Normalizing outputs!
+            if self.outputOutOfBounds(output)[0]: #NOT Normalizing outputs!
                 print('A counterexample found! input = ', inputs)
 
                 sys.exit()
 
 
-            if not self.marabou_nnet.property.verify_equations_exec(inputs,output): #Normalizing outputs!
+            if not self.marabou_nnet.property.verify_equations_exec(inputs,output): #NOT Normalizing outputs!
                 print('A counterexample found! input = ', inputs)
 
                 sys.exit()
 
 
 
-            # Computing the smallest and the largest ouputs for output variables
+            # Updating the smallest and the largest ouputs for output variables
             for output_var in self.marabou_nnet.outputVars.flatten():
                 output_var_index = self.outputVariableToIndex(output_var)
                 if not output_var in output_lower_bounds or output_lower_bounds[output_var]>output[output_var_index]:
@@ -165,6 +166,71 @@ class MarabouNNetMCMH:
 
         #print(outputs)
 
+
+    #Creates a list of outputs a given layer for the "extreme" input values
+    #Creates a list of "empiric bounds" for the output of the layer based on the results
+    def outputsOfInputExtremesForLayer(self, layer: int):
+        layer_outputs = []
+        input_size = self.marabou_nnet.inputSize
+        layer_lower_bounds = dict()
+        layer_upper_bounds = dict()
+
+
+        #We don't want to deal with networks that have a large input layer
+        assert input_size < 20
+
+        for i in range(2 ** input_size):
+            #turning the number i into a bit string of a specific length
+            bit_string =  '{:0{size}b}'.format(i,size=input_size)
+
+            #print bit_string #debugging
+
+            inputs = [0 for i in range(input_size)]
+
+            # creating an input: a sequence of lower and upper bounds, determined by the bit string
+            for input_var in self.marabou_nnet.inputVars.flatten():
+                if bit_string[input_var] == '1':
+                    assert self.marabou_nnet.upperBoundExists(input_var)
+                    inputs[input_var] = self.marabou_nnet.upperBounds[input_var]
+                else:
+                    assert self.marabou_nnet.lowerBoundExists(input_var)
+                    inputs[input_var] = self.marabou_nnet.lowerBounds[input_var]
+
+            print ("input = ", inputs)
+
+            #Evaluating the network on the input
+
+            output = self.marabou_nnet.evaluateNetworkToLayer(inputs,last_layer=layer,normalize_inputs=False,normalize_outputs=False,activate_output_layer=True)
+            print("output = ", output)
+            layer_outputs.append(output)
+
+            # if self.outputOutOfBounds(output)[0]: #NOT Normalizing outputs!
+            #     print('A counterexample found! input = ', inputs)
+            #
+            #     sys.exit()
+            #
+            #
+            # if not self.marabou_nnet.property.verify_equations_exec(inputs,output): #NOT Normalizing outputs!
+            #     print('A counterexample found! input = ', inputs)
+            #
+            #     sys.exit()
+
+
+
+            # Updating the smallest and the largest ouputs for the layer variables
+            for output_var in self.marabou_nnet.outputVars.flatten():  #CHANGE TO VARS FROM THE GIVEN LAYER!
+                output_var_index = self.outputVariableToIndex(output_var)
+                if not output_var in output_lower_bounds or output_lower_bounds[output_var]>output[output_var_index]:
+                    output_lower_bounds[output_var] = output[output_var_index]
+                if not output_var in output_upper_bounds or output_upper_bounds[output_var]<output[output_var_index]:
+                    output_upper_bounds[output_var] = output[output_var_index]
+
+
+        #print len(outputs)
+        print ("lower bounds = ", output_lower_bounds)
+        print ("upper bounds = ", output_upper_bounds)
+
+        #print(outputs)
 
 
 

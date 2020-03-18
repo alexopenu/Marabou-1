@@ -37,17 +37,23 @@ class MarabouNetworkNNetExtended(MarabouNetworkNNetIPQ,MarabouNetworkNNetPropert
         Read a property from a property file and stores as a Property object
         Computes the input query and stores as an InputQuery object
 
+        By default computes Input Query from the nnet (and property) files, not from the MarabouNetwork object
+        (this results in a more accurate input query)
+
 
         Args:
             filename: path to the .nnet file.
             property_filename: path to the property file
 
-        Attributes from MarabouNetworkNNet:
-            ipq1             an Input Query object containing the Input Query computed directly from the network
-            ipq2             an Input Query object created from the file (and maybe a property file)
+
+        Attributes from MarabouNetworkNNetIPQ:
+            ipq1             an Input Query object computed from the network (the MarabouNetwork object)
+            ipq2             an Input Query object created from the file (and maybe a property file); more accurate.
+
+        Attributes from MarabouNetworkNNetProperty:
             property         Property object
 
-
+        Attributes from MarabouNetworkNNet:
 
             numLayers        (int) The number of layers in the network
             layerSizes       (list of ints) Layer sizes.

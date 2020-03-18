@@ -286,7 +286,9 @@ class MarabouNetwork(object):
         if useMarabou:
             return self.evaluateWithMarabou(inputValues, options=options)
         if not useMarabou:
-            return self.evaluateWithoutMarabou(inputValues) #NOTE: not implemented!
+            return self.evaluateWithoutMarabou(inputValues)
+            # At the moment ignoring options
+            # Note: currently only implemented for MarabouNetworkNNet
 
     def findError(self, inputs):
         """
@@ -303,20 +305,23 @@ class MarabouNetwork(object):
 
 
 
-    # def evaluateWithoutMarabou(self, inputValues):
-    #     """
-    #     Function to evaluate network directly (without Marabou) at a given point
-    #     Arguments:
-    #         inputValues: list of (np arrays) representing input to network
-    #         useMarabou: (bool) whether to use Marabou solver or TF/NNet
-    #     Returns:
-    #         outputValues: (np array) representing output of network
-    #
-    #     TO-DO: Implement appropriate conversions between expected inputs of
-    #           evaluate() and evaluateNetwork()
-    #
-    #     NOTE: evaluateNetwork is only implemented for MarabouNetworkNNet!
-    #     """
-    #
-    #     return self.evaluateNetwork(inputs,normalize_inputs=False,normalize_outputs=False)
+    def evaluateWithoutMarabou(self, inputValues):
+        """
+        Function to evaluate network directly (without Marabou) at a given point
+        Arguments:
+            inputValues: list of (np arrays) representing input to network
+            useMarabou: (bool) whether to use Marabou solver or TF/NNet
+        Returns:
+            outputValues: (np array) representing output of network
+
+        TO-DO: Implement appropriate conversions between expected inputs of
+              evaluate() and evaluateNetwork()
+
+        NOTE: evaluateNetwork is only implemented for MarabouNetworkNNet!
+        NOTE: evaluateNetwork takes and returns a list
+        """
+
+        # return np.array([self.evaluateNetwork(inputValues.flatten().tolist(),normalize_inputs=False,normalize_outputs=False)])
+        return self.evaluateNetwork(inputValues.flatten().tolist(), normalize_inputs=False, normalize_outputs=False)
+
 

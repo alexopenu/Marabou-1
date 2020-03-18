@@ -461,18 +461,27 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         b_variables = []
         f_variables = []
         output_variables = []
+
+        # all_variables = []
         
         input_variables = [i for i in range(self.layerSizes[0])]
+
+        # all_variables.append(np.array([input_variables]))
         
         hidden_layers = self.layerSizes[1:-1]
         
         for layer, hidden_layer_length in enumerate(hidden_layers):
+            # b_variables_layer = []
+            # f_variables_layer = []
             for i in range(hidden_layer_length):
                 offset = sum([x*2 for x in hidden_layers[:layer]])
                 
                 b_variables.append(self.layerSizes[0] + offset + i)
                 f_variables.append(self.layerSizes[0] + offset + i+hidden_layer_length)
-        
+
+            #     b_variables_layer.append(self.layerSizes[0] + offset + i)
+            #     f_variables_layer.append(self.layerSizes[0] + offset + i + hidden_layer_length)
+            # all_variables.append( ( np.array([b_variables_layer]),np.array([f_variables_layer]) ) )
         #final layer
         for i in range(self.layerSizes[-1]):
             offset = sum([x*2 for x in hidden_layers[:len(hidden_layers) - 1]])
@@ -532,6 +541,92 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
             offset += self.layerSizes[layer]
 
             return offset + node
+
+
+
+    def getVariable(self,layer,node,f=True):
+        """
+        Returns variable number corresponding to layer, node
+        If f=True, f variables
+        Otherwise, b variables
+        :param layer: int
+        :param node: int
+        :param f: bool
+        :return: int
+        """
+        return self.nodeTo_f(layer,node) if f else self.nodeTo_b(layer,node)
+
+
+    def getUpperBound(self,layer,node,f=True):
+        """
+        Returns upper bound for the variable corresponding to layer, node
+        If f=True, f variables
+        Otherwise, b variables
+        :param layer: int
+        :param node: int
+        :param f: bool
+        :return: float
+        """
+        var = self.getVariable(layer,node,f)
+        if self.upperBoundExists(var):
+                return self.upperBounds[var]
+        return None
+
+    def getLowerBound(self,layer,node,f=True):
+        """
+        Returns lower bound for the variable corresponding to layer, node
+        If f=True, f variables
+        Otherwise, b variables
+        :param layer: int
+        :param node: int
+        :param f: bool
+        :return: float
+        """
+        var = self.getVariable(layer,node,f)
+        if self.lowerBoundExists(var):
+            return self.lowerBounds[var]
+        return None
+
+
+    def getUpperBoundsForLayer(self,layer,f=True):
+        """
+        Returns a list of upper bounds for the given layer
+        If f=True, f variables
+        Otherwise, b variables
+        :param layer: int
+        :param f: bool
+        :return: list of floats
+        """
+        bound_list = []
+        for node in range(self.layerSizes[layer]):
+            bound_list.append(self.getUpperBound(layer,node,f))
+        return bound_list
+
+    def getLowerBoundsForLayer(self,layer,f=True):
+        """
+        Returns a list of lower bounds for the given layer
+        If f=True, f variables
+        Otherwise, b variables
+        :param layer: int
+        :param f: bool
+        :return: list of floats
+        """
+        bound_list = []
+        for node in range(self.layerSizes[layer]):
+            bound_list.append(self.getLowerBound(layer,node,f))
+        return bound_list
+
+
+    def getBoundsForLayer(self,layer,f=True):
+        """
+        Returns the tuple of two lists, the lower and upper bounds for the variables corresponding to the given layer
+        If f=True, f variables
+        Otherwise, b variables
+        :param layer: int
+        :param f: bool
+        :return: tuple of two lists of floats; 1st is lower bounds, 2nd is upper bounds
+        """
+        return self.getLowerBoundsForLayer(layer,f),self.getUpperBoundsForLayer(layer,f)
 
     def buildEquations(self):
 
@@ -665,7 +760,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
          Returns:
              (numpy array of numpy arrays floats): Network outputs for each set of inputs
 
-        NOT TESTED
+        HAS NOT BEEN TESTED
          """
 
         numLayers = self.numLayers
@@ -719,7 +814,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
     #     return self.evaluateNetworkToLayer(inputs,last_layer=0,normalize_inputs=normalize_inputs,normalize_outputs=normalize_outputs,activate_output_layer=activate_output_layer)
 
 
-    def evaluateNetworkToLayer(self, inputs, last_layer = 0, normalize_inputs=False, normalize_outputs=False, activate_output_layer=False):
+    def evaluateNetworkToLayer(self, inputs, last_layer = -1, normalize_inputs=False, normalize_outputs=False, activate_output_layer=False):
 
         """
         Evaluate the network directly, without Marabou
@@ -745,7 +840,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         ranges = self.inputRanges
 
         #The default output layer is the last (output) layer
-        if last_layer == 0:
+        if last_layer == -1:
             last_layer = numLayers
 
         # Prepare the inputs to the neural network
@@ -765,10 +860,9 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         for layer in range(last_layer-1):
             inputsNorm = np.maximum(np.dot(weights[layer], inputsNorm) + biases[layer], 0)
 
-        layer+=1
-        #print layer
-        #print last_layer
+        layer=last_layer-1
 
+        # print(layer)
 
         if (activate_output_layer):
             outputs = np.maximum(np.dot(weights[layer], inputsNorm) + biases[layer], 0)

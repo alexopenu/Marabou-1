@@ -21,6 +21,10 @@ nnet_object = MarabouNetworkNNetExtended(filename=network_filename,property_file
 # print(nnet_object.inputRanges)
 # print(nnet_object.inputMeans)
 
+nnet_object.tightenBounds()
+
+print(nnet_object.upperBounds, "\n", nnet_object.lowerBounds)
+
 
 nnet_object1, nnet_object2 = splitNNet(marabou_nnet=nnet_object,layer=layer)
 
@@ -39,14 +43,14 @@ for i in range(N):
         inputs = createRandomInputsForNetwork(nnet_object)
 
         layer_output = nnet_object.evaluateNetworkToLayer(inputs, last_layer=layer, normalize_inputs=False, normalize_outputs=False, activate_output_layer=True)
-        output1 = nnet_object1.evaluateNetworkToLayer(inputs,last_layer=0, normalize_inputs=False, normalize_outputs=False, activate_output_layer=True
+        output1 = nnet_object1.evaluateNetworkToLayer(inputs,last_layer=-1, normalize_inputs=False, normalize_outputs=False, activate_output_layer=True
                                                     )
 
         if not (layer_output == output1).all():
                print("Failed1")
 
-        true_output = nnet_object.evaluateNetworkToLayer(inputs, last_layer=0, normalize_inputs=False, normalize_outputs=False)
-        output2 = nnet_object2.evaluateNetworkToLayer(layer_output,last_layer=0, normalize_inputs=False, normalize_outputs=False)
+        true_output = nnet_object.evaluateNetworkToLayer(inputs, last_layer=-1, normalize_inputs=False, normalize_outputs=False)
+        output2 = nnet_object2.evaluateNetworkToLayer(layer_output,last_layer=-1, normalize_inputs=False, normalize_outputs=False)
         output2b = nnet_object.evaluateNetworkFromLayer(layer_output,first_layer=layer)
         true_outputb = nnet_object.evaluateNetworkFromLayer(inputs)
         true_outputc = nnet_object.evaluateNetwork(inputs,normalize_inputs=False,normalize_outputs=False)
@@ -90,25 +94,55 @@ for i in range(N):
         inputs = createRandomInputsForNetwork(nnet_object_a)
 
         layer_output = nnet_object_a.evaluateNetworkToLayer(inputs, last_layer=layer, normalize_inputs=False, normalize_outputs=False, activate_output_layer=True)
-        output1 = nnet_object1_a.evaluateNetworkToLayer(inputs,last_layer=0, normalize_inputs=False, normalize_outputs=False, activate_output_layer=True
+        output1 = nnet_object1_a.evaluateNetworkToLayer(inputs,last_layer=-1, normalize_inputs=False, normalize_outputs=False, activate_output_layer=True
                                                     )
 
         if not (layer_output == output1).all():
                print("Failed1")
 
-        true_output = nnet_object_a.evaluateNetworkToLayer(inputs, last_layer=0, normalize_inputs=False, normalize_outputs=False)
-        output2 = nnet_object2_a.evaluateNetworkToLayer(layer_output,last_layer=0, normalize_inputs=False, normalize_outputs=False)
+        true_output = nnet_object_a.evaluateNetworkToLayer(inputs, last_layer=-1, normalize_inputs=False, normalize_outputs=False)
+        output2 = nnet_object2_a.evaluateNetworkToLayer(layer_output,last_layer=-1, normalize_inputs=False, normalize_outputs=False)
         output2b = nnet_object_a.evaluateNetworkFromLayer(layer_output,first_layer=layer)
         true_outputb = nnet_object_a.evaluateNetworkFromLayer(inputs)
         true_outputc = nnet_object_a.evaluateNetwork(inputs,normalize_inputs=False,normalize_outputs=False)
         true_outputd = nnet_object.evaluateNetwork(inputs,normalize_inputs=False,normalize_outputs=False)
-        # true_outputd = nnet_object.evaluateWithMarabou(inputs) #Failed, expects a different type of input!
+
+        #Test evaluateWithoutMarabou from MarabouNetwork.py
+        true_outputf = nnet_object.evaluate(np.array([inputs]),useMarabou=False).flatten().tolist()
+
+        #Test evaluateWithMarabou from MarabouNetwork.py
+        true_outpute = nnet_object.evaluate(np.array([inputs])).flatten()
+        true_outpute_rounded = np.array([float(round(y,8)) for y in true_outpute])
 
         # Debug
         # print(i, "   ", inputs, "   ", "\n", true_output, "\n", output2, "\n", true_output == output2)
         if not (true_outputb == output2b).all():
                print("Failed2")
+        if not (true_outputf == output2b).all():
+               print("Failed3")
+        # if not (true_outputb == true_outpute_rounded).all():
+        #        print("Failed4")
 
-        if not (true_outputd == true_outputc).all():
-               print("Failed2")
+        # Some inputs lead to different outputs (even though they look the same), when evaluating
+        # with and without Marabou
 
+        if not (true_outpute == true_outputc).all():
+               print(true_outpute == true_outputc)
+               print("i=", i, "   input: ", inputs, "   ", "\n", "WithoutMarabou output: ", true_outputc, "\n",
+                     "WithMarabou output: ", true_outpute, "\n", "direct output: ", true_outputb, "\n")
+        #
+        # if not (true_outpute_rounded == true_outputc).all():
+        #        true_outputc_rounded = np.array([float(round(y,8)) for y in true_outputc])
+        #        print(true_outpute_rounded == true_outputc_rounded)
+        #        print(type(true_outpute_rounded), " ", type(true_outpute_rounded[0]), " ",
+        #              type(true_outputc), " ", type(true_outputc[0]), " ",
+        #              type(true_outputb), " ", type(true_outputb[0]))
+        #        print("i=", i, "   input: ", inputs, "   ", "\n", "WithoutMarabou output: ", true_outputc, "\n",
+        #              "rounded WithMarabou output: ", true_outpute_rounded, "\n", "direct output: ", true_outputb, "\n")
+
+        # However, if both are rounded to the same number of digits (say, 8), the results agree:
+
+        true_outputc_rounded = np.array([float(round(y, 8)) for y in true_outputc])
+
+        if not (true_outputc_rounded == true_outpute_rounded).all():
+               print("Failed4")

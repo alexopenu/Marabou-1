@@ -879,7 +879,6 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
 
 
 
-
     def evaluateNetworkFromLayer(self, inputs, first_layer = 0, normalize_inputs=False, normalize_outputs=False, activate_output_layer=False):
 
         """

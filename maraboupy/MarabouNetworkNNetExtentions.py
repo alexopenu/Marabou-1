@@ -23,6 +23,7 @@
 from MarabouNetworkNNetExtended import *
 from  MarabouNetworkNNet import *
 import numpy as np
+import re
 
 def splitList(list,l):
     return list[:l], list[l:]
@@ -131,3 +132,120 @@ def computeRandomOutputsToLayer(marabou_nnet: MarabouNetworkNNet,layer: int, N: 
 
         return output_set
 
+def test_split_network(nnet_object: MarabouNetworkNNet,
+                       nnet_object1: MarabouNetworkNNet, nnet_object2: MarabouNetworkNNet, N = 1000, layer = -1):
+    '''
+    Runs N random inputs through the first network and subsequently through the two networks smaller (1 and 2) 
+    that supposedly were created by splitting the first one, in several different ways.
+    Verifies that the results are all the same. 
+    
+    :param nnet_object: 
+    :param nnet_object1: 
+    :param nnet_object2: 
+    :param N: 
+    :param layer:
+    :return: 
+    '''
+    for i in range(N):
+            inputs = createRandomInputsForNetwork(nnet_object)
+
+            output1 = nnet_object1.evaluateNetworkToLayer(inputs, last_layer=-1, normalize_inputs=False,
+                                                          normalize_outputs=False, activate_output_layer=True)
+
+            # Comparing the output of the first network to the output to layer of the original one
+            if layer>=0:
+                layer_output = nnet_object.evaluateNetworkToLayer(inputs, last_layer=layer, normalize_inputs=False, normalize_outputs=False, activate_output_layer=True)
+                if not (layer_output == output1).all():
+                       print("Failed1")
+                output2b = nnet_object.evaluateNetworkFromLayer(layer_output,first_layer=layer)
+
+
+            # The main comparison: comparing running the input through the original network to running it
+            # through the first followed by the second.
+            true_output = nnet_object.evaluateNetworkToLayer(inputs, last_layer=-1, normalize_inputs=False, normalize_outputs=False)
+            true_output_b = nnet_object.evaluateNetwork(inputs,normalize_inputs=False,normalize_outputs=False)
+
+            output2 = nnet_object2.evaluateNetworkToLayer(output1,last_layer=-1, normalize_inputs=False, normalize_outputs=False)
+
+            if not (true_output == output2).all():
+                   print("Failed2")
+            if not (true_output_b == output2).all():
+                   print("Failed2")
+
+
+            # Comparing the output of the second network to the output from layer of the original one
+            if layer>=0:
+                output2b = nnet_object.evaluateNetworkFromLayer(output1,first_layer=layer)
+                if not (output2b == true_output).all():
+                       print("Failed3")
+
+            #Test evaluateWithoutMarabou from MarabouNetwork.py
+            true_output_c = nnet_object.evaluate(np.array([inputs]),useMarabou=False).flatten().tolist()
+
+            if not (true_output_c == output2).all():
+                   print("Failed4")
+
+
+# def splitPropertyFile(property_filename: str,input_property_file: str, output_property_file: str)
+#         """
+#         Reads  property_file and divides it into two files:
+#         input_property_file: all constraints all the input (x) variables
+#         output_property_file: all constraints all the output (y) variables
+#
+#         :param property_filename: str
+#         :param input_property_file: str
+#         :param output_property_file: str
+#         :return:
+#         """
+#         reg_input = re.compile(r'[x](\d+)')
+#         # matches a substring of the form x??? where ? are digits
+#
+#         reg_output = re.compile(r'[y](\d+)')
+#         # matches a substring of the form y??? where ? are digits
+#
+#         reg_equation = re.compile(r'[+-][xy](\d+) ([+-][xy](\d+) )+(<=|>=|=) [+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$')
+#         # matches a string that is a legal equation with input (x??) or output (y??) variables
+#
+#         reg_bound = re.compile(r'[xy](\d+) (<=|>=|=) [+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?')
+#         # matches a string which represents a legal bound on an input or an output variable
+#
+#         try:
+#             with open(property_filename) as f:
+#                 line = f.readline()
+#                 while(line):
+#                     if reg_equation.match(line): #Equation
+#
+#
+#                         #replace xi by x[i] and yi by y[i]
+#                         new_str = line.strip()
+#                         new_str = reg_input.sub(r"x[\1]", new_str)
+#
+#                         new_str = reg_output.sub(r"y[\1]", new_str)
+#
+#                         # Debug
+#                         print('equation')
+#                         print(new_str)
+#
+#                         equations.append(new_str)
+#                     else: #New bound
+#                         assert reg_bound.match(line) #At this point the line has to match a legal bound
+#
+#
+#                         # replace xi by x[i] and yi by y[i]
+#                         new_str = line.strip()
+#                         new_str = reg_input.sub(r"x[\1]", new_str)
+#
+#                         new_str = reg_output.sub(r"y[\1]", new_str)
+#
+#                         print('bound: ', new_str) #Debug
+#
+#
+#
+#                         bounds.append(new_str)
+#                     line = f.readline()
+#             print('successfully read property file: ', property_filename)
+#             return equations, bounds
+#
+#         except:
+#             print('something went wrong while reading the property file', property_filename)
+#

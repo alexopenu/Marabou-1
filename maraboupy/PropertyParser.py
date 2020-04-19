@@ -23,6 +23,15 @@
 
 import re
 
+types_of_eq_properties = ['x', 'y', 'ws', 'm']
+'''
+    'x'     : input property (mentions only input variables)
+    'y'     : output property (mentions only output variables)
+    'ws'    : hidden variable property (mentions only hidden variables)
+    'm'     : mixed
+
+'''
+
 
 def parseProperty(property_filename):
 
@@ -31,11 +40,25 @@ def parseProperty(property_filename):
         Replaces occurrences of x?? (where ?? are digits) by x[??]
         Replaces occurrences of y?? (where ?? are digits) by y[??]
         (for convenience of evaluating the expression with python's parser)
-        Returns two lists of strings: equations and bounds
+        Returns:
+             two dictionaries: equations amd bounds
+                each dictionary has as keys the type (type2) of property: 'x','y','m',(mixed),'ws'
+                values are lists of properties of the appropriate type
+                    e.g., bounds['x'] is a list of bounds on input variables, where x?? has ben replaced by x[??]
+
+             a list of all properties, given as a list of tuples of strings: (type1,type2,property,index)
+                where:
+                    type1 is 'e' (equation) or 'b' (bound)
+                    type2 is 'x','y','ws', or 'm' (for 'mixed'),
+                    property is a line from the property file (unchanged)
+                    index is the index of a bound/equation in the appropriate list
+
     '''
 
-    equations = []
-    bounds = []
+    properties = []
+
+    equations = {'x': [], 'y': [], 'ws': [], 'm': []}
+    bounds = {'x': [], 'y': [], 'ws': [], 'm': []}
 
     reg_input = re.compile(r'[x](\d+)')
     # matches a substring of the form x??? where ? are digits
@@ -43,18 +66,44 @@ def parseProperty(property_filename):
     reg_output = re.compile(r'[y](\d+)')
     # matches a substring of the form y??? where ? are digits
 
+    reg_ws = re.compile(r'[w][s][_](\d+)[_](\d+))
+    # matches a substring of the form ws_???_??? where ? are digits
+
     reg_equation = re.compile(r'[+-][xy](\d+) ([+-][xy](\d+) )+(<=|>=|=) [+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$')
     # matches a string that is a legal equation with input (x??) or output (y??) variables
+
 
     reg_bound = re.compile(r'[xy](\d+) (<=|>=|=) [+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?')
     # matches a string which represents a legal bound on an input or an output variable
 
+    reg_ws_bound = re.compile(r'[w][s][_](\d+)[_](\d+) (<=|>=|=) [+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?')
+    # matches a string which represents a legal bound on a hidden variable
+
+
 
     try:
+        # num_bounds = -1 # running index in self.bounds
+        # num_eqs = -1    # running index in self.equiations
+
+
         with open(property_filename) as f:
             line = f.readline()
             while(line):
-                if reg_equation.match(line): #Equation
+
+                # Computing type2: input/output/ws/mixed
+                matched = False
+                if (reg_input.match(line)): # input variables present
+                    matched = True
+                    type2 = 'x'
+                if (reg_output.match(line)): # output variables present
+                    type2 = 'm' if matched else 'y'
+                    matched = True
+                if (reg_ws.match(line)): # hidden variable present
+                    type2 = 'ws'
+
+
+
+                if reg_equation.match(line): # Equation
 
 
                     #replace xi by x[i] and yi by y[i]
@@ -67,9 +116,15 @@ def parseProperty(property_filename):
                     print('equation')
                     print(new_str)
 
-                    equations.append(new_str)
-                else: #New bound
-                    assert reg_bound.match(line) #At this point the line has to match a legal bound
+                    index = len(equations[type2])
+
+                    equations[type2].append(new_str)
+
+                    type1='e'
+
+                    # num_eqs+=1
+
+                elif reg_bound.match(line): # I/O Bound
 
 
                     # replace xi by x[i] and yi by y[i]
@@ -80,12 +135,28 @@ def parseProperty(property_filename):
 
                     print('bound: ', new_str) #Debug
 
+                    index = len(bounds[type2])
+
+                    bounds[type2].append(new_str)
+
+                    type1 = 'b'
+
+                    # num_bounds+=1
+                else:
+                    assert reg_ws_bound.match(line) # At this point the line has to match a legal ws bound
+
+                    index = len(bounds['ws'])
+                    bounds['ws'].append(line.strip()) # Storing without change
+
+                    type1 = 'b' # Perhaps at some point better add a new type for ws_bound?
 
 
-                    bounds.append(new_str)
+                properties.append({'type1': type1,'type2': type2,'line': line, 'index', index})
+
+
                 line = f.readline()
         print('successfully read property file: ', property_filename)
-        return equations, bounds
+        return (equations, bounds, properties)
 
     except:
         print('something went wrong while reading the property file', property_filename)

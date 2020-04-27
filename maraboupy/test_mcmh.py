@@ -56,13 +56,13 @@ mcmh_object.setLayer(layer=5)
 
 mcmh_object.createInitialGoodSet(N=10000, adjust_bounds=True, sanity_check=False)
 
-print(mcmh_object.layerMinimums)
-print(mcmh_object.layerMaximums)
+print(mcmh_object.layerMinimums_dict)
+print(mcmh_object.layerMaximums_dict)
 
 
 mcmh_object.outputsOfInputExtremesForLayer(adjust_bounds=True, add_to_goodset=True, sanity_check=False)
-print(mcmh_object.layerMinimums)
-print(mcmh_object.layerMaximums)
+print(mcmh_object.layerMinimums_dict)
+print(mcmh_object.layerMaximums_dict)
 
 output_property_file = "output_property_test1.txt"
 input_property_file = "input_property_test1.txt"
@@ -183,7 +183,7 @@ for i in range(mcmh_object.marabou_nnet.layerSizes[mcmh_object.layer]):
 
     print("sigma = ",mcmh_object.sigma[i])
 
-    print("Observed bounds: ", mcmh_object.layerMinimums[i], mcmh_object.layerMaximums[i])
+    print("Observed bounds: ", mcmh_object.layerMinimums_dict[i], mcmh_object.layerMaximums_dict[i])
 
     print("Bounds based on 3 sigma left and right:",
           mcmh_object.mean[i]-3*mcmh_object.sigma_left[i], mcmh_object.mean[i]+3*mcmh_object.sigma_right[i])
@@ -198,7 +198,7 @@ for i in range(mcmh_object.marabou_nnet.layerSizes[mcmh_object.layer]):
           mcmh_object.median[i]-3.5*mcmh_object.msigma_left[i], mcmh_object.median[i]+3.5*mcmh_object.msigma_right[i])
 
     print("Bounds computed with epsilon left and right: ",
-          mcmh_object.layerMinimums[i] - mcmh_object.epsiloni_left[i], mcmh_object.layerMaximums[i] + mcmh_object.epsiloni_right[i])
+          mcmh_object.layerMinimums_dict[i] - mcmh_object.epsiloni_left[i], mcmh_object.layerMaximums_dict[i] + mcmh_object.epsiloni_right[i])
 
     print("range: ", mcmh_object.range[i])
 

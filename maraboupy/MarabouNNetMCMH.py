@@ -8,7 +8,9 @@ from MarabouNetworkNNetExtentions import *
 
 # import re
 import sys
-# import parser
+#import parser
+
+
 
 
 import time
@@ -20,6 +22,95 @@ import matplotlib.pyplot as plt
 import scipy.stats as stats
 from statsmodels.nonparametric.api import KDEUnivariate
 from random import randint
+from random import choice
+
+
+class basic_mcmh_statistics:
+    def __init__(self,good_set = [],epsilon=0.01,two_sided = True):
+        self.epsilon = epsilon
+
+        self.layer_size = 0
+        self.good_matrix = np.array([])
+        self.minimums = []
+        self.maximums = []
+        self.mean = []
+        self.epsiloni = []
+        self.epsiloni_twosided = {'l': [], 'r': []}
+        self.range = []
+
+        self.statistics_computed = False
+
+        if good_set:
+            self.recompute_statistics(good_set,two_sided)
+
+
+    def recompute_statistics(self,good_set=[],two_sided=True):
+
+        if not good_set:
+            self.statistics_computed = False
+            self.layer_size = 0
+            self.good_matrix = np.array([])
+            self.minimums = []
+            self.maximums = []
+            self.mean = []
+            self.epsiloni = []
+            self.epsiloni_twosided = {'l': [], 'r': []}
+            self.range = []
+        else:
+            self.good_matrix = np.array(good_set)
+            self.layer_size = len(good_set[0])
+            self.minimums = [np.min(self.good_matrix[:,var]) for var in range(self.layer_size)]
+            self.maximums = [np.max(self.good_matrix[:, var]) for var in range(self.layer_size)]
+            self.mean = [np.mean(self.good_matrix[:, var]) for var in range(self.layer_size)]
+
+            self.computeEpsilonsUniformly(two_sided)
+            self.statistics_computed = True
+
+
+
+    def computeEpsilonsUniformly(self):
+        '''
+        computes epsilons (to be added to or subtracted from empiric upper and lower bounds for the hidden layer
+            variables) based on a very simple statistical heuristics, essentially assuming that the distibution
+            on the values of each variable is close to uniform. This is not the case, but the computation is
+            efficient, and seems to give "conservative" bounds, which should be a good starting point.
+        :return:
+        '''
+
+        assert self.good_matrix
+        for var in range(self.layer_size):
+            self.computeEpsilonsForVariable(var)
+
+
+    def computeEpsilonsForVariable(self,var,compute_twosided = True):
+
+        outputs = self.good_matrix[:, var]
+        sample_size = len(outputs)
+
+        minimum = self.minimums[var]
+        maximum = self.maximums[var]
+
+        self.range[var] = maximum-minimum
+        self.epsiloni[var] = self.range[var]/sample_size
+
+        if compute_twosided:
+            small_outputs = [output for output in outputs if (output <= mean)]
+            small_range = mean-minimum
+            big_outputs = [output for output in outputs if (output > mean)]
+            big_range = maximum-mean
+
+            self.epsiloni_twosided['l'][var] = small_range/len(small_outputs)
+            self.epsiloni_twosided['r'][var] = big_range/len(big_outputs)
+
+
+    def graphGoodSetDist(self,i=0):
+
+        assert self.statistics_computed
+
+        sns.distplot([output[i] for output in self.good_matrix],label='Variable'+str(i))
+        plt.legend()
+        plt.show()
+
 
 
 
@@ -55,23 +146,42 @@ class MarabouNNetMCMH:
         self.good_set = []
         self.bad_set = []
 
+
+        #Lests of the variables corresponding to the layer
+        self.layer_bVars = []
+        self.layer_fVars = []
+
+        # various statistics and empiric bounds on layer variables for guessing the invariant
+        # will be reset in seLayer, but we include all the attributes in the constructor
+        self.good_matrix = np.array([])
+        self.epsilon = 0.01
+        self.epsiloni = []
+        self.epsiloni_twosided = {'l': [], 'r', []}
+
+        self.basic_statistics = basic_mcmh_statistics(epsilon=self.epsilon)
+
+        # Attributes representing minimal and maximal values seen for the variables of the layer
+        # The default ones are for the b-variables
+        # Will be reset in setLayer
+
+        self.layer_minimums = []
+        self.layer_maximums= []
+        self.layer_fminimums_dict = dict() #For sanity check
+        self.layer_fmaximums_dict = dict() #For sanity check
+
+        self.suggested_lower_bounds = []
+        self.suggested_upper_bounds = []
+
+
         # The hidden layer we will study an invariant for
         # Currently we only work with one hidden layer
         if layer>-1:
             self.setLayer(layer)
         else:
             self.layer = -1
+            self.layer_size = 0
 
-        #Lests of the variables corresponding to the layer
-        self.layer_bVars = []
-        self.layer_fVars = []
 
-        # Attributes representing minimal and maximal values seen for the variables of the layer
-        # The default ones are for the b-variables
-        self.layerMinimums = dict()
-        self.layerMaximums = dict()
-        self.layerfMinimums = dict() #For sanity check
-        self.layerfMaximums = dict() #For sanity check
 
         # we store executable versions of certain properties (that will be evaluated many times) locally
         # for the sake of efficiency
@@ -85,7 +195,7 @@ class MarabouNNetMCMH:
 
 
         # The number of inputs that have been considered: used for computation of statistics
-        # do we need this? Check.
+        # Not clear we need this at all. Check.
         self.numberOfInputs = 0
 
         # Filenames for the new networks created by splitting
@@ -94,37 +204,7 @@ class MarabouNNetMCMH:
         self.property_filename1 = ''
         self.property_filename2 = ''
 
-        # various statistics for layer outputs
-        self.good_matrix = np.array([])
 
-        self.mean = dict()
-        self.epsiloni = dict()
-        self.epsiloni_left = dict()
-        self.epsiloni_right = dict()
-
-        # the following statistics are currenty not used
-        self.median = dict()
-        self.sigma = dict()
-        self.sigma_left = dict()
-        self.sigma_right = dict()
-        self.msigma_left = dict()
-        self.msigma_right = dict()
-        self.range = dict()
-        self.maxsigma = 0
-        self.maxsigmaleft = 0
-        self.maxsigmaright = 0
-        self.kde = dict()
-        self.kde_eval = dict()
-        self.kde1 = dict()
-        self.kdedens1 = dict()
-        self.cdf = dict()
-        self.icdf = dict()
-        self.kde2 = dict()
-        self.icdf2 = dict()
-
-        # Error tolerance for negating the interpolant
-        # Currently not used ; we use epsiloni instead
-        self.epsilon = 0.04
 
 
     def setLayer(self,layer):
@@ -133,108 +213,162 @@ class MarabouNNetMCMH:
         self.computeLayerVariables()
 
         self.good_set = []
-        self.layerMinimums = {}
-        self.layerMaximums = {}
+        self.layer_minimums = []
+        self.layer_maximums = []
 
-        self.layerfMinimums = {}
-        self.layerfMaximums = {}
+        self.layer_fminimums_dict = {}
+        self.layer_fmaximums_dict = {}
 
-        self.mean = {}
-        self.sigma = {}
-        self.epsiloni = {}
-        self.epsiloni_left = {}
-        self.epsiloni_right = {}
+        self.basic_statistics = basic_mcmh_statistics(epsilon=self.epsilon)
+
+        # self.mean = {}
+        # self.sigma = {}
+        # self.epsiloni = {}
+        # self.epsiloni_left = {}
+        # self.epsiloni_right = {}
 
 
-    def setEpsilon(self,epsilon: float):
+    def setEpsilon(self, epsilon: float):
         self.epsilon = epsilon
 
 
     def computeLayerVariables(self):
-        self.layer_bVars= []
+        self.layer_bVars = []
         self.layer_fVars = []
-
-
-        # if layer == -1:
-        #     if self.layer > -1:
-        #         layer = self.layer
-        #     else:
-        #         return
-        # else:
-        #     self.setLayer(layer)
-        # # assert ((layer>=0) and (layer<self.marabou_nnet.numLayers)) # Not necessary, happens in setLayer
 
         layer = self.layer
 
-        for node in range(self.marabou_nnet.layerSizes[layer]):
-            self.layer_fVars.append(self.marabou_nnet.nodeTo_f(layer,node))
+        self.layer_size = self.marabou_nnet.layerSizes[layer]
+        for node in range(self.layer_size):
+            self.layer_fVars.append(self.marabou_nnet.nodeTo_f(layer, node))
             self.layer_bVars.append(self.marabou_nnet.nodeTo_b(layer, node))
 
-
-
-    # def computeHalfLayerVariables(self,layer = -1,f=True):
-    #     self.layerVariables = []
-    #
-    #     if layer == -1:
-    #         if self.layer > -1:
-    #             layer = self.layer
-    #         else:
-    #             return
-    #     # else:
-    #     #     self.setLayer(layer)
-    #     # assert ((layer>=0) and (layer<self.marabou_nnet.numLayers)) # Not necessary, happens in setLayer
-    #
-    #     for node in self.marabou_nnet.layerSizes[layer]:
-    #         if (f):
-    #             self.layer_fVars.append(self.marabou_nnet.nodeTo_f(layer,node))
-    #         else:
-    #             self.layer_bVars.append(self.marabou_nnet.nodeTo_b(layer, node))
-
-    # NOTE: assumes (for efficiency) that all lower and upper bounds exist
-    def createRandomInputs(self):
-        input = []
-        for input_var in self.marabou_nnet.inputVars.flatten():
-            # assert self.marabou_nnet.upperBoundExists(input_var)
-            # assert self.marabou_nnet.lowerBoundExists(input_var)
-            random_value = np.random.uniform(low=self.marabou_nnet.lowerBounds[input_var],
-                                             high=self.marabou_nnet.upperBounds[input_var])
-            input.append(random_value)
-        return input
 
     def clearGoodSet(self):
         self.good_set = []
 
-    def createInitialGoodSet(self,N,include_input_extremes=True, adjust_bounds=True,sanity_check=False):
-        self.clearGoodSet()
-        if include_input_extremes:
-            self.outputsOfInputExtremesForLayer()
-        self.addRandomValuesToGoodSet(N,adjust_bounds,sanity_check)
 
-
-    def verifyInputEquations(self,x):
+    def verifyInputEquations(self, x):
         for eq in self.input_equations:
             if not eval(eq):
                 return False
         return True
 
-    def verifyOutputBounds(self,y):
+    def verifyOutputBounds(self, y):
         for eq in self.output_bounds:
             if not eval(eq):
                 return False
         return True
 
-    def verifyOutputEquations(self,y):
+    def verifyOutputEquations(self, y):
         for eq in self.output_equations:
             if not eval(eq):
                 return False
         return True
 
-    def verifyOutputProperty(self,y):
+    def verifyOutputProperty(self, y):
         return self.verifyOutputBounds(y) and self.verifyOutputEquations(y)
 
 
+    def outputVariableToIndex(self,output_variable):
+        return output_variable-self.marabou_nnet.numVars+self.marabou_nnet.outputSize
+
+
+    def initiate_verification_process(self,N=5000):
+        assert self.layer>-1
+
+        self.createInitialGoodSet(N,include_input_extremes=True,adjust_bounds=False)
+        assert self.good_set
+
+        self.basic_statistics.recompute_statistics(self.good_set,two_sided=True)
+        assert self.basic_statistics.statistics_computed
+
+        self.epsiloni = self.basic_statistics.epsiloni
+        self.epsiloni_twosided = self.basic_statistics.epsiloni_twosided
+        self.layer_minimums = self.basic_statistics.minimums
+        self.layer_maximums = self.basic_statistics.maximums
+
+        self.computeInitialInterpolantCandidateForLayer()
+
+
+    def computeInitialInterpolantCandidateForLayer(self,two_sided=True):
+
+        assert self.layer_minimums
+        assert self.layer_maximums
+
+        if two_sided:
+            assert self.epsiloni_twosided['l']
+            assert self.epsiloni_twosided['r']
+        else:
+            assert self.epsiloni
+
+        self.suggested_lower_bounds = [self.getSoftLowerBoundForLayer(var,two_sided) for var in range(self.layer_size)]
+        self.suggested_lower_bounds = [self.getSoftLowerBoundForLayer(var,two_sided) for var in range(self.layer_size)]
+
+        self.recompute_interpolant()
+
+    def recompute_interpolant(self):
+        assert self.suggested_lower_bounds
+        assert self.suggested_upper_bounds
+
+        self.interpolant_candidate = []
+        self.output_interpolant_candidate = []
+
+        for var in range(self.layer_size):
+            lp=self.computeLowerBoundProperty(var)
+            up=self.computeUpperBoundProperty(var)
+            self.interpolant_candidate.append({'l': lp,'r': up})
+
+            if self.suggested_upper_bounds[var] == 0:
+                y_up = ''
+            else:
+                y_up = up.replace('x','y').replace('>','<')
+            y_lp = lp.replace('x','y').replace('<','>')
+            self.output_interpolant_candidate.append({'l': y_lp,'r': y_up})
+
+
+    def computeLowerBoundProperty(self,var: int):
+        return 'x' + str(var) + ' <= ' + str(self.suggested_lower_bounds[var])
+
+    def computeUpperBoundProperty(self,var: int):
+        return 'x' + str(var) + ' >= ' + str(self.suggested_upper_bounds[var])
+
+
+    def getSoftUpperBoundForLayer(self, var, two_sided = True):
+        epsilon = self.epsiloni_twosided['r'][var] if two_sided else self.epsiloni[var]
+        if not epsilon:
+            epsilon = self.epsilon
+        return max(0, self.layer_maximums[var] + epsilon)
+
+
+    def getSoftLowerBoundForLayer(self, var, two_sided = True):
+        epsilon = self.epsiloni_twosided['l'][var] if two_sided else self.epsiloni[var]
+        if not epsilon:
+            epsilon = self.epsilon
+        return max(0, self.layer_minimums[var] - epsilon)
+
+
+    def createInitialGoodSet(self, N, include_input_extremes=True, adjust_bounds=False, sanity_check=False):
+        self.clearGoodSet()
+        if include_input_extremes:
+            self.outputsOfInputExtremesForLayer(adjust_bounds=adjust_bounds,add_to_goodset=True,add_to_statistics=True,
+                                                verify_property=True,sanity_check=sanity_check)
+        self.addRandomValuesToGoodSet(N,adjust_bounds=adjust_bounds,check_bad_inputs=True,sanity_check=sanity_check)
+
+
+    def createRandomInputs(self):
+        input = []
+        for input_var in self.marabou_nnet.inputVars.flatten():
+            # Note: the existence of lower and upper bounds was asserted in the constructor
+            random_value = np.random.uniform(low=self.marabou_nnet.lowerBounds[input_var],
+                                             high=self.marabou_nnet.upperBounds[input_var])
+            input.append(random_value)
+        return input
+
+
     def addRandomValuesToGoodSet(self,N,adjust_bounds=True, check_bad_inputs = True, sanity_check=False):
-        # assert self.layer >=0
+        assert self.layer >=0
+
         layer = self.layer
 
         good_set =[]
@@ -261,18 +395,6 @@ class MarabouNNetMCMH:
                     print('A counter example found! Randomly chosen input = ', inputs, 'output = ', network_output)
                     sys.exit(0)
 
-            '''
-            # Currently running the inputs twice through the networks; perhaps better change this down the road
-            if self.badInput(inputs):  # Not normalizing the outputs!
-                print('A counter example found! input = ', inputs)
-                output = self.marabou_nnet.evaluateNetworkToLayer(inputs, last_layer=-1, normalize_inputs=False,
-                                                                  normalize_outputs=False)
-                print('output=',output)
-                output = self.marabou_nnet.evaluateWithMarabou(np.array([inputs])).flatten()
-                print('output=', output)
-                sys.exit()
-            '''
-
             good_set.append(layer_output)
             if (adjust_bounds):
                 self.adjustLayerBounds(layer_output)
@@ -295,6 +417,149 @@ class MarabouNNetMCMH:
                   true_N, ' out of ', N, ' inputs were added')
 
 
+    # Creates a list of outputs for self.layer for the "extreme" input values
+    def outputsOfInputExtremesForLayer(self, adjust_bounds = True, add_to_goodset = True, add_to_statistics = True,
+                                       verify_property = True, sanity_check = False):
+        layer_outputs = []
+        input_size = self.marabou_nnet.inputSize
+
+        assert self.layer>-1
+
+        #We don't want to deal with networks that have a large input layer
+        assert input_size < 20
+
+        for i in range(2 ** input_size):
+            #turning the number i into a bit string of a specific length
+            bit_string =  '{:0{size}b}'.format(i,size=input_size)
+
+            #print bit_string #debugging
+
+            inputs = [0 for i in range(input_size)]
+
+            # creating an input: a sequence of lower and upper bounds, determined by the bit string
+            for input_var in self.marabou_nnet.inputVars.flatten():
+                if bit_string[input_var] == '1':
+                    inputs[input_var] = self.marabou_nnet.upperBounds[input_var]
+                else:
+                    inputs[input_var] = self.marabou_nnet.lowerBounds[input_var]
+
+            # print ("Evaluating layer; input = ", inputs) # debug
+
+            #Evaluating the network up to the given layer on the input
+            #By not activating the last layer, we get values for the b variables, which give more information
+
+            output = self.marabou_nnet.evaluateNetworkToLayer(inputs,last_layer=self.layer,normalize_inputs=False,
+                                                              normalize_outputs=False,activate_output_layer=False)
+
+            # print("output = ", output) # debug
+            layer_outputs.append(output)
+
+            if verify_property:
+                if self.layer == self.marabou_nnet.numLayers - 1:
+                    network_output = output
+                else:
+                    network_output = self.marabou_nnet.evaluateNetworkFromLayer(output,first_layer=self.layer)
+
+                if self.marabou_nnet.property.verify_io_property(x=inputs,y=network_output):
+                    print('A counterexample found! One of the extreme values. Bit string = ', bit_string,
+                          '; input = ',inputs, 'output = ', network_output)
+                    sys.exit(0)
+
+            if add_to_goodset:
+                self.good_set.append(output)
+
+            if adjust_bounds:
+                self.adjustLayerBounds(output)
+
+            if sanity_check:
+                output = self.marabou_nnet.evaluateNetworkToLayer(inputs, last_layer=self.layer, normalize_inputs=False,
+                                                                  normalize_outputs=False, activate_output_layer=True)
+                self.adjustfLayerBounds(output)
+
+
+        if add_to_statistics:
+            self.numberOfInputs += 2 ** input_size
+
+        return layer_outputs
+
+
+
+    def initiate_candidate_search(self):
+        assert self.interpolant_candidate
+
+        self.check_candidate()
+        # TO BE CONTINUED !
+
+
+    def initiate_candidate_verification(self,network_filename1: str, network_filename2: str, property_filename1: str,
+                                  property_filename2: str):
+
+        self.split_network(network_filename1,network_filename2)
+        self.createInitialPropertyFiles(property_filename1,property_filename2)
+        # TO BE CONTINUED!
+
+
+    def createRandomInputsForLayer(self):
+        input = []
+        for var in range(self.layer_size):
+            random_value = np.random.uniform(low=self.suggested_lower_bounds[var],
+                                             high=self.suggested_upper_bounds[var])
+            input.append(random_value)
+        return input
+
+
+    def check_candidate(self, N=1000, add_to_bad_set=True):
+        assert self.interpolant_candidate
+
+        for i in range(N):
+            layer_input = self.createRandomInputsForLayer()
+            output = self.marabou_nnet.evaluateNetworkFromLayer(layer_input, first_layer=self.layer)
+
+            if not self.verifyOutputProperty(y=output):
+                if add_to_bad_set:
+                    self.bad_set.append(layer_input)
+
+                out_of_bounds_inputs = []
+                for var in range(self.layer_size):
+                    if layer_input[var] < self.layer_minimums[var]:
+                        side = 'l'
+                        difference = (self.layer_minimums[var] - layer_input[var])
+                    elif layer_input[var] > self.layer_maximums[var]:
+                        side = 'r'
+                        difference = (layer_input[var] - self.layer_maximums[var])
+                    else:
+                        continue
+
+                    difference = difference / self.epsiloni_twosided[side][var]
+                    multiplicity = round(difference * 5)
+
+                    out_of_bounds_inputs += [(var, side, difference)] * multiplicity
+
+                if not out_of_bounds_inputs:
+                    print("Our candidate search is in trouble! Found a counterexample between observed lower and "
+                          "upper bounds: \n layer input = ",layer_input, '\n output = ', output, "\n Check if SAT?")
+                    sys.exit(2)
+
+                (random_var, random_side, random_epsilon) = choice(out_of_bounds_inputs)
+
+                max_difference = max([difference for (var, side, difference) in out_of_bounds_inputs
+                                      if (var == random_var and side == random_side)])
+
+                new_epsilon = self.epsiloni_twosided[random_side][random_var](1+max_difference)/2
+
+                self.adjustEpsilon(random_var,random_side,new_epsilon,two_sided = True)
+
+
+
+    def adjustEpsilon(self,var,side,new_epsilon,two_sided = True):
+        if not two_sided:
+            assert self.epsiloni
+            self.epsiloni[var] = new_epsilon
+            return
+
+        assert self.epsiloni_twosided[side]
+        self.epsiloni_twosided[side][var] = new_epsilon
+
 
 
     def adjustLayerBounds(self,layer_output):
@@ -303,11 +568,12 @@ class MarabouNNetMCMH:
         :param layer_output: list of floats
         :return:
         """
-        for i in range(self.marabou_nnet.layerSizes[self.layer]):
-            if (not (i in self.layerMinimums)) or (layer_output[i] < self.layerMinimums[i]):
-                self.layerMinimums[i] = layer_output[i]
-            if (not (i in self.layerMaximums)) or (layer_output[i] > self.layerMaximums[i]):
-                self.layerMaximums[i] = layer_output[i]
+        for i in range(self.layer_size):
+            if (not (i in self.layer_minimums)) or (layer_output[i] < self.layer_minimums[i]):
+                self.layer_minimums[i] = layer_output[i]
+            if (not (i in self.layer_maximums)) or (layer_output[i] > self.layer_maximums[i]):
+                self.layer_maximums[i] = layer_output[i]
+
 
     def adjustfLayerBounds(self,layer_output):
         """
@@ -316,11 +582,14 @@ class MarabouNNetMCMH:
         :param layer_output: list of floats
         :return:
         """
-        for i in range(self.marabou_nnet.layerSizes[self.layer]):
-            if (not (i in self.layerfMinimums)) or (layer_output[i] < self.layerfMinimums[i]):
-                self.layerfMinimums[i] = layer_output[i]
-            if (not (i in self.layerfMaximums)) or (layer_output[i] > self.layerfMaximums[i]):
-                self.layerfMaximums[i] = layer_output[i]
+        for i in range(self.layer_size):
+            if (not (i in self.layer_fmaximums_dict)) or (layer_output[i] < self.layer_fminimums_dict[i]):
+                self.layer_fminimums_dict[i] = layer_output[i]
+            if (not (i in self.layer_fmaximums_dict)) or (layer_output[i] > self.layer_fmaximums_dict[i]):
+                self.layer_fmaximums_dict[i] = layer_output[i]
+
+
+
 
     #returns TRUE if variable is within bounds
     #asserts that the variable is legal
@@ -365,112 +634,6 @@ class MarabouNNetMCMH:
         equations_hold = self.marabou_nnet.property.verify_equations_exec(inputs,output)
 
         return (not self.outputOutOfBounds(output)[0]) and equations_hold
-
-
-
-    def outputVariableToIndex(self,output_variable):
-        return output_variable-self.marabou_nnet.numVars+self.marabou_nnet.outputSize
-
-
-
-
-
-    # Creates a list of outputs for self.layer for the "extreme" input values
-    # Creates a list of "empiric bounds" for the output of the layer based on the results
-    def outputsOfInputExtremesForLayer(self, adjust_bounds = True, add_to_goodset = True, add_to_statistics = True,
-                                       verify_property = True, sanity_check = False):
-        layer_outputs = []
-        input_size = self.marabou_nnet.inputSize
-        # layer_lower_bounds = dict()
-        # layer_upper_bounds = dict()
-
-
-        #We don't want to deal with networks that have a large input layer
-        assert input_size < 20
-
-        for i in range(2 ** input_size):
-            #turning the number i into a bit string of a specific length
-            bit_string =  '{:0{size}b}'.format(i,size=input_size)
-
-            #print bit_string #debugging
-
-            inputs = [0 for i in range(input_size)]
-
-            # creating an input: a sequence of lower and upper bounds, determined by the bit string
-            for input_var in self.marabou_nnet.inputVars.flatten():
-                if bit_string[input_var] == '1':
-                    # assert self.marabou_nnet.upperBoundExists(input_var)
-                    inputs[input_var] = self.marabou_nnet.upperBounds[input_var]
-                else:
-                    # assert self.marabou_nnet.lowerBoundExists(input_var)
-                    inputs[input_var] = self.marabou_nnet.lowerBounds[input_var]
-
-            # print ("Evaluating layer; input = ", inputs)
-
-            #Evaluating the network up to the given layer on the input
-            #By not activating the last layer, we get values for the b variables, which give more information
-
-            output = self.marabou_nnet.evaluateNetworkToLayer(inputs,last_layer=self.layer,normalize_inputs=False,normalize_outputs=False,activate_output_layer=False)
-            # print("output = ", output)
-            layer_outputs.append(output)
-
-            if verify_property:
-                if self.layer == self.marabou_nnet.numLayers - 1:
-                    network_output = output
-                else:
-                    network_output = self.marabou_nnet.evaluateNetworkFromLayer(output,first_layer=self.layer)
-
-                if self.marabou_nnet.property.verify_io_property(x=inputs,y=network_output):
-                    print('A counterexample found! One of the extreme values. Bit string = ', bit_string,
-                          '; input = ',inputs, 'output = ', network_output)
-                    sys.exit(0)
-
-            if add_to_goodset:
-                self.good_set.append(output)
-
-            if adjust_bounds:
-                self.adjustLayerBounds(output)
-
-            if sanity_check:
-                output = self.marabou_nnet.evaluateNetworkToLayer(inputs, last_layer=self.layer, normalize_inputs=False,
-                                                                  normalize_outputs=False, activate_output_layer=True)
-                self.adjustfLayerBounds(output)
-
-
-        if add_to_statistics:
-            self.numberOfInputs += 2 ** input_size
-
-        return layer_outputs
-
-
-        # if self.outputOutOfBounds(output)[0]: #NOT Normalizing outputs!
-        #     print('A counterexample found! input = ', inputs)
-        #
-        #     sys.exit()
-        #
-        #
-        # if not self.marabou_nnet.property.verify_equations_exec(inputs,output): #NOT Normalizing outputs!
-        #     print('A counterexample found! input = ', inputs)
-        #
-        #     sys.exit()
-
-
-
-        # Updating the smallest and the largest outputs for the layer variables
-        # for output_var in self.marabou_nnet.outputVars.flatten():  #CHANGE TO VARS FROM THE GIVEN LAYER!
-        #     output_var_index = self.outputVariableToIndex(output_var)
-        #     if not output_var in output_lower_bounds or output_lower_bounds[output_var]>output[output_var_index]:
-        #         output_lower_bounds[output_var] = output[output_var_index]
-        #     if not output_var in output_upper_bounds or output_upper_bounds[output_var]<output[output_var_index]:
-        #         output_upper_bounds[output_var] = output[output_var_index]
-
-
-
-        #p rint len(outputs)
-        # print ("lower bounds = ", output_lower_bounds)
-        # print ("upper bounds = ", output_upper_bounds)
-
-        #print(outputs)
 
 
 
@@ -597,7 +760,7 @@ class MarabouNNetMCMH:
         self.property_filename2 = property_filename2
 
 
-    def computeInitialInterpolantCandidateForLayer(self):
+    def computeInitialInterpolantCandidateForLayer(self,sanity_check = False):
         '''
         computes the initial interpolant candidate, based on the empiric bounds for the self.layer variables
             and on the epsilons computed using statistical analysis of the values of these variables
@@ -609,8 +772,8 @@ class MarabouNNetMCMH:
         :return:
         '''
         if not sanity_check:
-            layerMinimums = self.layerMinimums
-            layerMaximums = self.layerMaximums
+            layerMinimums = self.layer_minimums
+            layerMaximums = self.layer_maximums
         else:
             layerMinimums = self.layerfMinimums
             layerMaximums = self.layerfMaximums
@@ -624,8 +787,8 @@ class MarabouNNetMCMH:
                 individual_property.append('x')
                 individual_property.append(str(i))
                 individual_property.append(" >= ")
-                if i in self.epsiloni_left:
-                    epsilon = self.epsiloni_left[i]
+                if i in self.epsiloni_:
+                    epsilon = self.epsiloni_twosided['l'][i]
                 else:
                     epsilon = self.epsilon
                 lower_bound = max(layerMinimums[i]-epsilon,0.0)
@@ -643,7 +806,7 @@ class MarabouNNetMCMH:
                 individual_property.append(str(i))
                 individual_property.append(" <= ")
                 if i in self.epsiloni_right:
-                    epsilon = self.epsiloni_right[i]
+                    epsilon = self.epsiloni_twosided['r'][i]
                 else:
                     epsilon = self.epsilon
                 upper_bound = max(layerMaximums[i] + epsilon,0.0)
@@ -667,7 +830,7 @@ class MarabouNNetMCMH:
     def addLayerPropertiesTo_yPropertyFile(self):
         '''
         adds self.interpolant_candidate to self.property_filename2
-            whcih is the property file for the network whose input layer is self.layer
+            which is the property file for the network whose input layer is self.layer
         :return:
         '''
         assert self.property_filename2
@@ -733,8 +896,8 @@ class MarabouNNetMCMH:
                     # I believe it is correct now
 
                     if boundary:
-                        lower_bound = self.layerMinimums[i] - epsilon
-                        if (i in self.layerMinimums) and (lower_bound>0):
+                        lower_bound = self.layer_minimums[i] - epsilon
+                        if (i in self.layer_minimums) and (lower_bound > 0):
                             f2.write("y")
                             f2.write(str(i))
                             f2.write(" <= ")  # NEGATING the property!
@@ -742,11 +905,11 @@ class MarabouNNetMCMH:
                             f2.write("\n")
                             break;
                     else:
-                        if (i in self.layerMaximums):
-                            if self.layerMaximums[i]<0:
+                        if (i in self.layer_maximums):
+                            if self.layer_maximums[i]<0:
                                 upper_bound = 0.0
                             else:
-                                upper_bound = self.layerMaximums[i]+epsilon
+                                upper_bound = self.layer_maximums[i] + epsilon
                             f2.write("y")
                             f2.write(str(i))
                             f2.write(" >= ")  # NEGATING the property!
@@ -803,8 +966,8 @@ class MarabouNNetMCMH:
             with open(output_property_filename, 'w') as f2:
 
                 if lb:  # Lower bound
-                    lower_bound = self.layerMinimums[i] - epsilon
-                    if (i in self.layerMinimums) and (lower_bound>0):
+                    lower_bound = self.layer_minimums[i] - epsilon
+                    if (i in self.layer_minimums) and (lower_bound > 0):
                         f2.write("y")
                         f2.write(str(i))
                         f2.write(" <= ")  # NEGATING the property!
@@ -814,11 +977,11 @@ class MarabouNNetMCMH:
                         interesting_property = True
 
                 else:  # Upper bound
-                    if (i in self.layerMaximums):
-                        if self.layerMaximums[i]<0:
+                    if (i in self.layer_maximums):
+                        if self.layer_maximums[i]<0:
                             upper_bound = 0.0
                         else:
-                            upper_bound = self.layerMaximums[i]+epsilon
+                            upper_bound = self.layer_maximums[i] + epsilon
                         f2.write("y")
                         f2.write(str(i))
                         f2.write(" >= ")  # NEGATING the property!
@@ -880,8 +1043,8 @@ class MarabouNNetMCMH:
         """
 
         if not sanity_check:
-            layerMinimums = self.layerMinimums
-            layerMaximums = self.layerMaximums
+            layerMinimums = self.layer_minimums
+            layerMaximums = self.layer_maximums
         else:
             layerMinimums = self.layerfMinimums
             layerMaximums = self.layerfMaximums
@@ -894,8 +1057,8 @@ class MarabouNNetMCMH:
                         f2.write("x")
                         f2.write(str(i))
                         f2.write(" >= ")
-                        if i in self.epsiloni_left:
-                            epsilon = self.epsiloni_left[i]
+                        if i in self.epsiloni_twosided['l']:
+                            epsilon = self.epsiloni_twosided['l'][i]
                         else:
                             epsilon = self.epsilon
                         lower_bound = max(layerMinimums[i]-epsilon,0.0)
@@ -905,8 +1068,8 @@ class MarabouNNetMCMH:
                         f2.write("x")
                         f2.write(str(i))
                         f2.write(" <= ")
-                        if i in self.epsiloni_right:
-                            epsilon = self.epsiloni_right[i]
+                        if i in self.epsiloni_twosided['r']:
+                            epsilon = self.epsiloni_twosided['r'][i]
                         else:
                             epsilon = self.epsilon
                         upper_bound = max(layerMaximums[i] + epsilon,0.0)
@@ -993,6 +1156,7 @@ class MarabouNNetMCMH:
 
 
 
+
     def split_network(self, network_filename1: str, network_filename2: str):
         '''
         Splits the network into two
@@ -1023,149 +1187,7 @@ class MarabouNNetMCMH:
         self.network_filename2 = network_filename2
 
 
-    def computeEpsilonsUniformly(self):
-        '''
-        computes epsilons (to be added to or subtracted from empiric upper and lower bounds for the hidden layer
-            variables) based on a very simple statistical heuristics, essentially assuming that the distibution
-            on the values of each variable is close to uniform. This is not the case, but the computation is
-            efficient, and seems to give "conservative" bounds, which should be a good starting point.
-        :return:
-        '''
-        self.good_matrix = np.array(self.good_set)
 
-        for var in range(self.marabou_nnet.layerSizes[self.layer]):
-            self.computeEpsilonsForVariable(var)
-
-
-
-
-
-    def computeEpsilonsForVariable(self,var):
-
-        outputs = self.good_matrix[:, var]
-
-        sample_size = len(outputs)
-        mean = np.mean(outputs)
-        min = np.min(outputs)
-        max = np.max(outputs)
-
-        self.mean[var] = mean
-
-        self.range[var] = max-min
-        self.epsiloni[var] = self.range[var]/sample_size
-
-        small_outputs = [output for output in outputs if (output <= mean)]
-        small_range = mean-min
-        big_outputs = [output for output in outputs if (output > mean)]
-        big_range = max-mean
-
-
-
-        self.epsiloni_left[var] = small_range/len(small_outputs)
-        self.epsiloni_right[var] = big_range/len(big_outputs)
-
-
-
-
-
-    def computeStatistics(self):
-        self.good_matrix = np.array(self.good_set)
-
-        for var in range(self.marabou_nnet.layerSizes[self.layer]):
-            self.estimateStatisticsForVariable(var)
-
-        self.maxsigma = max([self.sigma[i] for i in self.sigma])
-        self.maxsigmaleft = max([self.sigma_left[i] for i in self.sigma_left])
-        self.maxsigmaright = max([self.sigma_right[i] for i in self.sigma_right])
-
-
-    def estimateStatisticsForVariable(self,var=0):
-        # outputs = sorted([output[var] for output in self.good_set])
-
-        outputs = sorted(self.good_matrix[:,var])
-
-        sample_size = len(outputs)
-        mean = np.mean(outputs)
-
-        self.mean[var] = mean
-
-        self.sigma[var] = np.sqrt(sum((outputs - mean) ** 2) / (sample_size - 1))
-
-        small_outputs = [output for output in outputs if (output <= mean)]
-        big_outputs = [output for output in outputs if (output > mean)]
-        # big_outputs = [outputs[i] for i in self.mean if (outputs[i] > self.mean[i])]
-        self.sigma_left[var] = np.sqrt(sum((small_outputs - mean) ** 2) / (len(small_outputs) - 1))
-        self.sigma_right[var] = np.sqrt(sum((big_outputs - mean) ** 2) / (len(big_outputs) - 1))
-
-        self.median[var] = outputs[round(sample_size/2)]
-
-        median = self.median[var]
-
-        # a stupid way to compute the sigmas in a sorted array, better rewrite
-        small_outputs = [output for output in outputs if (output <= median)]
-        big_outputs = [output for output in outputs if (output > median)]
-        self.msigma_left[var] = np.sqrt(sum((small_outputs - median) ** 2) / (len(small_outputs) - 1))
-        self.msigma_right[var] = np.sqrt(sum((big_outputs - median) ** 2) / (len(big_outputs) - 1))
-
-        self.range[var] = outputs[-1]-outputs[0]
-        self.epsiloni[var] = self.range[var]*1/sample_size
-        self.epsiloni_left[var] = (outputs[round(sample_size/2)]-outputs[0])*1/len(small_outputs)
-        self.epsiloni_right[var] = (-outputs[round(sample_size/2)+1]+outputs[-1])*1/len(big_outputs)
-
-        x_grid = np.linspace(self.layerMinimums[var] - 0.1, self.layerMaximums[var] + 0.1, 1000)
-
-        kde = stats.gaussian_kde(outputs, bw_method='scott')
-
-
-        self.kde[var] = kde
-
-
-
-        self.kde_eval[var] = kde.evaluate(x_grid)
-
-        print("var = ", var, "\n", len(self.kde_eval[var]), "kde_eval: ", self.kde_eval[var][:10])
-
-        kde1 = KDEUnivariate(outputs)
-
-        kde1.fit(kernel='gau', bw='scott', gridsize=1000)
-
-        # self.cdf[var] = kde1.cdf
-        self.icdf[var] = kde1.icdf
-
-        self.kde1[var] = kde1
-        self.kdedens1[var] = kde1.evaluate(x_grid)
-
-        print(len(self.kdedens1[var]),"kde1_eval: ", self.kdedens1[var][:10])
-
-        kde2 = KDEUnivariate(self.kdedens1[var])
-
-        kde2.fit(kernel='gau', bw='scott', gridsize=1000)
-        self.kde2[var] = kde2
-
-        kde2_eval = kde2.evaluate(x_grid)
-
-        print(len(kde2_eval), "kde2_eval: ", kde2_eval[:10])
-
-        self.icdf2[var] = kde2.icdf
-
-
-
-    def graphGoodSetDist(self,i=0):
-        sns.distplot([output[i] for output in self.good_set],label='Variable'+str(i))
-        if i in self.mean:
-            x = np.linspace(self.mean[i] - 2 * self.sigma[i], self.mean[i] + 2 * self.sigma[i], 100)
-            plt.plot(x, stats.norm.pdf(x, self.mean[i], self.sigma[i]),label = 'Gaussian approximation')
-            x_grid = np.linspace(self.layerMinimums[i] - 0.1, self.layerMaximums[i] + 0.1, 1024)
-            plt.plot(x_grid, self.kde[i].evaluate(x_grid), color='red', label = 'Gaussian kde')
-            plt.plot(x_grid, self.kde1[i].evaluate(x_grid), color='purple', label='Second Gaussian kde')
-            plt.plot(x_grid, self.kde2[i].evaluate(x_grid), color='magenta', label='Third Gaussian kde')
-            # plt.plot(x_grid, self.cdf[i], color='orange', label='Cumulative Gaussian kde')
-            # plt.plot(self.cdf[i], x_grid, color='orange', label='Cumulative Gaussian kde')
-            zeroone_grid = np.linspace(0,1,1024)
-            plt.plot(self.icdf[i], zeroone_grid, color='green', label='Cumulative Gaussian kde')
-            plt.plot(self.icdf2[i], zeroone_grid, color='yellow', label='Second Cumulative Gaussian kde')
-        plt.legend()
-        plt.show()
 
 
 
@@ -1285,6 +1307,149 @@ class MarabouNNetMCMH:
     #         sys.exit(1)
 
 
+
+class advanced_mcmh_statistics:
+    def __init__(self,good_set = [],epsilon = 0.04):
+
+        self.good_matrix = np.array(good_set)
+
+        self.epsilon = epsilon
+        self.epsiloni = []
+        self.epsiloni_twosided = {'l': [], 'r': []}
+
+        self.mean = dict{}
+        self.median = dict()
+        self.sigma = dict()
+        self.sigma_left = dict()
+        self.sigma_right = dict()
+        self.msigma_left = dict()
+        self.msigma_right = dict()
+        self.range = dict()
+        self.maxsigma = 0
+        self.maxsigmaleft = 0
+        self.maxsigmaright = 0
+        self.kde = dict()
+        self.kde_eval = dict()
+        self.kde1 = dict()
+        self.kdedens1 = dict()
+        self.cdf = dict()
+        self.icdf = dict()
+        self.kde2 = dict()
+        self.icdf2 = dict()
+
+        if self.good_matrix:
+            self.computeStatistics()
+
+    def computeStatistics(self):
+
+        assert self.good_matrix
+
+        self.layerSize = len(self.good_matrix[0])
+
+        self.layerMinimums = [min(self.good_matrix[:,var]) for var in range(self.layerSize)]
+        self.layerMaximums = [max(self.good_matrix[:, var]) for var in range(self.layerSize)]
+
+        for var in range(self.layerSize):
+            self.estimateStatisticsForVariable(var)
+
+        self.maxsigma = max([self.sigma[i] for i in self.sigma])
+        self.maxsigmaleft = max([self.sigma_left[i] for i in self.sigma_left])
+        self.maxsigmaright = max([self.sigma_right[i] for i in self.sigma_right])
+
+
+    def estimateStatisticsForVariable(self,var=0):
+        # outputs = sorted([output[var] for output in self.good_set])
+
+        outputs = sorted(self.good_matrix[:,var])
+
+        sample_size = len(outputs)
+        mean = np.mean(outputs)
+
+        self.mean[var] = mean
+
+        self.sigma[var] = np.sqrt(sum((outputs - mean) ** 2) / (sample_size - 1))
+
+        small_outputs = [output for output in outputs if (output <= mean)]
+        big_outputs = [output for output in outputs if (output > mean)]
+        # big_outputs = [outputs[i] for i in self.mean if (outputs[i] > self.mean[i])]
+        self.sigma_left[var] = np.sqrt(sum((small_outputs - mean) ** 2) / (len(small_outputs) - 1))
+        self.sigma_right[var] = np.sqrt(sum((big_outputs - mean) ** 2) / (len(big_outputs) - 1))
+
+        self.median[var] = outputs[round(sample_size/2)]
+
+        median = self.median[var]
+
+        # a stupid way to compute the sigmas in a sorted array, better rewrite
+        small_outputs = [output for output in outputs if (output <= median)]
+        big_outputs = [output for output in outputs if (output > median)]
+        self.msigma_left[var] = np.sqrt(sum((small_outputs - median) ** 2) / (len(small_outputs) - 1))
+        self.msigma_right[var] = np.sqrt(sum((big_outputs - median) ** 2) / (len(big_outputs) - 1))
+
+        self.range[var] = outputs[-1]-outputs[0]
+        self.epsiloni[var] = self.range[var]*1/sample_size
+        self.epsiloni_twosided['l'][var] = (outputs[round(sample_size/2)]-outputs[0])*1/len(small_outputs)
+        self.epsiloni_twosided['r'][var] = (-outputs[round(sample_size/2)+1]+outputs[-1])*1/len(big_outputs)
+
+        x_grid = np.linspace(self.layerMinimums[var] - 0.1, self.layerMaximums[var] + 0.1, 1000)
+
+        kde = stats.gaussian_kde(outputs, bw_method='scott')
+
+
+        self.kde[var] = kde
+
+
+
+        self.kde_eval[var] = kde.evaluate(x_grid)
+
+        print("var = ", var, "\n", len(self.kde_eval[var]), "kde_eval: ", self.kde_eval[var][:10])
+
+        kde1 = KDEUnivariate(outputs)
+
+        kde1.fit(kernel='gau', bw='scott', gridsize=1000)
+
+        # self.cdf[var] = kde1.cdf
+        self.icdf[var] = kde1.icdf
+
+        self.kde1[var] = kde1
+        self.kdedens1[var] = kde1.evaluate(x_grid)
+
+        print(len(self.kdedens1[var]),"kde1_eval: ", self.kdedens1[var][:10])
+
+        kde2 = KDEUnivariate(self.kdedens1[var])
+
+        kde2.fit(kernel='gau', bw='scott', gridsize=1000)
+        self.kde2[var] = kde2
+
+        kde2_eval = kde2.evaluate(x_grid)
+
+        print(len(kde2_eval), "kde2_eval: ", kde2_eval[:10])
+
+        self.icdf2[var] = kde2.icdf
+
+
+
+    def graphGoodSetDist(self,i=0):
+        sns.distplot([output[i] for output in self.good_matrix],label='Variable'+str(i))
+        if i in self.mean:
+            x = np.linspace(self.mean[i] - 2 * self.sigma[i], self.mean[i] + 2 * self.sigma[i], 100)
+            plt.plot(x, stats.norm.pdf(x, self.mean[i], self.sigma[i]),label = 'Gaussian approximation')
+            x_grid = np.linspace(self.layerMinimums[i] - 0.1, self.layerMaximums[i] + 0.1, 1024)
+            plt.plot(x_grid, self.kde[i].evaluate(x_grid), color='red', label = 'Gaussian kde')
+            plt.plot(x_grid, self.kde1[i].evaluate(x_grid), color='purple', label='Second Gaussian kde')
+            plt.plot(x_grid, self.kde2[i].evaluate(x_grid), color='magenta', label='Third Gaussian kde')
+            # plt.plot(x_grid, self.cdf[i], color='orange', label='Cumulative Gaussian kde')
+            # plt.plot(self.cdf[i], x_grid, color='orange', label='Cumulative Gaussian kde')
+            zeroone_grid = np.linspace(0,1,1024)
+            plt.plot(self.icdf[i], zeroone_grid, color='green', label='Cumulative Gaussian kde')
+            plt.plot(self.icdf2[i], zeroone_grid, color='yellow', label='Second Cumulative Gaussian kde')
+        plt.legend()
+        plt.show()
+
+
+
+
+
+
 start_time = time.time()
 
 network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_1_1.nnet"
@@ -1309,13 +1474,13 @@ mcmh_object.setLayer(layer=5)
 
 mcmh_object.createInitialGoodSet(N=1000, adjust_bounds=True, sanity_check=False)
 
-print(mcmh_object.layerMinimums)
-print(mcmh_object.layerMaximums)
+print(mcmh_object.layerMinimums_dict)
+print(mcmh_object.layerMaximums_dict)
 
 
 mcmh_object.outputsOfInputExtremesForLayer(adjust_bounds=True, add_to_goodset=True, sanity_check=False)
-print(mcmh_object.layerMinimums)
-print(mcmh_object.layerMaximums)
+print(mcmh_object.layerMinimums_dict)
+print(mcmh_object.layerMaximums_dict)
 
 output_property_file = "output_property_test1.txt"
 input_property_file = "input_property_test1.txt"
@@ -1502,11 +1667,11 @@ print(good_set_array[: , 17])
 #
 
 
-print("max epsilon left: ", max(mcmh_object.epsiloni_left))
-
-print("max epsilon right: ", max(mcmh_object.epsiloni_right))
-
-
+# print("max epsilon left: ", max(mcmh_object.epsiloni_left))
+#
+# print("max epsilon right: ", max(mcmh_object.epsiloni_right))
+#
+#
 
 
 

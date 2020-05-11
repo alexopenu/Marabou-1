@@ -42,7 +42,7 @@ property_filename1 = "../resources/properties/acas_property_1.txt"
 #network_filename = "../maraboupy/regress_acas_nnet/ACASXU_run2a_1_7_batch_2000.nnet"
 
 
-mcmh_object = MarabouNNetMCMH(filename=network_filename, property_filename=property_filename)
+mcmh_object = MarabouNNetMCMH(network_filename=network_filename, property_filename=property_filename)
 mcmh_object.marabou_nnet.property.compute_executables()
 
 # solve_query(mcmh_object.marabou_nnet.ipq2,property_filename)

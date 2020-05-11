@@ -55,7 +55,7 @@ def parseProperty(property_filename):
 
     '''
 
-    properties = []
+    properties = {'x': [], 'y': [], 'ws': [], 'm': []}
 
     equations = {'x': [], 'y': [], 'ws': [], 'm': []}
     bounds = {'x': [], 'y': [], 'ws': [], 'm': []}
@@ -66,7 +66,7 @@ def parseProperty(property_filename):
     reg_output = re.compile(r'[y](\d+)')
     # matches a substring of the form y??? where ? are digits
 
-    reg_ws = re.compile(r'[w][s][_](\d+)[_](\d+))
+    reg_ws = re.compile(r'[w][s][_](\d+)[_](\d+)')
     # matches a substring of the form ws_???_??? where ? are digits
 
     reg_equation = re.compile(r'[+-][xy](\d+) ([+-][xy](\d+) )+(<=|>=|=) [+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$')
@@ -151,7 +151,7 @@ def parseProperty(property_filename):
                     type1 = 'b' # Perhaps at some point better add a new type for ws_bound?
 
 
-                properties.append({'type1': type1,'type2': type2,'line': line, 'index', index})
+                properties['type2'].append({'type1': type1,'type2': type2,'line': line, 'index': index})
 
 
                 line = f.readline()

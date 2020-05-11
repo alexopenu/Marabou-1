@@ -89,10 +89,12 @@ class Property:
 
 
         """
-        self.equations = dict{}
-        self.bounds = dict{}
-        self.exec_equations = dict{}
-        self.exec_bounds = dict{}
+        self.equations = dict()
+        self.bounds = dict()
+        self.exec_equations = dict()
+        self.exec_bounds = dict()
+
+        self.properties_list = dict()
 
         for t in types_of_properties:
             self.exec_equations[t] = []
@@ -110,7 +112,7 @@ class Property:
                 self.equations[t] = []
                 self.bounds[t] = []
 
-            self.properties_list = []
+                self.properties_list[t] = []
         else:
             self.equations, self.bounds, self.properties_list \
                 = PropertyParser.parseProperty(property_filename)
@@ -163,7 +165,27 @@ class Property:
             return []
         return self.exec_equations['m']
 
+    def get_original_x_properties(self):
+        x_list = [p['line'] for p in self.properties_list['x']]
+        return x_list
 
+    def get_original_y_properties(self):
+        y_list = [p['line'] for p in self.properties_list['y']]
+        return y_list
+
+    def get_original_ws_properties(self):
+        y_list = [p['line'] for p in self.properties_list['ws']]
+        return y_list
+
+    def get_original_mixed_properties(self):
+        y_list = [p['line'] for p in self.properties_list['m']]
+        return y_list
+
+    def mixed_properties_present(self):
+        return (self.properties_list['m'] != '')
+
+    def ws_properties_present(self):
+        return (self.properties_list['ws'] != '')
 
     def compute_executable_bounds(self,recompute=False):
         """
@@ -171,7 +193,7 @@ class Property:
         NOTE: Does nothing if the list is already non-empty
         """
         if recompute:
-            self.exec_bounds = dict{}
+            self.exec_bounds = dict()
         if not self.exec_bounds:
             for t in types_of_properties:
                 for bound in self.bounds[t]:
@@ -186,7 +208,7 @@ class Property:
         NOTE: Does nothing if the list is already non-empty
         """
         if recompute:
-            self.exec_equations = dict{}
+            self.exec_equations = dict()
         if not self.exec_equations:
             for t in types_of_properties:
                 for equation in self.equations[t]:
@@ -357,7 +379,7 @@ class Property:
         assert type1 in ['e','b']
 
         if use_executables:
-            if type1 == 'b'
+            if type1 == 'b':
                 assert self.exec_bounds_computed
             else:
                 assert self.exec_equations_computed
@@ -494,20 +516,26 @@ class Property:
         if output:
             assert y
 
-        for p in self.properties_list:
-            if not ((p['type2'] == 'x') or (p['type2'] == 'y')):
+        for t in types_of_io_properties:
+            if not input and (t == 'x' or t == 'm'):
                 continue
-            if not eqs and p['type1'] == 'e':
-                continue
-            if not bdds and p['type1'] == 'b':
-                continue
-            if not input and p['type2'] == 'x':
-                continue
-            if not output and p['type2'] == 'y':
+            if not output and (t == 'y' or t == 'm'):
                 continue
 
-            if not self.verify_property_by_index(p['index'], x, y, p['type1'], p['type2'], use_executables):
-                return False
+            for p in self.properties_list[t]:
+                # if not ((p['type2'] == 'x') or (p['type2'] == 'y')):
+                #     continue
+                if not eqs and p['type1'] == 'e':
+                    continue
+                if not bdds and p['type1'] == 'b':
+                    continue
+                # if not input and p['type2'] == 'x':
+                #     continue
+                # if not output and p['type2'] == 'y':
+                #     continue
+
+                if not self.verify_property_by_index(p['index'], x, y, p['type1'], p['type2'], use_executables):
+                    return False
 
         return True
 

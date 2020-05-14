@@ -17,6 +17,7 @@ import time
 import numpy as np
 
 from random import choice
+from random import choices
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -435,107 +436,249 @@ class MarabouNNetMCMH:
         return self.getSoftUpperBoundForLayer(var,two_sided)
 
 
-    def adjustInitialCandidate(self,total_trials = 100, individual_sample = 20, timeout=0):
+    def adjustInitialCandidate(self,total_trials = 100, individual_sample = 20, number_of_epsilons_to_adjust = 1,
+                               timeout=0):
+
         assert self.interpolant_candidate
 
-        # status = False
-
-        # if self.checkCandidate():
-        #     return True, 0
+        out_of_bound_inputs = []
+        difference_dict = {}
 
         starting_time = time.time()
+
         for i in range(total_trials):
             if timeout>0:
                 time_elapsed = time.time() - starting_time
-                if time_elapsed > timeout:
-                    return False, time_elapsed
-            if self.checkCandidate(N=individual_sample):
-                return True, 0
+                if timeout and time_elapsed > timeout:
+                    return 'timeout', out_of_bound_inputs, difference_dict, time_elapsed
 
-        return False,0
+            result,  epsilon_adjusted, out_of_bounds_inputs, difference_dict =  \
+                self.checkConjunction(sample_size=individual_sample, adjust_epsilons=True, add_to_bad_set=True,
+                                      number_of_epsilons_to_adjust=number_of_epsilons_to_adjust)
+            if result:
+                return 'success', [], {}, 0
+
+        return 'failed', out_of_bound_inputs, difference_dict, 0
 
 
-
-
-    def checkCandidate(self, N=100, adjust_epsilons = True, add_to_bad_set=True):
+    def checkConjunction(self, sample_size=100, adjust_epsilons = True, add_to_bad_set=True,
+                         number_of_epsilons_to_adjust = 1):
         assert self.interpolant_candidate
-        status = True # Means that no counterexample found
+        status = True # No counterexample found yet
 
         out_of_bounds_inputs = []
+        difference_dict = {}
+        epsilon_adjusted = []
 
 
-        for i in range(N):
+        for i in range(sample_size):
             layer_input = self.createRandomSoftInputsForLayer()
-            result, one_out_of_bounds_inputs, output = self.checkCandidateOnInput(layer_input,adjust_epsilons='',
-                                                                          add_to_bad_set=add_to_bad_set)
-            # Note that we do not adjust epsilons on one input here; rather, we choose an epsilon to
-            # adjust at random from the whole bad set of inputs after the loop
 
-            if not result: # A counterexample to the candidate found
-                if not one_out_of_bounds_inputs: # The counterexample is between the "hard" observed bounds
-                    print("Our candidate search is in trouble! Found a counterexample between observed lower and "
-                          "upper bounds: \n layer input = ",layer_input, '\n output = ', output,   "\n Check if SAT?")
-                    sys.exit(2)
+            result, one_out_of_bounds_inputs, one_differene_dict, output = \
+                self.checkCandidateOnInput(layer_input, add_to_bad_set=add_to_bad_set)
+            # Note that we do not adjust epsilons on one input here;
+            # rather, we will later choose an epsilon (or epsilons) to adjust at random
+            # from the whole bad set of inputs after the loop is finished
 
+
+            if result == 'within_bounds': # The counterexample is between the actual observed bounds
+                print("Candidate search has failed. Found a counterexample between observed lower and "
+                      "upper bounds: \n layer input = ",layer_input, '\n output = ', output,   "\n Check if SAT?")
+                sys.exit(2)
+
+            if result == 'out_of_bounds':  # A counterexample to the candidate found
                 status = False
                 out_of_bounds_inputs += one_out_of_bounds_inputs
 
+                # adjusting the maximal difference dictionary
+                for (var,side) in one_differene_dict.keys():
+                    if (var,side) not in difference_dict.keys() \
+                            or difference_dict[(var,side)]<one_differene_dict[(var,side)]:
+                        difference_dict[(var,side)] = one_differene_dict[(var,side)]
+
         if (not status) and adjust_epsilons:
-            self.adjustEpsilonAtRandom(out_of_bounds_inputs, adjust_candidate=True)
+            epsilon_adjusted = self.strengthenEpsilons(out_of_bounds_inputs,difference_dict,adjust_epsilons='random',
+                                    number_of_epsilons=number_of_epsilons_to_adjust)
 
-        return status
+        # if (not status) and adjust_epsilons:
+        #     self.adjustEpsilonAtRandom(out_of_bounds_inputs, adjust_candidate=True)
+
+        return status, epsilon_adjusted, out_of_bounds_inputs, difference_dict
 
 
-    def initiateCandidateSearch(self, total_trials=100, individual_sample = 20):
 
-        if not self.adjustInitialCandidate(total_trials=total_trials,individual_sample=individual_sample):
-            bad_input = self.verifyRawConjunction()
+
+
+    def checkCandidateOnInput(self, layer_input,  add_to_bad_set = True):
+        # assert adjust_epsilons in ['','random','all']
+
+        output = self.marabou_nnet.evaluateNetworkFromLayer(layer_input, first_layer=self.layer)
+        one_out_of_bounds_inputs = []
+        one_differene_dict = {}
+
+        result = 'success' # No counterexamples to the candidate found
+
+        if not self.verifyOutputProperty(y=output):
+            if add_to_bad_set:
+                self.bad_set.append(layer_input)
+
+            one_out_of_bounds_inputs, one_differene_dict = self.analyzeBadLayerInput(layer_input)
+
+            if not one_out_of_bounds_inputs: # Bad input within observed bounds!
+                result = 'within_bounds'
+            else:
+                result  = 'out_of_bounds'
+
+        return result, one_out_of_bounds_inputs, one_differene_dict, output
+
+
+    def strengthenEpsilons(self, out_of_bounds_inputs, differene_dict, adjust_epsilons='', number_of_epsilons=1):
+        assert adjust_epsilons in ['', 'random', 'all', 'half_all','half_random']
+        assert number_of_epsilons>=0
+
+        if not adjust_epsilons:
+            return []
+
+        weights=[difference for (var,side,difference) in out_of_bounds_inputs]
+        if adjust_epsilons == 'random' or adjust_epsilons == 'half_random':
+            epsilons_to_adjust = choices(out_of_bounds_inputs,weights=weights,k=number_of_epsilons)
+        else:
+            epsilons_to_adjust = out_of_bounds_inputs
+
+        for (var,side,_) in epsilons_to_adjust:
+            if adjust_epsilons == 'half_all' or adjust_epsilons == 'half_random':
+                new_epsilon = self.epsiloni_twosided[side][var] / 2
+            elif adjust_epsilons == 'all' or adjust_epsilons == 'random'
+                new_epsilon = self.epsiloni_twosided[side][var](1 + differene_dict[(var, side)]) / 2
+            else:
+                print('Strange error in strengthenEpsilons')
+                sys.exit(1)
+
+            self.adjustEpsilon(var,side,new_epsilon=new_epsilon,two_sided=True,adjust_candidate=True)
+
+        return epsilons_to_adjust
+
+
+
+
+    def analyzeBadLayerInput(self, layer_input, use_multiplicity = False):
+        bad_layer_inputs = []
+        bad_layer_inputs_dict = {}
+
+        for var in range(self.layer_size):
+            if layer_input[var] < self.layer_minimums[var]:  # lb - delta[i,'l'] <= xi <= lb (lb = layer minimum)
+                side = 'l'
+                difference = (self.layer_minimums[var] - layer_input[var])
+            elif layer_input[var] > self.layer_maximums[var] and self.suggested_layer_bounds['r'][var] > 0:
+                side = 'r'
+                difference = (layer_input[var] - self.layer_maximums[var])  # ub <= xi <= ub + delta[i,'r']
+            else:
+                continue
+
+            difference = difference / self.epsiloni_twosided[side][var]
+            if use_multiplicity:
+                multiplicity = round(difference * 5)  # A PARAMETER THAT CAN BE ADJUSTED!
+                bad_layer_inputs += [(var, side, difference)] * multiplicity
+            else:
+                bad_layer_inputs += [(var, side, difference)]
+
+            if (var,side) not in bad_layer_inputs_dict.keys() or bad_layer_inputs_dict[(var,side)]<difference:
+                bad_layer_inputs_dict[(var,side)] = difference
+
+        return bad_layer_inputs, bad_layer_inputs_dict
+
+
+
+    def initiateCandidateSearch(self, total_trials=100, individual_sample = 20, timeout = 0):
+
+        starting_time = time.time()
+
+        result, out_of_bounds_inputs, differences_dict, time_elapsed = \
+            self.adjustInitialCandidate(total_trials=total_trials, individual_sample=individual_sample,timeout=timeout)
+
+        # if result == 'success':
+        #     status = 'success'
+        #     return status, result, [], time.time() - starting_time
+
+        if result == 'timeout':
+            status = 'candidate_too_weak'
+            return status, result, [], time.time()-starting_time
+
+        if result == 'failed':
+            bad_input = self.verifyRawConjunction() # Verifying whether the observed bounds are strong enough
             if bad_input:
-                print("Search for interpolant candidate failed.\nBad input within empirical bounds: ", bad_input)
+                print("Search for interpolant candidate failed.\nBad input within empirical bounds found by "
+                      "Marabou: ", bad_input)
                 sys.exit(2)
-            status = 'bad_deltas'
-            return status
+            status = 'candidate_too_weak'
+            result = 'checking_conjunction_failed'
+            return status, result, [], time.time()-starting_time
 
-            # print('For now, we exit at this point, we have not found good deltas')
-            # sys.exit(3)
-            # TO-DO: MODIFY
+        # if time.time()-starting_time>timeout:
+        #     status = 'candidate_too_weak'
+        #     result = 'timeout'
+        #     return status, result, [], time.time()-starting_time
 
         bad_input = self.verifyConjunctionWithMarabou(add_to_badset=True)
 
         if bad_input:
             print('Bad input found by Marabou: ', bad_input)
-            status = 'bad_deltas'
-            return status
+            status = 'candidate_too_weak'
+            result = 'verification_conjunction_failed'
+            return status, result, bad_input, time.time()-starting_time
+
+        if timeout and time.time()-starting_time>timeout:
+            status = 'candidate_not_too_weak'
+            result = 'timeout'
+            return status, result, [], time.time()-starting_time
 
         # So for now we assume that we have a candidate which is not too weak
-        # Next step is verfifying the disjunstion
+        # Next step is verifying the disjunction
 
         failed_disjuncts = self.verifyAllDisjunctsWithMarabou(add_to_goodset=True)
 
         if not failed_disjuncts: # FOR NOW WE EXIT IF THE DISJUNCTION IS VERIFIED
             status = 'success'
-            return status
+            result = 'disjuncts_verified'
+            return status, result, [], time.time()-starting_time
             # print('We are done!')
             # print(self.interpolant_candidate)
             # sys.exit(0)
 
         status = 'failed_disjuncts'
-        return status
+        result = 'disjuncts_verification_failed'
+        return status, result, failed_disjuncts, time.time()-starting_time
 
 
 
-    def CandidateSearch(self, timeout = 0):
+    def CandidateSearch(self, number_of_trials: int, individual_sample: int, timeout = 0):
 
         starting_time = time.time()
-        status = self.initiateCandidateSearch()
+        status, result, argument_list, time_elapsed = self.initiateCandidateSearch(total_trials=number_of_trials,
+                                                                                   individual_sample = individual_sample,
+                                                                                   timeout = timeout)
         if status == 'success':
             print('We are done!')
             print(self.interpolant_candidate)
             sys.exit(0)
 
-        if status == 'bad_deltas':
+        if timeout and time.time() - starting_time > timeout:
+            return 'timeout', time.time() - starting_time
 
+        if status == 'candidate_too_weak':
+            if argument_list:
+                bad_input = argument_list
+                self.adjustEpsilonsOnLayerInput(layer_input=bad_input,adjust_epsilons='all')
+            else:
+                self.HalfBadEpsilonsOnBadInput()
 
+            # TO DO: MODIFY!
+
+        if status == 'candidate_not_too_weak':
+
+        if status == 'failed_disjuncts':
+
+            # COMPLETE!!!!
 
 
 
@@ -703,9 +846,6 @@ class MarabouNNetMCMH:
         return bad_input
 
 
-
-
-
     def verifyAllDisjunctsWithMarabou(self,add_to_goodset=True):
         failed_disjuncts = []
         for var in range(self.layer_size):
@@ -718,100 +858,8 @@ class MarabouNNetMCMH:
         return failed_disjuncts
 
 
-
-
     def convertVectorFromDictToList(self,dict_vector: dict):
         return [dict_vector[i] for i in dict_vector.keys()]
-
-
-    def checkCandidateOnInput(self, layer_input, adjust_epsilons='', add_to_bad_set = True):
-        assert adjust_epsilons in ['','random','all']
-
-        output = self.marabou_nnet.evaluateNetworkFromLayer(layer_input, first_layer=self.layer)
-        one_out_of_bounds_inputs = []
-        result = True # No counterexamples to the candidate found
-
-        if not self.verifyOutputProperty(y=output):
-            result = False # A counterexample found
-            if add_to_bad_set:
-                self.bad_set.append(layer_input)
-
-            one_out_of_bounds_inputs = self.adjustEpsilonsOnInput(layer_input,adjust_epsilons)
-
-
-        return result, one_out_of_bounds_inputs, output
-
-    def adjustEpsilonsOnInput(self, layer_input, adjust_epsilons=''):
-        assert adjust_epsilons in ['','random','all','half_all']
-
-        one_out_of_bounds_inputs = []
-
-        if adjust_epsilons == 'half_all':
-            for var in range(self.layer_size):
-                if layer_input[var] < self.layer_minimums[var]:  # lb - delta[i,'l'] <= xi <= lb (lb = layer minimum)
-                    side = 'l'
-                elif layer_input[var] > self.layer_maximums[var] and self.suggested_layer_bounds['r'][var] > 0:
-                    side = 'r'
-                else:
-                    continue
-
-                one_out_of_bounds_inputs += [(var, side, 0)]
-
-            self.HalfBadEpsilons(one_out_of_bounds_inputs,adjust_candidate=True)
-        else:
-            for var in range(self.layer_size):
-                if layer_input[var] < self.layer_minimums[var]:  # lb - delta[i,'l'] <= xi <= lb (lb = layer minimum)
-                    side = 'l'
-                    difference = (self.layer_minimums[var] - layer_input[var])
-                elif layer_input[var] > self.layer_maximums[var] and self.suggested_layer_bounds['r'][var] > 0:
-                    side = 'r'
-                    difference = (layer_input[var] - self.layer_maximums[var])  # ub <= xi <= ub + delta[i,'r']
-                else:
-                    continue
-
-                difference = difference / self.epsiloni_twosided[side][var]
-                multiplicity = round(difference * 5) # A PARAMETER THAT CAN BE ADJUSTED!
-
-                one_out_of_bounds_inputs += [(var, side, difference)] * multiplicity
-
-            if adjust_epsilons == 'random':
-                self.adjustEpsilonAtRandom(one_out_of_bounds_inputs)
-            # elif adjust_epsilons == 'all':
-            #     self.adjustAllEpsilons(one_out_of_bounds_inputs)
-
-        return one_out_of_bounds_inputs
-
-
-    def HalfBadEpsilons(self,out_of_bounds_inputs, adjust_candidate=True):
-        for current_var, current_side, current_epsilon in out_of_bounds_inputs:
-
-            new_epsilon = self.epsiloni_twosided[current_side][current_var] / 2
-
-            self.adjustEpsilon(current_var, current_side, new_epsilon, two_sided=True, adjust_candidate=adjust_candidate)
-
-
-    # Currently implemented badly (each var adjusted many times), but also never used.
-    # def adjustAllEpsilons(self, out_of_bounds_inputs, adjust_candidate=True):
-    #     for current_var, current_side, current_difference in out_of_bounds_inputs:
-    #         max_difference = max([difference for (var, side, difference) in out_of_bounds_inputs
-    #                               if (var == current_var and side == current_side)])
-    #
-    #         new_epsilon = self.epsiloni_twosided[current_side][current_var](1 + max_difference) / 2
-    #
-    #         self.adjustEpsilon(current_var, current_side, new_epsilon, two_sided=True, adjust_candidate=adjust_candidate)
-
-
-    def adjustEpsilonAtRandom(self, out_of_bounds_inputs, adjust_candidate=True):
-        (random_var, random_side, random_difference) = choice(out_of_bounds_inputs)
-
-        max_difference = max([difference for (var, side, difference) in out_of_bounds_inputs
-                              if (var == random_var and side == random_side)])
-
-        new_epsilon = self.epsiloni_twosided[random_side][random_var](1 + max_difference) / 2
-
-        self.adjustEpsilon(random_var, random_side, new_epsilon, two_sided=True, adjust_candidate=adjust_candidate)
-
-
 
 
 
@@ -1020,6 +1068,91 @@ class MarabouNNetMCMH:
         return layer_outputs
 
 
+
+    # Older version, probably redundant?
+    # def createAdjustEpsilonDict(self, out_of_bound_inputs):
+    #     adjust_epsilons_dict = {}
+    #
+    #     for current_var, current_side, current_difference in out_of_bound_inputs:
+    #         if ((current_var,current_var) not in adjust_epsilons_dict.keys()) \
+    #                 or (adjust_epsilons_dict[(current_var,current_side)<current_difference]):
+    #             adjust_epsilons_dict[(current_var,current_side)] = current_difference
+    #
+    #     return adjust_epsilons_dict
+    #
+    #
+    # def HalfBadEpsilonsOnBadInput(self, one_out_of_bounds_inputs, adjust_candidate=True):
+    #     for current_var, current_side, current_epsilon in one_out_of_bounds_inputs:
+    #         new_epsilon = self.epsiloni_twosided[current_side][current_var]/2
+    #         self.adjustEpsilon(current_var, current_side, new_epsilon, two_sided=True, adjust_candidate=adjust_candidate)
+    #
+    #
+    #
+    # def adjustAllEpsilons(self, out_of_bounds_inputs, adjust_candidate=True):
+    #     adjust_epsilons_dict = self.createAdjustEpsilonDict(out_of_bounds_inputs)
+    #
+    #     for current_var, current_side in adjust_epsilons_dict.keys()
+    #
+    #         max_difference = adjust_epsilons_dict[(current_var,current_side)]
+    #
+    #         new_epsilon = self.epsiloni_twosided[current_side][current_var](1 + max_difference) / 2
+    #
+    #         self.adjustEpsilon(current_var, current_side, new_epsilon, two_sided=True, adjust_candidate=adjust_candidate)
+    #
+    #
+    # def adjustEpsilonAtRandom(self, out_of_bounds_inputs, adjust_candidate=True):
+    #     (random_var, random_side, random_difference) = choice(out_of_bounds_inputs)
+    #
+    #     max_difference = max([difference for (var, side, difference) in out_of_bounds_inputs
+    #                           if (var == random_var and side == random_side)])
+    #
+    #     new_epsilon = self.epsiloni_twosided[random_side][random_var](1 + max_difference) / 2
+    #
+    #     self.adjustEpsilon(random_var, random_side, new_epsilon, two_sided=True, adjust_candidate=adjust_candidate)
+    #
+    # def adjustEpsilonsOnLayerInput(self, layer_input, adjust_epsilons=''):
+    #     assert adjust_epsilons in ['', 'random', 'all', 'half_all']
+    #
+    #     one_out_of_bounds_inputs = []
+    #
+    #     if adjust_epsilons == 'half_all':
+    #         for var in range(self.layer_size):
+    #             if layer_input[var] < self.layer_minimums[var]:  # lb - delta[i,'l'] <= xi <= lb (lb = layer minimum)
+    #                 side = 'l'
+    #             elif layer_input[var] > self.layer_maximums[var] and self.suggested_layer_bounds['r'][var] > 0:
+    #                 side = 'r'
+    #             else:
+    #                 continue
+    #
+    #             one_out_of_bounds_inputs += [(var, side, 0)]
+    #
+    #         self.HalfBadEpsilonsOnBadInput(one_out_of_bounds_inputs, adjust_candidate=True)
+    #     else:
+    #         for var in range(self.layer_size):
+    #             if layer_input[var] < self.layer_minimums[var]:  # lb - delta[i,'l'] <= xi <= lb (lb = layer minimum)
+    #                 side = 'l'
+    #                 difference = (self.layer_minimums[var] - layer_input[var])
+    #             elif layer_input[var] > self.layer_maximums[var] and self.suggested_layer_bounds['r'][var] > 0:
+    #                 side = 'r'
+    #                 difference = (layer_input[var] - self.layer_maximums[var])  # ub <= xi <= ub + delta[i,'r']
+    #             else:
+    #                 continue
+    #
+    #             difference = difference / self.epsiloni_twosided[side][var]
+    #             if adjust_epsilons == 'random':
+    #                 multiplicity = round(difference * 5)  # A PARAMETER THAT CAN BE ADJUSTED!
+    #             else:
+    #                 multiplicity = 1
+    #
+    #             one_out_of_bounds_inputs += [(var, side, difference)] * multiplicity
+    #
+    #         if adjust_epsilons == 'random':
+    #             self.adjustEpsilonAtRandom(one_out_of_bounds_inputs, adjust_candidate=True)
+    #         elif adjust_epsilons == 'all':
+    #             self.adjustAllEpsilons(one_out_of_bounds_inputs, adjust_candidate=True)
+    #
+    #     return one_out_of_bounds_inputs
+    #
 
 
 

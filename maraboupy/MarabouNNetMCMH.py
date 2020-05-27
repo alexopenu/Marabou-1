@@ -33,6 +33,10 @@ import matplotlib.pyplot as plt
 # 'l' stands for left (lower)
 # 'r' stands for right (upper)
 types_of_bounds = ['l','r']
+type_of_bounds_to_sign = {'l': -1, 'r': 1}
+
+infty = 1000
+
 
 class basic_mcmh_statistics:
     def __init__(self,good_set = [],epsilon=0.01,two_sided = True):
@@ -72,7 +76,7 @@ class basic_mcmh_statistics:
             self.maximums = [np.max(self.good_matrix[:, var]) for var in range(self.layer_size)]
             self.mean = [np.mean(self.good_matrix[:, var]) for var in range(self.layer_size)]
 
-            self.computeEpsilonsUniformly(two_sided)
+            self.computeEpsilonsUniformly()
             self.statistics_computed = True
 
 
@@ -123,6 +127,593 @@ class basic_mcmh_statistics:
 
 
 
+class invariantOnNeuron:
+
+    def __init__(self, layer = -1, var = -1, participates_in_invariant = True, observed_minimum = -np.infty,
+                 observed_maximum = np.infty, observed_range = 0, observed_mean = 0, epsilon_twosided = None,
+                 loose_epsilons_compute = 'range', loose_epsilon_const = 0,
+                 basic_statistics: basic_mcmh_statistics = None):
+
+        self.participates_in_invariant = participates_in_invariant
+
+        assert loose_epsilons_compute in ['range', 'double', 'const']
+        self.loose_epsilon_compute = loose_epsilons_compute
+        self.loose_epsilon_const = loose_epsilon_const
+
+        self.interpolant_property = {}
+
+        self.verified_disjunct = {}
+
+        if basic_statistics is None:
+            self.layer = layer
+            self.var = var
+
+            # self.active = active
+            self.observed_maximum = observed_maximum
+            self.observed_minimum = observed_minimum
+            if epsilon_twosided:
+                self.epsilon_twosided = epsilon_twosided
+            else:
+                self.epsilon_twosided = {'l': 0, 'r': 0}
+            self.range = observed_range
+            self.mean = observed_mean
+
+            self.offset = {}
+            self.deltas = {}
+
+            self.real_bounds_for_invariant = {}
+            self.loose_bounds_for_invariant = {}
+
+            self.suggested_bounds = {}
+
+            self.computeInitialOffsets()
+            self.recomputeAllBounds(recompute_property=True)
+
+        else:
+            assert layer>-1
+            assert var>-1
+            self.loadFromBasicStatistics(layer,var,basic_statistics,participates_in_invariant)
+
+
+
+    def loadFromBasicStatistics(self,layer: int,var: int, basic_statistics: basic_mcmh_statistics,
+                                participates_in_invariant = True):
+        self.layer = layer
+        self.var = var
+
+        assert var in range(basic_statistics.layer_size)
+
+        self.participates_in_invariant = participates_in_invariant
+
+        self.observed_minimum = basic_statistics.minimums[var]
+        self.observed_maximum = basic_statistics.maximums[var]
+
+        self.range = basic_statistics.range[var]
+        self.mean = basic_statistics.mean[var]
+
+        if basic_statistics.epsiloni_twosided['l']:
+            self.epsilon_twosided = {'l': basic_statistics.epsiloni_twosided['l'][var],
+                                     'r': basic_statistics.epsiloni_twosided['r'][var]}
+        else:
+            self.epsilon_twosided = {'l': basic_statistics.epsiloni[var],
+                                     'r': basic_statistics.epsiloni[var]}
+
+        self.computeInitialOffsets()
+        self.recomputeAllBounds(recompute_property=True)
+
+    def isActive(self):
+        return self.suggested_bounds['r'] > 0
+
+    def isHalfActive(self):
+        return self.suggested_bounds['l'] == 0
+
+    def includeInInvariant(self):
+        self.participates_in_invariant = True
+        self.recomputeSuggestedBounds()
+
+    def excludeFromInvariant(self):
+        self.participates_in_invariant = False
+        self.recomputeSuggestedBounds()
+
+    def isDisjunctVerified(self,side: types_of_bounds):
+        if side not in self.verified_disjunct.keys():
+            return False
+        sign = type_of_bounds_to_sign[side]
+        return sign*self.suggested_bounds[side] >= sign*self.verified_disjunct[side]
+
+
+    def computeInitialOffsets(self):
+        if self.loose_epsilon_compute == 'const':
+            self.offset['l'] = self.loose_epsilon_const
+            self.offset['r'] = self.loose_epsilon_const
+        elif self.loose_epsilon_compute == 'range':
+            self.offset['l'] = self.range / 2
+            self.offset['r'] = self.range / 2
+        else: # 'double'
+            for side in types_of_bounds:
+                self.offset[side] = self.epsilon_twosided[side]*2
+
+        for side in types_of_bounds:
+            self.deltas[side] = self.offset[side]
+
+    def getOffset(self,side: types_of_bounds):
+        assert side in types_of_bounds
+        return self.epsilon_twosided[side] if self.participates_in_invariant else self.deltas[side]
+
+
+    def setEpsilon(self,side: types_of_bounds,new_epsilon: float):
+        assert side in types_of_bounds
+        self.epsilon_twosided[side] = new_epsilon
+
+        self.recomputeBounds(side)
+
+    def setDelta(self,side: types_of_bounds, new_delta: float):
+        assert side in types_of_bounds
+        self.deltas[side] = new_delta
+
+        self.recomputeBounds(side)
+
+
+
+    def recomputeBounds(self,side,recompute_property = True):
+
+        self.recomputeRealBound(side)
+        self.recomputeLooseBound(side)
+        self.recomputeSuggestedBound(side)
+        if recompute_property:
+            self.recomputeInterpolantProperty(side)
+
+
+
+    def recomputeAllBounds(self, recompute_property = True):
+
+        for side in types_of_bounds:
+            self.recomputeRealBound(side)
+            self.recomputeLooseBound(side)
+
+        self.recomputeSuggestedBounds()
+
+        if recompute_property:
+            self.recomputeInterpolantProperties()
+
+    def recomputeInterpolantProperty(self,side):
+
+        self.interpolant_property[side] = self.computeBoundProperty(side)
+
+    def recomputeInterpolantProperties(self):
+        for side in types_of_bounds:
+            self.recomputeInterpolantProperty(side)
+
+    def recomputeRealBound(self,side: types_of_bounds):
+
+        epsilon = self.epsilon_twosided[side]
+        if side == 'l':
+            bound = self.observed_minimum - epsilon
+        elif side == 'r':
+            bound = self.observed_maximum + epsilon
+        else: # side not in types_of_bounds!
+            assert False
+
+        self.real_bounds_for_invariant[side] = max(bound,0)
+
+    def recomputeLooseBound(self, side: types_of_bounds):
+
+        delta = self.deltas[side]
+
+        if side == 'l':
+            bound = self.observed_minimum - delta
+        elif side == 'r':
+            bound = self.observed_maximum + delta
+        else: # side not in types_of_bounds!
+            assert False
+
+        self.loose_bounds_for_invariant[side] = max(bound,0)
+
+
+    def recomputeSuggestedBound(self,side: types_of_bounds):
+        self.suggested_bounds[side] = self.getSuggestedBound(side)
+
+
+    def recomputeSuggestedBounds(self):
+        for side in types_of_bounds:
+            self.recomputeSuggestedBound(side)
+
+
+    def getSuggestedBound(self, side: types_of_bounds):
+        assert side in types_of_bounds
+        if self.participates_in_invariant:
+            return self.real_bounds_for_invariant[side]
+        else
+            return self.loose_bounds_for_invariant[side]
+
+    def getSuggestedUpperBoud(self):
+        if self.participates_in_invariant:
+            return self.real_bounds_for_invariant['r']
+        else
+            return self.loose_bounds_for_invariant['r']
+
+    def getSuggestedLowerBound(self):
+        if self.participates_in_invariant:
+            return self.real_bounds_for_invariant['l']
+        else
+            return self.loose_bounds_for_invariant['l']
+
+    def computeLowerBoundProperty(self,var: int):
+        return 'x' + str(var) + ' <= ' + str(self.suggested_bounds['l'])
+
+    def computeUpperBoundProperty(self,var: int):
+        return 'x' + str(var) + ' >= ' + str(self.suggested_bounds['r'])
+
+    def computeBoundProperty(self,var: int, side: str):
+        assert side in types_of_bounds
+
+        if side == 'l':
+            return self.computeLowerBoundProperty(var)
+        return self.computeUpperBoundProperty(var)
+
+
+
+
+
+
+
+# Currently not used or supported
+class generalInterpolantCandidate:
+    def __init__(self, ):
+        self.dict_of_neurons = {}
+        self.active_neurons = {}
+        self.inactive_neurons = {}
+        self.relevant_neurons = {}
+
+    def addNeuron(self,neuron_invariant: invariantOnNeuron):
+        self.dict_of_neurons[(neuron_invariant.layer, neuron_invariant.var)] = neuron_invariant
+        # index = len(self.dict_of_neurons)
+
+        if neuron_invariant.isActive():
+            self.active_neurons[(neuron_invariant.layer,neuron_invariant.var)] = neuron_invariant
+        else:
+            self.inactive_neurons[(neuron_invariant.layer,neuron_invariant.var)] = neuron_invariant
+
+        if neuron_invariant.participates_in_invariant:
+            self.relevant_neurons[(neuron_invariant.layer,neuron_invariant.var)] = neuron_invariant
+
+    def makeRelevant(self,layer,var):
+        self.relevant_neurons[(layer,var)] = self.dict_of_neurons[(layer,var)]
+
+    def makeIrrelevant(self,layer,var)
+        self.relevant_neurons.pop((layer,var))
+
+
+
+
+
+class layerInterpolateCandidate:
+    def __init__(self, layer = -1, layer_size=0):
+        self.layer = layer
+        self.layer_size = layer_size
+        self.list_of_neurons = [invariantOnNeuron()]*layer_size
+
+        self.active_neurons = {}
+        self.inactive_neurons = {}
+        self.relevant_neurons = {}
+
+        self.layer_minimums = [-np.infty]*layer_size
+        self.layer_maximums = [np.infty]*layer_size
+
+        self.suggested_bounds = {'l': [], 'r': []}
+
+        # List of properties (interpolant candidate) for the chosen layer
+        # The properties are recorded as equations/bounds on input variables and stored as strings
+        self.interpolant_candidate = []
+
+        # List that contains the interpolant properties recorded as equations/bounds on output variables
+        # is supposed to be identical to interpolant_candidate except that the inequalities are flipped
+        # (and all occurrences of 'x' is replaced with 'y')
+        self.output_interpolant_candidate = []
+
+    def setLayer(self,layer: int,layer_size: int):
+        self.layer = layer
+        self.layer_size = layer_size
+        self.list_of_neurons = [invariantOnNeuron()]*layer_size
+
+
+    def addNeuron(self,neuron_invariant: invariantOnNeuron):
+        assert neuron_invariant.layer == self.layer
+
+        var = neuron_invariant.var
+        assert var in range (self.layer_size)
+
+        self.list_of_neurons[var] = neuron_invariant
+
+        self.adjustActivity(var)
+
+
+        # if neuron_invariant.isActive():
+        #     self.active_neurons[var] = neuron_invariant
+        # else:
+        #     self.inactive_neurons[var] = neuron_invariant
+        #
+        # if neuron_invariant.participates_in_invariant:
+        #     self.relevant_neurons[var] = neuron_invariant
+        #
+        # self.layer_minimums[var] = neuron_invariant.observed_minimum
+        # self.layer_maximums[var] = neuron_invariant.observed_maximum
+
+    def adjustActivity(self,var: int):
+
+        assert var in range(self.layer_size)
+        neuron_invariant = self.list_of_neurons[var]
+
+        if neuron_invariant.isActive():
+            self.active_neurons[var] = neuron_invariant
+            if var in self.inactive_neurons.keys():
+                self.inactive_neurons.pop(var)
+        else:
+            self.inactive_neurons[var] = neuron_invariant
+            if var in self.active_neurons.keys():
+                self.active_neurons.pop(var)
+
+        if neuron_invariant.participates_in_invariant:
+            self.relevant_neurons[var] = neuron_invariant
+        elif var in self.relevant_neurons.keys():
+            self.relevant_neurons.pop(var)
+
+
+
+    def loadFromBasicStatiatics(self,basic_statistics: basic_mcmh_statistics, layer = -1):
+        assert self.layer>-1 or layer>-1
+
+        if layer>-1:
+            self.setLayer(layer,basic_statistics.layer_size)
+        else:
+            assert self.layer_size == basic_statistics.layer_size
+
+        for var in range(self.layer_size):
+            # neuron_invariant = invariantOnNeuron(self.layer,var,basic_statistics=basic_statistics)
+            self.list_of_neurons[var].loadFromBasicStatistics(layer,var,basic_statistics)
+            self.adjustActivity(var)
+            # self.addNeuron(neuron_invariant=neuron_invariant)
+
+
+        self.layer_minimums = basic_statistics.minimums
+        self.layer_maximums = basic_statistics.maximums
+
+        for side in types_of_bounds:
+            self.suggested_bounds[side] = \
+                [self.list_of_neurons[var].suggested_bounds[side] for var in range(self.layer_size)]
+
+    def includeInInvariant(self,var):
+        self.relevant_neurons[var] = self.list_of_neurons[var]
+        self.list_of_neurons[var].includeInInvariant()
+
+        self.updateSuggestedBound(var, side)
+
+    def excludeFromInvariant(self,var)
+        self.relevant_neurons.pop(var)
+        self.list_of_neurons[var].excludeFromInvariant()
+
+        self.updateSuggestedBound(var, side)
+
+
+    def setEpsilon(self,var: int, side: types_of_bounds, new_epsilon: float):
+        assert var in range(self.layer_size)
+        self.list_of_neurons[var].setEpsilon(side,new_epsilon)
+
+        self.updateSuggestedBound(var, side)
+
+    def setDelta(self,var: int, side: types_of_bounds, new_delta: float):
+        assert var in range(self.layer_size)
+        neuron = self.list_of_neurons[var]
+
+        neuron.setDelta(side,new_delta)
+
+        if new_delta < neuron.epsilon_twosided[side]:
+            neuron.setEpsilon(side,new_delta)
+            # TODO: potentially include in invariant?
+
+        self.updateSuggestedBound(var,side)
+
+    def updateSuggestedBound(self,var,side):
+        assert side in types_of_bounds
+
+        self.suggested_bounds[side][var] = self.list_of_neurons[var].suggested_bounds[side]
+
+    def adjustObservedBounds(self,layer_input: list):
+        assert len(layer_input) == self.layer_size
+        for var in range(self.layer_size):
+            self.adjustObservedBoundForVariable(var,layer_input[var])
+
+    def adjustObservedBoundForVariable(self, var, new_input):
+        assert var in range(self.layer_size)
+
+        if new_input < self.layer_minimums[var]:
+            self.layer_minimums[var] = new_input
+            self.list_of_neurons[var].observed_minimum = new_input
+            self.list_of_neurons[var].recomputeBounds('l')
+            self.updateSuggestedBound(var,'l')
+
+        if new_input > self.layer_maximums[var]:
+            self.layer_maximums[var] = new_input
+            self.list_of_neurons[var].observed_maximum = new_input
+            self.list_of_neurons[var].recomputeBounds('r')
+            self.updateSuggestedBound(var, 'r')
+
+            # self.list_of_neurons[var].range['l'] = self.list_of_neurons[var].mean - new_input
+            # self.list_of_neurons[var].epsilon_twosided
+
+
+
+    def createRandomStrictInputForLayer(self):
+        # input = []
+        # for var in range(self.layer_size):
+        #     random_value = np.random.uniform(low=self.layer_minimums[var],
+        #                                      high=self.layer_maximums[var])
+        #     input.append(random_value)
+        # return input
+        return [np.random.uniform(low=self.layer_minimums[var], high=self.layer_maximums[var])
+                for var in range(self.layer_size)]
+
+
+    def createRandomSuggestedInputForLayer(self):
+        # input = []
+        # for var in range(self.layer_size):
+        #     random_value = np.random.uniform(low=self.suggested_bounds['l'][var],
+        #                                      high=self.suggested_bounds['r'][var])
+        #     input.append(random_value)
+        # return input
+        return [np.random.uniform(low=self.suggested_bounds['l'][var], high=self.suggested_bounds['r'][var])
+                for var in range(self.layer_size)]
+
+
+
+    def analyzeBadLayerInput(self, layer_input, use_multiplicity = False):
+        bad_layer_inputs = []
+        bad_layer_inputs_dict = {}
+
+
+
+        for var in range(self.layer_size):
+            neuron: invariantOnNeuron = self.list_of_neurons[var]
+
+            neuron_minimum = neuron.observed_minimum
+            neuron_maximum = neuron.observed_maximum
+            neuron_lb = neuron.suggested_bounds['l']
+            neuron_ub = neuron.suggested_bounds['r']
+
+            if layer_input[var] < neuron_minimum:  # lb - delta[i,'l'] <= xi <= lb (lb = layer minimum)
+                side = 'l'
+                difference = (neuron_minimum - layer_input[var])/(neuron_minimum - neuron_lb)
+            elif layer_input[var] > self.layer_maximums[var] and neuron.suggested_bounds['r'] > 0:
+                # ub <= xi <= ub + delta[i,'r']
+                side = 'r'
+                difference = (layer_input[var] - neuron_maximum)/(neuron_ub - neuron_maximum)
+            elif layer_input[var] > 0 and 0 > self.layer_maximums[var]:
+                # 0 = ub <= xi <= ub + delta[i,'r']
+                side = 'r'
+                difference = layer_input[var]
+            else:
+                continue
+
+            # difference = difference / neuron.epsilon_twosided[side]
+            if use_multiplicity:
+                multiplicity = round(difference * 5)  # A PARAMETER THAT CAN BE ADJUSTED!
+                bad_layer_inputs += [(var, side, difference)] * multiplicity
+            else:
+                bad_layer_inputs += [(var, side, difference)]
+
+            if (var,side) not in bad_layer_inputs_dict.keys() or bad_layer_inputs_dict[(var,side)]<difference:
+                bad_layer_inputs_dict[(var,side)] = difference
+
+        return bad_layer_inputs, bad_layer_inputs_dict
+
+
+
+    def strengthenEpsilons(self, out_of_bounds_inputs, difference_dict, adjust_epsilons='', number_of_epsilons=1):
+        assert adjust_epsilons in ['', 'random', 'all', 'half_all','half_random']
+        assert number_of_epsilons>=0
+
+        if not adjust_epsilons:
+            return []
+
+        weights=[difference for (var,side,difference) in out_of_bounds_inputs]
+        if adjust_epsilons == 'random' or adjust_epsilons == 'half_random':
+            epsilons_to_adjust = choices(out_of_bounds_inputs,weights=weights,k=number_of_epsilons)
+        else:
+            epsilons_to_adjust = out_of_bounds_inputs
+
+        for (var,side,_) in epsilons_to_adjust:
+            if adjust_epsilons == 'half_all' or adjust_epsilons == 'half_random':
+                new_epsilon = self.list_of_neurons[var].epsilon_twosided[side] / 2
+            elif adjust_epsilons == 'all' or adjust_epsilons == 'random':
+                new_epsilon = self.list_of_neurons[var].epsilon_twosided[side]*(1 + difference_dict[(var, side)]) / 2
+            else:
+                print('Unsupported argument for strengthenEpsilons')
+                sys.exit(1)
+
+            self.list_of_neurons[var].setEpsilon(side,new_epsilon=new_epsilon)
+            self.updateSuggestedBound(var,side)
+
+
+
+        return epsilons_to_adjust
+
+        # TODO: complete the move from the MCMH class; make sure to change all relevant offsets
+        # TODO: Probably delegate the actual update of epsilon to the individual neuron class
+
+
+
+
+
+    # def createInterpolandList(self):
+
+
+    # def computeInitialInterpolantCandidateForLayer(self,two_sided=True):
+    #
+    #     # self.suggested_layer_bounds['l'] = [self.getSoftLowerBoundForLayer(var,two_sided) for var in range(self.layer_size)]
+    #     # self.suggested_layer_bounds['r'] = [self.getSoftUpperBoundForLayer(var,two_sided) for var in range(self.layer_size)]
+    #
+    #     self.recomputeInterpolant()
+    #
+    # def recomputeInterpolant(self):
+    #     # assert self.suggested_layer_bounds['l']
+    #     # assert self.suggested_layer_bounds['r']
+    #
+    #     self.interpolant_candidate = []
+    #     self.output_interpolant_candidate = []
+    #
+    #     for var in range(self.layer_size):
+    #         lb=self.computeLowerBoundProperty(var)
+    #         ub=self.computeUpperBoundProperty(var)
+    #         self.interpolant_candidate.append({'l': lb,'r': ub})
+    #
+    #         if self.list_of_neurons[var].suggested_layer_bounds['r'][var] == 0:
+    #             ub_y = ''
+    #         else:
+    #             ub_y = ub.replace('x','y').replace('>','<')
+    #         lb_y = lb.replace('x','y').replace('<','>')
+    #         self.output_interpolant_candidate.append({'l': lb_y,'r': ub_y})
+
+    # def adjustInterpolantCandidate(self,var: int, side = '', two_sided = True):
+    #     assert var in range(self.layer_size)
+    #     assert side in types_of_bounds
+    #
+    #     self.suggested_layer_bounds[side][var] = self.getSoftBoundForLayer(var,side,two_sided)
+    #
+    #     x_bdd = self.computeBoundProperty(var,side)
+    #
+    #     if side == 'r' and self.suggested_layer_bounds['r'][var] == 0:
+    #         y_bdd = ''
+    #     else:
+    #         y_bdd = x_bdd.replace('x','y').replace('<','>').replace('>','<')
+    #
+    #     self.interpolant_candidate[var][side] = x_bdd
+    #     self.output_interpolant_candidate[var][side] = y_bdd
+    #
+
+
+    # def adjustEpsilon(self, var: int, side: str, new_epsilon: float, two_sided = True, adjust_candidate = True):
+    #     assert var in range(self.layer_size)
+    #     assert side in types_of_bounds
+    #
+    #     if not two_sided:
+    #         assert self.epsiloni
+    #         assert len(self.epsiloni) > var
+    #         self.epsiloni[var] = new_epsilon
+    #         return
+    #
+    #     assert self.epsiloni_twosided[side]
+    #     assert len(self.epsiloni_twosided[side])>var
+    #     self.epsiloni_twosided[side][var] = new_epsilon
+    #
+    #     if adjust_candidate:
+    #         self.adjustInterpolantCandidate(var,side,two_sided)
+    #
+
+
+
+
+
+
 
 class MarabouNNetMCMH:
 
@@ -149,49 +740,26 @@ class MarabouNNetMCMH:
         self.x_properties = []
         self.y_properties = []
 
+
+        self.layer_interpolant_candidate = layerInterpolateCandidate()
+        self.general_interpolant_candidate = generalInterpolantCandidate() # Currently not supported
+
+
         # Setting x_properties and y_properties to their correct values
         self.setOriginalPropertyLists()
-
-        # List of properties (interpolant candidate) for the chosen layer
-        # The properties are recorded as equations/bounds on input variables and stored as strings
-        self.interpolant_candidate = []
-
-        # List that contains the interpolant properties recorded as equations/bounds on output variables
-        # is supposed to be identical to interpolant_candidate except that the inequalities are flipped
-        # (and all occurrences of 'x' is replaced with 'y')
-        self.output_interpolant_candidate = []
-
-        self.dict_sidevar_to_interpolant_index = dict()
 
         self.good_set = []
         self.bad_set = []
 
 
-        #Lests of the variables corresponding to the layer
+        #Lists of the variables corresponding to the layer
         self.layer_bVars = []
         self.layer_fVars = []
 
-        # various statistics and empiric bounds on layer variables for guessing the invariant
-        # will be reset in seLayer, but we include all the attributes in the constructor
-        self.good_matrix = np.array([])
         self.epsilon = 0.01
-        self.epsiloni = []
-        self.epsiloni_twosided = {'l': [], 'r': []}
+
 
         self.basic_statistics = basic_mcmh_statistics(epsilon=self.epsilon)
-
-        # Attributes representing minimal and maximal values seen for the variables of the layer
-        # The default ones are for the b-variables
-        # Will be reset in setLayer
-
-        self.layer_minimums = []
-        self.layer_maximums= []
-        self.layer_fminimums_dict = dict() #For sanity check
-        self.layer_fmaximums_dict = dict() #For sanity check
-
-        self.suggested_layer_bounds = {'l': [], 'r': []}
-        # self.suggested_lower_bounds = []
-        # self.suggested_upper_bounds = []
 
 
         # The hidden layer we will study an invariant for
@@ -230,6 +798,39 @@ class MarabouNNetMCMH:
         self.ipq2 = MarabouCore.InputQuery()
 
 
+        # Attributes from an older version, probably not relevant now.
+
+        # Attributes representing minimal and maximal values seen for the variables of the layer
+        # The default ones are for the b-variables
+        # Will be reset in setLayer
+        #
+        # self.layer_minimums = []
+        # self.layer_maximums= []
+        # self.layer_fminimums_dict = dict() #For sanity check
+        # self.layer_fmaximums_dict = dict() #For sanity check
+
+        # List of properties (interpolant candidate) for the chosen layer
+        # The properties are recorded as equations/bounds on input variables and stored as strings
+        # self.interpolant_candidate = []
+
+        # List that contains the interpolant properties recorded as equations/bounds on output variables
+        # is supposed to be identical to interpolant_candidate except that the inequalities are flipped
+        # (and all occurrences of 'x' is replaced with 'y')
+        # self.output_interpolant_candidate = []
+
+        # self.dict_sidevar_to_interpolant_index = dict()
+
+        # self.suggested_layer_bounds = {'l': [], 'r': []}
+        # self.suggested_lower_bounds = []
+        # self.suggested_upper_bounds = []
+
+        # various statistics and empiric bounds on layer variables for guessing the invariant
+        # will be reset in seLayer, but we include all the attributes in the constructor
+
+        # self.good_matrix = np.array([])
+
+        # self.epsiloni = []
+        # self.epsiloni_twosided = {'l': [], 'r': []}
 
     def setLayer(self,layer):
         assert ((layer>=0) and (layer<self.marabou_nnet.numLayers))
@@ -237,13 +838,16 @@ class MarabouNNetMCMH:
         self.computeLayerVariables()
 
         self.good_set = []
-        self.layer_minimums = []
-        self.layer_maximums = []
-
-        self.layer_fminimums_dict = {}
-        self.layer_fmaximums_dict = {}
-
         self.basic_statistics = basic_mcmh_statistics(epsilon=self.epsilon)
+
+        # self.layer_minimums = []
+        # self.layer_maximums = []
+        #
+        # self.layer_fminimums_dict = {}
+        # self.layer_fmaximums_dict = {}
+        #
+
+        # self.layer_interpolant_candidate.loadFromBasicStatiatics(self.basic_statistics, layer)
 
         # self.mean = {}
         # self.sigma = {}
@@ -313,6 +917,7 @@ class MarabouNNetMCMH:
         return output_variable-self.marabou_nnet.numVars+self.marabou_nnet.outputSize
 
 
+    # This is the firs method to run after creating an object
     def initiateVerificationProcess(self,N=5000):
         assert self.layer>-1
 
@@ -322,270 +927,70 @@ class MarabouNNetMCMH:
         self.basic_statistics.recompute_statistics(self.good_set,two_sided=True)
         assert self.basic_statistics.statistics_computed
 
-        self.epsiloni = self.basic_statistics.epsiloni
-        self.epsiloni_twosided = self.basic_statistics.epsiloni_twosided
-        self.layer_minimums = self.basic_statistics.minimums
-        self.layer_maximums = self.basic_statistics.maximums
-
-        self.computeInitialInterpolantCandidateForLayer()
+        self.layer_interpolant_candidate.loadFromBasicStatiatics(self.basic_statistics, self.layer)
 
 
-    def computeInitialInterpolantCandidateForLayer(self,two_sided=True):
+        # self.epsiloni = self.basic_statistics.epsiloni
+        # self.epsiloni_twosided = self.basic_statistics.epsiloni_twosided
+        # self.layer_minimums = self.basic_statistics.minimums
+        # self.layer_maximums = self.basic_statistics.maximums
 
-        assert self.layer_minimums
-        assert self.layer_maximums
 
-        if two_sided:
-            assert self.epsiloni_twosided['l']
-            assert self.epsiloni_twosided['r']
-        else:
-            assert self.epsiloni
-
-        self.suggested_layer_bounds['l'] = [self.getSoftLowerBoundForLayer(var,two_sided) for var in range(self.layer_size)]
-        self.suggested_layer_bounds['r'] = [self.getSoftUpperBoundForLayer(var,two_sided) for var in range(self.layer_size)]
-
-        self.recomputeInterpolant()
-
-    def recomputeInterpolant(self):
-        assert self.suggested_layer_bounds['l']
-        assert self.suggested_layer_bounds['r']
-
-        self.interpolant_candidate = []
-        self.output_interpolant_candidate = []
-
-        for var in range(self.layer_size):
-            lb=self.computeLowerBoundProperty(var)
-            ub=self.computeUpperBoundProperty(var)
-            self.interpolant_candidate.append({'l': lb,'r': ub})
-
-            if self.suggested_layer_bounds['r'][var] == 0:
-                ub_y = ''
-            else:
-                ub_y = ub.replace('x','y').replace('>','<')
-            lb_y = lb.replace('x','y').replace('<','>')
-            self.output_interpolant_candidate.append({'l': lb_y,'r': ub_y})
-
-    def adjustInterpolantCandidate(self,var: int, side = '', two_sided = True):
-        assert var in range(self.layer_size)
-        assert side in types_of_bounds
-
-        self.suggested_layer_bounds[side][var] = self.getSoftBoundForLayer(var,side,two_sided)
-
-        x_bdd = self.computeBoundProperty(var,side)
-
-        if side == 'r' and self.suggested_layer_bounds['r'][var] == 0:
-            y_bdd = ''
-        else:
-            y_bdd = x_bdd.replace('x','y').replace('<','>').replace('>','<')
-
-        self.interpolant_candidate[var][side] = x_bdd
-        self.output_interpolant_candidate[var][side] = y_bdd
+        # self.computeInitialInterpolantCandidateForLayer()
 
 
 
-    def adjustEpsilon(self, var: int, side: str, new_epsilon: float, two_sided = True, adjust_candidate = True):
-        assert var in range(self.layer_size)
-        assert side in types_of_bounds
+    # NOTE: creates full output file, not a full input file
+    # NEEDS TO RUN BEFORE ANY VERIFICATION WITH MARABOU IS DONE!
+    def initiateMarabouCandidateVerification(self, network_filename1: str, network_filename2: str, property_filename1: str,
+                                        property_filename2: str):
 
-        if not two_sided:
-            assert self.epsiloni
-            assert len(self.epsiloni) > var
-            self.epsiloni[var] = new_epsilon
-            return
-
-        assert self.epsiloni_twosided[side]
-        assert len(self.epsiloni_twosided[side])>var
-        self.epsiloni_twosided[side][var] = new_epsilon
-
-        if adjust_candidate:
-            self.adjustInterpolantCandidate(var,side,two_sided)
+        self.split_network(network_filename1, network_filename2)
+        self.setFilenames(property_filename1,property_filename2)
+        self.createOriginalInputPropertyFile()
+        self.createOriginalOutputPropertyFile()
+        self.addLayerPropertiesToOutputPropertyFile()
 
 
-    def computeLowerBoundProperty(self,var: int):
-        return 'x' + str(var) + ' <= ' + str(self.suggested_layer_bounds['l'][var])
 
-    def computeUpperBoundProperty(self,var: int):
-        return 'x' + str(var) + ' >= ' + str(self.suggested_layer_bounds['r'][var])
-
-    def computeBoundProperty(self,var: int, side: str):
-        assert side in types_of_bounds
-
-        if side == 'l':
-            return self.computeLowerBoundProperty(var)
-        return self.computeUpperBoundProperty(var)
-
-
-    def getSoftUpperBoundForLayer(self, var, two_sided = True):
-        epsilon = self.epsiloni_twosided['r'][var] if two_sided else self.epsiloni[var]
-        if not epsilon:
-            epsilon = self.epsilon
-        return max(0, self.layer_maximums[var] + epsilon)
-
-
-    def getSoftLowerBoundForLayer(self, var, two_sided = True):
-        epsilon = self.epsiloni_twosided['l'][var] if two_sided else self.epsiloni[var]
-        if not epsilon:
-            epsilon = self.epsilon
-        return max(0, self.layer_minimums[var] - epsilon)
-
-    def getSoftBoundForLayer(self, var: int, side: str, two_sided = True):
-        assert side in types_of_bounds
-
-        if side == 'l':
-            return self.getSoftLowerBoundForLayer(var,two_sided)
-        return self.getSoftUpperBoundForLayer(var,two_sided)
-
-
-    def adjustInitialCandidate(self,total_trials = 100, individual_sample = 20, number_of_epsilons_to_adjust = 1,
-                               timeout=0):
-
-        assert self.interpolant_candidate
-
-        out_of_bound_inputs = []
-        difference_dict = {}
+    def CandidateSearch(self, number_of_trials: int, individual_sample: int, timeout = 0):
 
         starting_time = time.time()
+        status, result, argument_list, time_elapsed = self.initiateCandidateSearch(total_trials=number_of_trials,
+                                                                                   individual_sample = individual_sample,
+                                                                                   timeout = timeout)
+        if status == 'success':
+            print('We are done!')
+            print(self.interpolant_candidate)
+            sys.exit(0)
 
-        for i in range(total_trials):
-            if timeout>0:
-                time_elapsed = time.time() - starting_time
-                if timeout and time_elapsed > timeout:
-                    return 'timeout', out_of_bound_inputs, difference_dict, time_elapsed
+        # Currently this means that Marabou has found a counterexample to the raw conjunction. Generally we
+        # don't expect this to happen. There is another place where a similar message can be printed out,
+        # checkConjunction. We could propagate it here as well?
 
-            result,  epsilon_adjusted, out_of_bounds_inputs, difference_dict =  \
-                self.checkConjunction(sample_size=individual_sample, adjust_epsilons=True, add_to_bad_set=True,
-                                      number_of_epsilons_to_adjust=number_of_epsilons_to_adjust)
-            if result:
-                return 'success', [], {}, 0
-
-        return 'failed', out_of_bound_inputs, difference_dict, 0
-
-
-    def checkConjunction(self, sample_size=100, adjust_epsilons = True, add_to_bad_set=True,
-                         number_of_epsilons_to_adjust = 1):
-        assert self.interpolant_candidate
-        status = True # No counterexample found yet
-
-        out_of_bounds_inputs = []
-        difference_dict = {}
-        epsilon_adjusted = []
+        if status == 'raw_conjunction_too_weak':
+            print('Candidate search failed, a counterexample found between observed layer bounds. Check if SAT?')
+            print('Bad input is ', argument_list)
+            sys.exit(2)
 
 
-        for i in range(sample_size):
-            layer_input = self.createRandomSoftInputsForLayer()
+        if (timeout>0) and (time.time() - starting_time > timeout):
+            return 'timeout', time.time() - starting_time
 
-            result, one_out_of_bounds_inputs, one_differene_dict, output = \
-                self.checkCandidateOnInput(layer_input, add_to_bad_set=add_to_bad_set)
-            # Note that we do not adjust epsilons on one input here;
-            # rather, we will later choose an epsilon (or epsilons) to adjust at random
-            # from the whole bad set of inputs after the loop is finished
-
-
-            if result == 'within_bounds': # The counterexample is between the actual observed bounds
-                print("Candidate search has failed. Found a counterexample between observed lower and "
-                      "upper bounds: \n layer input = ",layer_input, '\n output = ', output,   "\n Check if SAT?")
-                sys.exit(2)
-
-            if result == 'out_of_bounds':  # A counterexample to the candidate found
-                status = False
-                out_of_bounds_inputs += one_out_of_bounds_inputs
-
-                # adjusting the maximal difference dictionary
-                for (var,side) in one_differene_dict.keys():
-                    if (var,side) not in difference_dict.keys() \
-                            or difference_dict[(var,side)]<one_differene_dict[(var,side)]:
-                        difference_dict[(var,side)] = one_differene_dict[(var,side)]
-
-        if (not status) and adjust_epsilons:
-            epsilon_adjusted = self.strengthenEpsilons(out_of_bounds_inputs,difference_dict,adjust_epsilons='random',
-                                    number_of_epsilons=number_of_epsilons_to_adjust)
-
-        # if (not status) and adjust_epsilons:
-        #     self.adjustEpsilonAtRandom(out_of_bounds_inputs, adjust_candidate=True)
-
-        return status, epsilon_adjusted, out_of_bounds_inputs, difference_dict
-
-
-
-
-
-    def checkCandidateOnInput(self, layer_input,  add_to_bad_set = True):
-        # assert adjust_epsilons in ['','random','all']
-
-        output = self.marabou_nnet.evaluateNetworkFromLayer(layer_input, first_layer=self.layer)
-        one_out_of_bounds_inputs = []
-        one_differene_dict = {}
-
-        result = 'success' # No counterexamples to the candidate found
-
-        if not self.verifyOutputProperty(y=output):
-            if add_to_bad_set:
-                self.bad_set.append(layer_input)
-
-            one_out_of_bounds_inputs, one_differene_dict = self.analyzeBadLayerInput(layer_input)
-
-            if not one_out_of_bounds_inputs: # Bad input within observed bounds!
-                result = 'within_bounds'
+        if status == 'candidate_too_weak':
+            if argument_list:
+                bad_input = argument_list
+                self.adjustEpsilonsOnLayerInput(layer_input=bad_input,adjust_epsilons='all')
             else:
-                result  = 'out_of_bounds'
+                self.HalfBadEpsilonsOnBadInput()
 
-        return result, one_out_of_bounds_inputs, one_differene_dict, output
+            # TO DO: MODIFY!
 
+        if status == 'candidate_not_too_weak':
 
-    def strengthenEpsilons(self, out_of_bounds_inputs, differene_dict, adjust_epsilons='', number_of_epsilons=1):
-        assert adjust_epsilons in ['', 'random', 'all', 'half_all','half_random']
-        assert number_of_epsilons>=0
+        if status == 'failed_disjuncts':
 
-        if not adjust_epsilons:
-            return []
-
-        weights=[difference for (var,side,difference) in out_of_bounds_inputs]
-        if adjust_epsilons == 'random' or adjust_epsilons == 'half_random':
-            epsilons_to_adjust = choices(out_of_bounds_inputs,weights=weights,k=number_of_epsilons)
-        else:
-            epsilons_to_adjust = out_of_bounds_inputs
-
-        for (var,side,_) in epsilons_to_adjust:
-            if adjust_epsilons == 'half_all' or adjust_epsilons == 'half_random':
-                new_epsilon = self.epsiloni_twosided[side][var] / 2
-            elif adjust_epsilons == 'all' or adjust_epsilons == 'random'
-                new_epsilon = self.epsiloni_twosided[side][var](1 + differene_dict[(var, side)]) / 2
-            else:
-                print('Strange error in strengthenEpsilons')
-                sys.exit(1)
-
-            self.adjustEpsilon(var,side,new_epsilon=new_epsilon,two_sided=True,adjust_candidate=True)
-
-        return epsilons_to_adjust
-
-
-
-
-    def analyzeBadLayerInput(self, layer_input, use_multiplicity = False):
-        bad_layer_inputs = []
-        bad_layer_inputs_dict = {}
-
-        for var in range(self.layer_size):
-            if layer_input[var] < self.layer_minimums[var]:  # lb - delta[i,'l'] <= xi <= lb (lb = layer minimum)
-                side = 'l'
-                difference = (self.layer_minimums[var] - layer_input[var])
-            elif layer_input[var] > self.layer_maximums[var] and self.suggested_layer_bounds['r'][var] > 0:
-                side = 'r'
-                difference = (layer_input[var] - self.layer_maximums[var])  # ub <= xi <= ub + delta[i,'r']
-            else:
-                continue
-
-            difference = difference / self.epsiloni_twosided[side][var]
-            if use_multiplicity:
-                multiplicity = round(difference * 5)  # A PARAMETER THAT CAN BE ADJUSTED!
-                bad_layer_inputs += [(var, side, difference)] * multiplicity
-            else:
-                bad_layer_inputs += [(var, side, difference)]
-
-            if (var,side) not in bad_layer_inputs_dict.keys() or bad_layer_inputs_dict[(var,side)]<difference:
-                bad_layer_inputs_dict[(var,side)] = difference
-
-        return bad_layer_inputs, bad_layer_inputs_dict
+            # TODO: COMPLETE!!!!
 
 
 
@@ -607,9 +1012,8 @@ class MarabouNNetMCMH:
         if result == 'failed':
             bad_input = self.verifyRawConjunction() # Verifying whether the observed bounds are strong enough
             if bad_input:
-                print("Search for interpolant candidate failed.\nBad input within empirical bounds found by "
-                      "Marabou: ", bad_input)
-                sys.exit(2)
+                status = 'raw_conjunction_too_weak'
+                return status, result, bad_input, time.time()-starting_time
             status = 'candidate_too_weak'
             result = 'checking_conjunction_failed'
             return status, result, [], time.time()-starting_time
@@ -650,48 +1054,183 @@ class MarabouNNetMCMH:
         return status, result, failed_disjuncts, time.time()-starting_time
 
 
+    def adjustInitialCandidate(self,total_trials = 100, individual_sample = 20, number_of_epsilons_to_adjust = 1,
+                               timeout=0):
 
-    def CandidateSearch(self, number_of_trials: int, individual_sample: int, timeout = 0):
+        # assert self.interpolant_candidate
+
+        out_of_bound_inputs = []
+        difference_dict = {}
 
         starting_time = time.time()
-        status, result, argument_list, time_elapsed = self.initiateCandidateSearch(total_trials=number_of_trials,
-                                                                                   individual_sample = individual_sample,
-                                                                                   timeout = timeout)
-        if status == 'success':
-            print('We are done!')
-            print(self.interpolant_candidate)
-            sys.exit(0)
 
-        if timeout and time.time() - starting_time > timeout:
-            return 'timeout', time.time() - starting_time
+        for i in range(total_trials):
+            if timeout>0:
+                time_elapsed = time.time() - starting_time
+                if time_elapsed > timeout:
+                    return 'timeout', out_of_bound_inputs, difference_dict, time_elapsed
 
-        if status == 'candidate_too_weak':
-            if argument_list:
-                bad_input = argument_list
-                self.adjustEpsilonsOnLayerInput(layer_input=bad_input,adjust_epsilons='all')
+            result,  epsilon_adjusted, out_of_bounds_inputs, difference_dict =  \
+                self.checkConjunction(sample_size=individual_sample, adjust_epsilons=True, add_to_bad_set=True,
+                                      number_of_epsilons_to_adjust=number_of_epsilons_to_adjust)
+            if result:
+                return 'success', [], {}, 0
+
+        return 'failed', out_of_bound_inputs, difference_dict, 0
+
+
+
+    # def getSoftUpperBoundForLayer(self, var, two_sided = True):
+    #     epsilon = self.epsiloni_twosided['r'][var] if two_sided else self.epsiloni[var]
+    #     if not epsilon:
+    #         epsilon = self.epsilon
+    #     return max(0, self.layer_maximums[var] + epsilon)
+    #
+    #
+    # def getSoftLowerBoundForLayer(self, var, two_sided = True):
+    #     epsilon = self.epsiloni_twosided['l'][var] if two_sided else self.epsiloni[var]
+    #     if not epsilon:
+    #         epsilon = self.epsilon
+    #     return max(0, self.layer_minimums[var] - epsilon)
+    #
+    # def getSoftBoundForLayer(self, var: int, side: str, two_sided = True):
+    #     assert side in types_of_bounds
+    #
+    #     if side == 'l':
+    #         return self.getSoftLowerBoundForLayer(var,two_sided)
+    #     return self.getSoftUpperBoundForLayer(var,two_sided)
+
+
+
+    def checkConjunction(self, sample_size=100, adjust_epsilons = True, add_to_bad_set=True,
+                         number_of_epsilons_to_adjust = 1):
+        # assert self.interpolant_candidate
+
+        status = True # No counterexample found yet
+
+        out_of_bounds_inputs = []
+        difference_dict = {}
+        epsilon_adjusted = []
+
+
+        for i in range(sample_size):
+            layer_input = self.layer_interpolant_candidate.createRandomSuggestedInputForLayer()
+
+            result, one_out_of_bounds_inputs, one_differene_dict, output = \
+                self.checkCandidateOnInput(layer_input, add_to_bad_set=add_to_bad_set)
+            # Note that we do not adjust epsilons on one input here;
+            # rather, we will later choose an epsilon (or epsilons) to adjust at random
+            # from the whole bad set of inputs after the loop is finished
+
+
+            if result == 'within_bounds': # The counterexample is between the actual observed bounds
+                print("Candidate search has failed. Found a counterexample between observed lower and "
+                      "upper bounds: \n layer input = ",layer_input, '\n output = ', output,   "\n Check if SAT?")
+                sys.exit(2)
+
+            if result == 'out_of_bounds':  # A counterexample to the candidate found
+                status = False
+                out_of_bounds_inputs += one_out_of_bounds_inputs
+
+                # adjusting the maximal difference dictionary
+                for (var,side) in one_differene_dict.keys():
+                    if (var,side) not in difference_dict.keys() \
+                            or difference_dict[(var,side)]<one_differene_dict[(var,side)]:
+                        difference_dict[(var,side)] = one_differene_dict[(var,side)]
+
+        if (not status) and adjust_epsilons:
+            epsilon_adjusted = self.strengthenEpsilons(out_of_bounds_inputs,difference_dict,adjust_epsilons='random',
+                                    number_of_epsilons=number_of_epsilons_to_adjust)
+            # TODO: change to the method of the new invariant class
+
+
+        # if (not status) and adjust_epsilons:
+        #     self.adjustEpsilonAtRandom(out_of_bounds_inputs, adjust_candidate=True)
+
+        return status, epsilon_adjusted, out_of_bounds_inputs, difference_dict
+
+
+    def checkCandidateOnInput(self, layer_input,  add_to_bad_set = True):
+        # assert adjust_epsilons in ['','random','all']
+
+        output = self.marabou_nnet.evaluateNetworkFromLayer(layer_input, first_layer=self.layer)
+        one_out_of_bounds_inputs = []
+        one_differene_dict = {}
+
+        result = 'success' # No counterexamples to the candidate found
+
+        if not self.verifyOutputProperty(y=output):
+            if add_to_bad_set:
+                self.bad_set.append(layer_input)
+
+            one_out_of_bounds_inputs, one_differene_dict = \
+                self.layer_interpolant_candidate.analyzeBadLayerInput(layer_input)
+
+            if not one_out_of_bounds_inputs: # Bad input within observed bounds!
+                result = 'within_bounds'
             else:
-                self.HalfBadEpsilonsOnBadInput()
+                result  = 'out_of_bounds'
 
-            # TO DO: MODIFY!
-
-        if status == 'candidate_not_too_weak':
-
-        if status == 'failed_disjuncts':
-
-            # COMPLETE!!!!
+        return result, one_out_of_bounds_inputs, one_differene_dict, output
 
 
 
+    #
+    # def strengthenEpsilons(self, out_of_bounds_inputs, differene_dict, adjust_epsilons='', number_of_epsilons=1):
+    #     assert adjust_epsilons in ['', 'random', 'all', 'half_all','half_random']
+    #     assert number_of_epsilons>=0
+    #
+    #     if not adjust_epsilons:
+    #         return []
+    #
+    #     weights=[difference for (var,side,difference) in out_of_bounds_inputs]
+    #     if adjust_epsilons == 'random' or adjust_epsilons == 'half_random':
+    #         epsilons_to_adjust = choices(out_of_bounds_inputs,weights=weights,k=number_of_epsilons)
+    #     else:
+    #         epsilons_to_adjust = out_of_bounds_inputs
+    #
+    #     for (var,side,_) in epsilons_to_adjust:
+    #         if adjust_epsilons == 'half_all' or adjust_epsilons == 'half_random':
+    #             new_epsilon = self.epsiloni_twosided[side][var] / 2
+    #         elif adjust_epsilons == 'all' or adjust_epsilons == 'random'
+    #             new_epsilon = self.epsiloni_twosided[side][var](1 + differene_dict[(var, side)]) / 2
+    #         else:
+    #             print('Strange error in strengthenEpsilons')
+    #             sys.exit(1)
+    #
+    #         self.adjustEpsilon(var,side,new_epsilon=new_epsilon,two_sided=True,adjust_candidate=True)
+    #
+    #     return epsilons_to_adjust
+    #
 
-    # NOTE: creates full output file, not a full input file
-    def initiateMarabouCandidateVerification(self, network_filename1: str, network_filename2: str, property_filename1: str,
-                                        property_filename2: str):
 
-        self.split_network(network_filename1, network_filename2)
-        self.setFilenames(property_filename1,property_filename2)
-        self.createOriginalInputPropertyFile()
-        self.createOriginalOutputPropertyFile()
-        self.addLayerPropertiesToOutputPropertyFile()
+
+    # def analyzeBadLayerInput(self, layer_input, use_multiplicity = False):
+    #     bad_layer_inputs = []
+    #     bad_layer_inputs_dict = {}
+    #
+    #     for var in range(self.layer_size):
+    #         if layer_input[var] < self.layer_minimums[var]:  # lb - delta[i,'l'] <= xi <= lb (lb = layer minimum)
+    #             side = 'l'
+    #             difference = (self.layer_minimums[var] - layer_input[var])
+    #         elif layer_input[var] > self.layer_maximums[var] and self.suggested_layer_bounds['r'][var] > 0:
+    #             side = 'r'
+    #             difference = (layer_input[var] - self.layer_maximums[var])  # ub <= xi <= ub + delta[i,'r']
+    #         else:
+    #             continue
+    #
+    #         difference = difference / self.epsiloni_twosided[side][var]
+    #         if use_multiplicity:
+    #             multiplicity = round(difference * 5)  # A PARAMETER THAT CAN BE ADJUSTED!
+    #             bad_layer_inputs += [(var, side, difference)] * multiplicity
+    #         else:
+    #             bad_layer_inputs += [(var, side, difference)]
+    #
+    #         if (var,side) not in bad_layer_inputs_dict.keys() or bad_layer_inputs_dict[(var,side)]<difference:
+    #             bad_layer_inputs_dict[(var,side)] = difference
+    #
+    #     return bad_layer_inputs, bad_layer_inputs_dict
+    #
 
 
     def createOriginalInputPropertyFile(self):
@@ -873,7 +1412,7 @@ class MarabouNNetMCMH:
 
 
 
-    def createRandomInputs(self):
+    def createRandomInputForNetwork(self):
         input = []
         for input_var in self.marabou_nnet.inputVars.flatten():
             # Note: the existence of lower and upper bounds was asserted in the constructor
@@ -884,23 +1423,23 @@ class MarabouNNetMCMH:
 
 
 
-    def createRandomHardInputsForLayer(self):
-        input = []
-        for var in range(self.layer_size):
-            random_value = np.random.uniform(low=self.layer_minimums[var],
-                                             high=self.layer_maximums[var])
-            input.append(random_value)
-        return input
-
-
-    def createRandomSoftInputsForLayer(self):
-        input = []
-        for var in range(self.layer_size):
-            random_value = np.random.uniform(low=self.suggested_layer_bounds['l'][var],
-                                             high=self.suggested_layer_bounds['r'][var])
-            input.append(random_value)
-        return input
-
+    # def createRandomHardInputsForLayer(self):
+    #     input = []
+    #     for var in range(self.layer_size):
+    #         random_value = np.random.uniform(low=self.layer_minimums[var],
+    #                                          high=self.layer_maximums[var])
+    #         input.append(random_value)
+    #     return input
+    #
+    #
+    # def createRandomSoftInputsForLayer(self):
+    #     input = []
+    #     for var in range(self.layer_size):
+    #         random_value = np.random.uniform(low=self.suggested_layer_bounds['l'][var],
+    #                                          high=self.suggested_layer_bounds['r'][var])
+    #         input.append(random_value)
+    #     return input
+    #
 
     def adjustLayerBounds(self,layer_output):
         """
@@ -937,7 +1476,7 @@ class MarabouNNetMCMH:
 
         good_set =[]
         for i in range(N):
-            inputs = self.createRandomInputs()
+            inputs = self.createRandomInputForNetwork()
 
             # The input is chosen uniformly at random from within the bounds of input variables
             # Still need to verify that the equations hold; if not, this is not a "legal" input, we discard it
@@ -1067,6 +1606,96 @@ class MarabouNNetMCMH:
 
         return layer_outputs
 
+
+
+
+
+    # Older version
+
+    # def computeInitialInterpolantCandidateForLayer(self,two_sided=True):
+    #
+    #     assert self.layer_minimums
+    #     assert self.layer_maximums
+    #
+    #     if two_sided:
+    #         assert self.epsiloni_twosided['l']
+    #         assert self.epsiloni_twosided['r']
+    #     else:
+    #         assert self.epsiloni
+    #
+    #     self.suggested_layer_bounds['l'] = [self.getSoftLowerBoundForLayer(var,two_sided) for var in range(self.layer_size)]
+    #     self.suggested_layer_bounds['r'] = [self.getSoftUpperBoundForLayer(var,two_sided) for var in range(self.layer_size)]
+    #
+    #     self.recomputeInterpolant()
+    #
+    # def recomputeInterpolant(self):
+    #     assert self.suggested_layer_bounds['l']
+    #     assert self.suggested_layer_bounds['r']
+    #
+    #     self.interpolant_candidate = []
+    #     self.output_interpolant_candidate = []
+    #
+    #     for var in range(self.layer_size):
+    #         lb=self.computeLowerBoundProperty(var)
+    #         ub=self.computeUpperBoundProperty(var)
+    #         self.interpolant_candidate.append({'l': lb,'r': ub})
+    #
+    #         if self.suggested_layer_bounds['r'][var] == 0:
+    #             ub_y = ''
+    #         else:
+    #             ub_y = ub.replace('x','y').replace('>','<')
+    #         lb_y = lb.replace('x','y').replace('<','>')
+    #         self.output_interpolant_candidate.append({'l': lb_y,'r': ub_y})
+    #
+    # def adjustInterpolantCandidate(self,var: int, side = '', two_sided = True):
+    #     assert var in range(self.layer_size)
+    #     assert side in types_of_bounds
+    #
+    #     self.suggested_layer_bounds[side][var] = self.getSoftBoundForLayer(var,side,two_sided)
+    #
+    #     x_bdd = self.computeBoundProperty(var,side)
+    #
+    #     if side == 'r' and self.suggested_layer_bounds['r'][var] == 0:
+    #         y_bdd = ''
+    #     else:
+    #         y_bdd = x_bdd.replace('x','y').replace('<','>').replace('>','<')
+    #
+    #     self.interpolant_candidate[var][side] = x_bdd
+    #     self.output_interpolant_candidate[var][side] = y_bdd
+    #
+    #
+    #
+    # def adjustEpsilon(self, var: int, side: str, new_epsilon: float, two_sided = True, adjust_candidate = True):
+    #     assert var in range(self.layer_size)
+    #     assert side in types_of_bounds
+    #
+    #     if not two_sided:
+    #         assert self.epsiloni
+    #         assert len(self.epsiloni) > var
+    #         self.epsiloni[var] = new_epsilon
+    #         return
+    #
+    #     assert self.epsiloni_twosided[side]
+    #     assert len(self.epsiloni_twosided[side])>var
+    #     self.epsiloni_twosided[side][var] = new_epsilon
+    #
+    #     if adjust_candidate:
+    #         self.adjustInterpolantCandidate(var,side,two_sided)
+    #
+    #
+    # def computeLowerBoundProperty(self,var: int):
+    #     return 'x' + str(var) + ' <= ' + str(self.suggested_layer_bounds['l'][var])
+    #
+    # def computeUpperBoundProperty(self,var: int):
+    #     return 'x' + str(var) + ' >= ' + str(self.suggested_layer_bounds['r'][var])
+    #
+    # def computeBoundProperty(self,var: int, side: str):
+    #     assert side in types_of_bounds
+    #
+    #     if side == 'l':
+    #         return self.computeLowerBoundProperty(var)
+    #     return self.computeUpperBoundProperty(var)
+    #
 
 
     # Older version, probably redundant?

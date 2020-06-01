@@ -189,12 +189,14 @@ class Property:
     def compute_executable_bounds(self,recompute=False):
         """
         Computes the list of executable bounds for efficiency of evaluation
-        NOTE: Does nothing if the list is already non-empty
+        NOTE: Does nothing if the list is already non-empty and recompute==False
         """
         if recompute:
             self.exec_bounds = dict()
+
         if not self.exec_bounds:
             for t in types_of_properties:
+                self.exec_bounds[t] = []
                 for bound in self.bounds[t]:
                     exec_equation = parser.expr(bound).compile()
                     self.exec_bounds[t].append(exec_equation)
@@ -204,12 +206,14 @@ class Property:
     def compute_executable_equations(self,recompute=False):
         """
         Computes the list of executable equations for efficiency of evaluation
-        NOTE: Does nothing if the list is already non-empty
+        NOTE: Does nothing if the list is already non-empty and recompute==False
         """
         if recompute:
             self.exec_equations = dict()
+
         if not self.exec_equations:
             for t in types_of_properties:
+                self.exec_equations[t] = []
                 for equation in self.equations[t]:
                     exec_equation = parser.expr(equation).compile()
                     self.exec_equations[t].append(exec_equation)

@@ -378,22 +378,24 @@ class invariantOnNeuron:
 
         return new_offset
 
-    def computeLowerBoundProperty(self,var: int):
+    def computeLowerBoundProperty(self):
+        var = self.var
         p =  'x' + str(var) + ' <= ' + str(self.suggested_bounds['l'])
         dual_p = 'y' + str(var) + ' >= ' + str(self.suggested_bounds['l'])
         return p, dual_p
 
-    def computeUpperBoundProperty(self,var: int):
+    def computeUpperBoundProperty(self):
+        var = self.var
         p =  'x' + str(var) + ' >= ' + str(self.suggested_bounds['r'])
         dual_p = 'y' + str(var) + ' <= ' + str(self.suggested_bounds['r'])
         return p, dual_p
 
-    def computeBoundProperty(self,var: int, side: str):
+    def computeBoundProperty(self, side: str):
         assert side in types_of_bounds
 
         if side == 'l':
-            return self.computeLowerBoundProperty(var)
-        return self.computeUpperBoundProperty(var)
+            return self.computeLowerBoundProperty()
+        return self.computeUpperBoundProperty()
 
 
 

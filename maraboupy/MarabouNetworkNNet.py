@@ -16,14 +16,11 @@
  **/
 '''
 
-<<<<<<< HEAD
-from MarabouUtils import *
-import MarabouNetwork
-=======
+
 from .MarabouUtils import *
 from maraboupy import MarabouCore
 from maraboupy import MarabouNetwork
->>>>>>> master
+
 import numpy as np
 
 

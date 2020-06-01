@@ -30,7 +30,7 @@ class MarabouNetworkNNetExtended(MarabouNetworkNNetIPQ,MarabouNetworkNNetPropert
     Class that implements a MarabouNetwork from an NNet file
     Includes extended features: Property and IPQ
     """
-    def __init__ (self, filename="", property_filename = "", perform_sbt=False, compute_ipq = False):
+    def __init__ (self, filename="", property_filename = "", use_nlr = False, compute_ipq = False):
         """
         Constructs a MarabouNetworkNNetExtended object from an .nnet file.
 
@@ -89,4 +89,4 @@ class MarabouNetworkNNetExtended(MarabouNetworkNNetIPQ,MarabouNetworkNNetPropert
 
         """
         print('property_filename = ', property_filename)
-        super(MarabouNetworkNNetExtended,self).__init__(filename=filename,property_filename=property_filename,perform_sbt=perform_sbt,compute_ipq=compute_ipq)
+        super(MarabouNetworkNNetExtended,self).__init__(filename=filename,property_filename=property_filename,use_nlr=use_nlr,compute_ipq=compute_ipq)

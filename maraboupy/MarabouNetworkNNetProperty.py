@@ -30,7 +30,7 @@ class MarabouNetworkNNetProperty(MarabouNetworkNNetExtendedParent.MarabouNetwork
     Class that implements a MarabouNetwork from an NNet file with a property from a property file.
     """
 
-    def __init__ (self, filename="", property_filename="", perform_sbt=False, compute_ipq=False):
+    def __init__ (self, filename="", property_filename="", use_nlr=False, compute_ipq=False):
         """
         Constructs a MarabouNetworkNNetProperty object from an .nnet file.
         Imports a property from a property file
@@ -77,7 +77,7 @@ class MarabouNetworkNNetProperty(MarabouNetworkNNetExtendedParent.MarabouNetwork
 
 
         """
-        super(MarabouNetworkNNetProperty,self).__init__(filename=filename,perform_sbt=perform_sbt)
+        super(MarabouNetworkNNetProperty,self).__init__(filename=filename, use_nlr=use_nlr)
 
         print('property filename = ', property_filename)
 

@@ -17,9 +17,9 @@
 '''
 
 
-from .MarabouUtils import *
-from maraboupy import MarabouCore
-from maraboupy import MarabouNetwork
+from MarabouUtils import *
+import MarabouCore
+import MarabouNetwork
 
 import numpy as np
 

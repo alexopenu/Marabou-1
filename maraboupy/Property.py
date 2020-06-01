@@ -21,7 +21,7 @@
 
 
 
-import PropertyParser
+from PropertyParser import *
 import parser
 
 types_of_properties = ['x', 'y', 'ws', 'm']
@@ -114,8 +114,7 @@ class Property:
 
                 self.properties_list[t] = []
         else:
-            self.equations, self.bounds, self.properties_list \
-                = PropertyParser.parseProperty(property_filename)
+            self.equations, self.bounds, self.properties_list = parseProperty(property_filename)
         if compute_executable_bounds:
             self.compute_executable_bounds()
         if compute_executable_equations:

@@ -143,7 +143,7 @@ class invariantOnNeuron:
         self.interpolant_property = {}
         self.dual_interpolant_property = {}
 
-        # y >= 0 does not need verification
+        # y >= 0 does not require verification
         self.verified_disjunct = {'l': 0.0}
 
         if basic_statistics is None:
@@ -569,7 +569,7 @@ class layerInterpolateCandidate:
         for var in range(self.layer_size):
             self.adjustObservedBoundForVariable(var,layer_input[var])
 
-    def adjustObservedBoundForVariable(self, var, new_input):
+    def adjustObservedBoundForVariable(self, var: int, new_input: float):
         assert var in range(self.layer_size)
 
         if new_input < self.layer_minimums[var]:
@@ -586,6 +586,15 @@ class layerInterpolateCandidate:
 
             # self.list_of_neurons[var].range['l'] = self.list_of_neurons[var].mean - new_input
             # self.list_of_neurons[var].epsilon_twosided
+
+    # Currently the initial criteria are very simplistic: inactive and half-active participate, the rest do not.
+    # TODO: make more interesting/randomized initial conditions
+    def setInitialParticipatingNeurons(self):
+        for var in range(self.layer_size):
+            if not self.list_of_neurons[var].isActive() or self.list_of_neurons[var].isHalfActive():
+                self.includeInInvariant(var)
+            else:
+                self.excludeFromInvariant(var)
 
     # Currently unused
     def getUnverifiedDisjuncts(self):
@@ -895,6 +904,37 @@ class MarabouNNetMCMH:
         # self.epsiloni = []
         # self.epsiloni_twosided = {'l': [], 'r': []}
 
+
+    def verify(self, timeout = 0, layer = -1, N = 5000, network_filename1 = '', network_filename2 = '',
+               property_filename1 = '', property_filename2 = ''):
+        self.initiateVerificationProcess(layer,N)
+        # self.prepareForMarabouCandidateVerification()
+        self.setFilenames(network_filename1, network_filename2, property_filename1, property_filename2)
+
+        status, argument_list = self.CandidateSearch(number_of_trials=100, individual_sample=20,timeout = timeout)
+        # TODO: a smarter choice of sample size and number of trials?
+
+        if status == 'success':
+            print('UNSAT')
+            print('Interpolant for layer = ', self.layer, ':')
+            print(self.layer_interpolant_candidate.getConjunction())
+            sys.exit(0)
+
+        if status == 'raw_conjunction_too_weak':
+            print('Interpolant search has failed. A counterexample found between observed layer bounds. Check if SAT?')
+            print('Bad input is ', argument_list)
+            sys.exit(2)
+            # TODO:
+            #  Currently this means that Marabou has found a counterexample to the raw conjunction.
+            #  Generally we don't expect this to happen.
+            #  There is another place where a similar message can be printed out,
+            #  adjustConjunctionOnRandomInput. Propagate it here as well!
+
+        if status == 'timeout':
+            print('Timeout after ', argument_list[0], 'seconds.')
+            sys.exit(3)
+
+
     def setLayer(self,layer):
         assert ((layer>=0) and (layer<self.marabou_nnet.numLayers))
         self.layer = layer
@@ -989,8 +1029,10 @@ class MarabouNNetMCMH:
 
 
     # This is the firs method to run after creating an object
-    def initiateVerificationProcess(self,N=5000):
-        assert self.layer>-1
+    def initiateVerificationProcess(self, layer = -1, N=5000):
+        assert self.layer>-1 or layer>-1
+        if layer>-1:
+            self.setLayer(layer)
 
         self.createInitialGoodSet(N,include_input_extremes=True,adjust_bounds=False)
         assert self.good_set
@@ -999,6 +1041,7 @@ class MarabouNNetMCMH:
         assert self.basic_statistics.statistics_computed
 
         self.layer_interpolant_candidate.loadFromBasicStatiatics(self.basic_statistics, self.layer)
+        self.layer_interpolant_candidate.setInitialParticipatingNeurons()
 
 
         # self.epsiloni = self.basic_statistics.epsiloni
@@ -1063,7 +1106,7 @@ class MarabouNNetMCMH:
 
 
 
-    def verifyUnverifiedDisjuncts(self, add_to_goodset=True):
+    def verifyUnverifiedDisjunctsWithMarabou(self, add_to_goodset=True):
         failed_disjuncts = []
         for var in range(self.layer_size):
             for side in types_of_bounds:
@@ -1102,36 +1145,14 @@ class MarabouNNetMCMH:
 
 
     def adjustDisjunctsOnBadInputs(self, failed_disjuncts: list):
-        pass
+        '''
 
-    # TODO: complete
+        :param failed_disjuncts: list of tuples of the form (var,side,bad_input) created by verifyDisjuncts methods
+        :return:
+        '''
+        for (var,side,bad_input) in failed_disjuncts:
+            self.layer_interpolant_candidate.adjustObservedBoundForVariable(var,bad_input[var])
 
-
-    def verify(self, timeout = 0, N = 5000, network_filename1 = '', network_filename2 = '',
-               property_filename1 = '', property_filename2 = ''):
-        self.initiateVerificationProcess(N)
-        # self.prepareForMarabouCandidateVerification()
-        self.setFilenames(network_filename1, network_filename2, property_filename1, property_filename2)
-        status, argument_list = self.CandidateSearch(number_of_trials=100, individual_sample=20,timeout = timeout)
-
-        if status == 'success':
-            print('We are done!')
-            print(self.layer_interpolant_candidate.getConjunction())
-            sys.exit(0)
-
-        if status == 'raw_conjunction_too_weak':
-            print('Candidate search failed, a counterexample found between observed layer bounds. Check if SAT?')
-            print('Bad input is ', argument_list)
-            sys.exit(2)
-            # TODO:
-            #  Currently this means that Marabou has found a counterexample to the raw conjunction.
-            #  Generally we don't expect this to happen.
-            #  There is another place where a similar message can be printed out,
-            #  adjustConjunctionOnRandomInput. We could propagate it here as well?
-
-        if status == 'timeout':
-            print('Timeout after ', argument_list[0], 'seconds.')
-            sys.exit(3)
 
 
 
@@ -1164,7 +1185,7 @@ class MarabouNNetMCMH:
 
                 # TODO: improve.
                 #  Add probabilistic choice of different options: half deltas only.
-                #  Include more neurons in in variant. etc.
+                #  Include more (or less) neurons in invariant. etc.
 
             if status == 'candidate_not_too_weak':
             #local candidate search timed out, but global search has not
@@ -1172,10 +1193,9 @@ class MarabouNNetMCMH:
 
             if status == 'failed_disjuncts':
                 self.adjustDisjunctsOnBadInputs(argument_list)
-                # TODO: implement!
                 continue
 
-
+            # TODO: change number of trials and the size of individual sample depending on progress?
 
 
 
@@ -1227,7 +1247,7 @@ class MarabouNNetMCMH:
         # So for now we assume that we have a candidate which is not too weak
         # Next step is verifying the disjunction
 
-        failed_disjuncts = self.verifyUnverifiedDisjuncts()
+        failed_disjuncts = self.verifyUnverifiedDisjunctsWithMarabou()
 
         if not failed_disjuncts:
             status = 'success'
@@ -2754,11 +2774,47 @@ property_filename = "../resources/properties/acas_property_4.txt"
 property_filename1 = "../resources/properties/acas_property_1.txt"
 
 
+
+output_filename = "test/ACASXU_experimental_v2a_1_9_output.nnet"
+
+network_filename1 = "test/ACASXU_experimental_v2a_1_9_output1.nnet"
+network_filename2 = "test/ACASXU_experimental_v2a_1_9_output2.nnet"
+
+
+output_property_file = "output_property_test1.txt"
+input_property_file = "input_property_test1.txt"
+
+mcmh_object = MarabouNNetMCMH(network_filename,property_filename,layer=5)
+
+mcmh_object.initiateVerificationProcess()
+
+
+
+input_property_file_sanity = "input_property_test2.txt"
+output_property_file1 = "output_property_test2.txt"
+
+
+
+
+
 #network_filename = "../maraboupy/regress_acas_nnet/ACASXU_run2a_1_7_batch_2000.nnet"
 
 
 mcmh_object = MarabouNNetMCMH(network_filename=network_filename, property_filename=property_filename)
-mcmh_object.marabou_nnet.property.compute_executables()
+
+
+
+mcmh_object.setLayer(layer=5)
+
+
+
+
+
+
+
+
+
+# mcmh_object.marabou_nnet.property.compute_executables()
 
 # solve_query(mcmh_object.marabou_nnet.ipq2,property_filename)
 
@@ -2767,26 +2823,20 @@ mcmh_object.marabou_nnet.property.compute_executables()
 
 # nnet_object.outputsOfInputExtremes()
 
-mcmh_object.setLayer(layer=5)
 
-mcmh_object.createInitialGoodSet(N=1000, adjust_bounds=True, sanity_check=False)
+# mcmh_object.createInitialGoodSet(N=1000, adjust_bounds=True, sanity_check=False)
 
-print(mcmh_object.layerMinimums_dict)
-print(mcmh_object.layerMaximums_dict)
+# print(mcmh_object.layerMinimums_dict)
+# print(mcmh_object.layerMaximums_dict)
+#
 
-
-mcmh_object.outputsOfInputExtremesForLayer(adjust_bounds=True, add_to_goodset=True, sanity_check=False)
-print(mcmh_object.layerMinimums_dict)
-print(mcmh_object.layerMaximums_dict)
-
-output_property_file = "output_property_test1.txt"
-input_property_file = "input_property_test1.txt"
-input_property_file_sanity = "input_property_test2.txt"
-output_property_file1 = "output_property_test2.txt"
+# mcmh_object.outputsOfInputExtremesForLayer(adjust_bounds=True, add_to_goodset=True, sanity_check=False)
+# print(mcmh_object.layerMinimums_dict)
+# print(mcmh_object.layerMaximums_dict)
 
 # mcmh_object.createOutputPropertyFileForLayer(output_property_file)
 
-mcmh_object.createInputPropertyFileForLayer(input_property_file)
+# mcmh_object.createInputPropertyFileForLayer(input_property_file)
 
 # mcmh_object.createInputPropertyFileForLayer(input_property_file_sanity, sanity_check=True)
 # mcmh_object.createRandomOutputPropertyFileForLayer(output_property_file1)
@@ -2805,28 +2855,23 @@ mcmh_object.createInputPropertyFileForLayer(input_property_file)
 # nnet_object1, nnet_object2 = splitNNet(marabou_nnet=mcmh_object.marabou_nnet, layer=layer)
 
 
-output_filename = "test/ACASXU_experimental_v2a_1_9_output.nnet"
-output_filename1 = "test/ACASXU_experimental_v2a_1_9_output1.nnet"
-output_filename2 = "test/ACASXU_experimental_v2a_1_9_output2.nnet"
-
-
 # nnet_object1.writeNNet(output_filename1)
 # nnet_object2.writeNNet(output_filename2)
 
 
-mcmh_object.split_network(output_filename1,output_filename2)
+# mcmh_object.split_network(output_filename1,output_filename2)
 
 # Testing the random output property file!
 # nnet_object1 = MarabouNetworkNNetExtended(output_filename1,output_property_file1)
 
-nnet_object2 = MarabouNetworkNNetExtended(output_filename2,input_property_file)
+# nnet_object2 = MarabouNetworkNNetExtended(output_filename2,input_property_file)
 
 
 
 # Counting wrong answers for the different disjuncts
-num_sats = 0
-sats = []
-
+# num_sats = 0
+# sats = []
+#
 
 # Going over all the disjuncts, one by one
 # for var in range(mcmh_object.marabou_nnet.layerSizes[mcmh_object.layer]):
@@ -2845,25 +2890,25 @@ sats = []
 
 
 
-
-print("Number of SATs: ", num_sats)
-print(sats)
-
-# for (var,lb,string) in sats:
-
-# solve_query(nnet_object2.ipq2,verbosity=0)
-
-time1 = time.time()
-
-print("Time taken: ",time.time()-start_time)
-
-# test_split_network(mcmh_object.marabou_nnet,nnet_object1,nnet_object2)
 #
-
-mcmh_object.computeStatistics()
-
-time2 = time.time()
-print("Time statistics took", time2-time1)
+# print("Number of SATs: ", num_sats)
+# print(sats)
+#
+# # for (var,lb,string) in sats:
+#
+# # solve_query(nnet_object2.ipq2,verbosity=0)
+#
+# time1 = time.time()
+#
+# print("Time taken: ",time.time()-start_time)
+#
+# # test_split_network(mcmh_object.marabou_nnet,nnet_object1,nnet_object2)
+# #
+#
+# mcmh_object.computeStatistics()
+#
+# time2 = time.time()
+# print("Time statistics took", time2-time1)
 #
 # print(mcmh_object.maxsigma,mcmh_object.maxsigmaleft,mcmh_object.maxsigmaright)
 # print(mcmh_object.sigma_left)
@@ -2898,12 +2943,12 @@ print("Time statistics took", time2-time1)
 #     kde = stats.gaussian_kde(x, bw_method='scott', **kwargs)
 #     return kde.evaluate(x_grid)
 
-x_grid = np.linspace(-4.5, 3.5, 1000)
-
-good_set_array = np.array(mcmh_object.good_set)
-
-
-print(good_set_array[: , 17])
+# x_grid = np.linspace(-4.5, 3.5, 1000)
+#
+# good_set_array = np.array(mcmh_object.good_set)
+#
+#
+# print(good_set_array[: , 17])
 
 # kde_scipy(good_set_array[: , 17], x_grid)
 

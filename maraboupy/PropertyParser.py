@@ -20,7 +20,7 @@
 
 
 
-
+import sys
 import re
 
 types_of_eq_properties = ['x', 'y', 'ws', 'm']
@@ -81,7 +81,8 @@ def parseProperty(property_filename):
 
 
 
-    try:
+    #try:
+    if True:
         # num_bounds = -1 # running index in self.bounds
         # num_eqs = -1    # running index in self.equiations
 
@@ -156,8 +157,9 @@ def parseProperty(property_filename):
 
                 line = f.readline()
         print('successfully read property file: ', property_filename)
-        return (equations, bounds, properties)
+        return equations, bounds, properties
 
-    except:
-        print('something went wrong while reading the property file', property_filename)
+    # except:
+    #     print('something went wrong while reading the property file', property_filename)
+    #     sys.exit(1)
 

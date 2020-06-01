@@ -17,8 +17,8 @@
 '''
 
 import warnings
-from .MarabouCore import *
-from .MarabouNetworkNNet import *
+from MarabouCore import *
+from MarabouNetworkNNet import *
 
 # Import parsers if required packages are installed
 try:

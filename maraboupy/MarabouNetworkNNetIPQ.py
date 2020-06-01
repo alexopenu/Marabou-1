@@ -32,7 +32,7 @@ class MarabouNetworkNNetIPQ(MarabouNetworkNNetExtendedParent.MarabouNetworkNNetE
     """
     Class that implements a MarabouNetwork from an NNet file.
     """
-    def __init__ (self, filename="", property_filename = "", perform_sbt=False, compute_ipq = False):
+    def __init__ (self, filename="", property_filename = "", use_nlr = False, compute_ipq = False):
         """
         Constructs a MarabouNetworkNNetIPQ object from an .nnet file.
         Computes InputQuery, potentially in two ways
@@ -82,7 +82,7 @@ class MarabouNetworkNNetIPQ(MarabouNetworkNNetExtendedParent.MarabouNetworkNNetE
 
 
         """
-        super(MarabouNetworkNNetIPQ,self).__init__(filename=filename,property_filename=property_filename,perform_sbt=perform_sbt,compute_ipq=compute_ipq)
+        super(MarabouNetworkNNetIPQ,self).__init__(filename=filename,property_filename=property_filename,use_nlr=use_nlr,compute_ipq=compute_ipq)
         if compute_ipq:
             self.ipq1 = self.getMarabouQuery()
         else:

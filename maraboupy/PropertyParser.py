@@ -91,17 +91,21 @@ def parseProperty(property_filename):
             line = f.readline()
             while(line):
 
-                # Computing type2: input/output/ws/mixed
-                matched = False
-                if (reg_input.match(line)): # input variables present
-                    matched = True
-                    type2 = 'x'
-                if (reg_output.match(line)): # output variables present
-                    type2 = 'm' if matched else 'y'
-                    matched = True
-                if (reg_ws.match(line)): # hidden variable present
-                    type2 = 'ws'
+                type2 = ''
 
+                # Computing type2: input/output/ws/mixed
+                if (reg_input.search(line)): # input variables present
+                    type2 = 'x'
+                if (reg_output.search(line)): # output variables present
+                    type2 = 'm' if type2 else 'y'
+                if (reg_ws.search(line)): # hidden variable present
+                    type2 = 'm' if type2 else 'ws'
+
+                if not type2:
+                    print('An expression of an unknown type found while attempting to parse '
+                          'property file ', property_filename)
+                    print('expression: ', line)
+                    sys.exit(1)
 
 
                 if reg_equation.match(line): # Equation

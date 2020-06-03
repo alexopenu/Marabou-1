@@ -39,7 +39,7 @@ infty = 1000
 
 
 class basic_mcmh_statistics:
-    def __init__(self,good_set = [],epsilon=0.01,two_sided = True):
+    def __init__(self,good_set = [], epsilon=0.01, two_sided = True):
         self.epsilon = epsilon
 
         self.layer_size = 0
@@ -53,13 +53,13 @@ class basic_mcmh_statistics:
 
         self.statistics_computed = False
 
-        if good_set:
+        if len(good_set):
             self.recompute_statistics(good_set,two_sided)
 
 
     def recompute_statistics(self,good_set=[],two_sided=True):
 
-        if not good_set:
+        if not len(good_set):
             self.statistics_computed = False
             self.layer_size = 0
             self.good_matrix = np.array([])
@@ -75,6 +75,9 @@ class basic_mcmh_statistics:
             self.minimums = [np.min(self.good_matrix[:,var]) for var in range(self.layer_size)]
             self.maximums = [np.max(self.good_matrix[:, var]) for var in range(self.layer_size)]
             self.mean = [np.mean(self.good_matrix[:, var]) for var in range(self.layer_size)]
+            self.range = [self.maximums[var]-self.minimums[var] for var in range(self.layer_size)]
+            self.epsiloni_twosided = {'l': [0]*self.layer_size, 'r': [0]*self.layer_size}
+            self.epsiloni = [0]*self.layer_size
 
             self.computeEpsilonsUniformly()
             self.statistics_computed = True
@@ -90,7 +93,7 @@ class basic_mcmh_statistics:
         :return:
         '''
 
-        assert self.good_matrix
+        assert self.good_matrix.__len__()
         for var in range(self.layer_size):
             self.computeEpsilonsForVariable(var)
 
@@ -104,7 +107,7 @@ class basic_mcmh_statistics:
         maximum = self.maximums[var]
         mean = self.mean[var]
 
-        self.range[var] = maximum-minimum
+        # self.range[var] = maximum-minimum
         self.epsiloni[var] = self.range[var]/sample_size
 
         if compute_twosided:
@@ -129,12 +132,14 @@ class basic_mcmh_statistics:
 
 class invariantOnNeuron:
 
-    def __init__(self, layer = -1, var = -1, participates_in_invariant = True, observed_minimum = -np.infty,
-                 observed_maximum = np.infty, observed_range = 0, observed_mean = 0, epsilon_twosided = None,
+    def __init__(self, layer = -1, var = -1, participates_in_invariant = True, tight_bounds = True,
+                 observed_minimum = -np.infty, observed_maximum = np.infty, observed_range = 0, observed_mean = 0,
+                 epsilon_twosided = None,
                  loose_epsilons_compute = 'range', loose_epsilon_const = 0,
                  basic_statistics: basic_mcmh_statistics = None):
 
-        self.participates_in_invariant = participates_in_invariant
+        self.participates_in_invariant = {'l': participates_in_invariant, 'r': participates_in_invariant}
+        self.tight_bounds = tight_bounds
 
         assert loose_epsilons_compute in ['range', 'double', 'const']
         self.loose_epsilon_compute = loose_epsilons_compute
@@ -146,11 +151,18 @@ class invariantOnNeuron:
         # y >= 0 does not require verification
         self.verified_disjunct = {'l': 0.0}
 
+        self.offset = {}
+        self.deltas = {}
+
+        self.real_bounds_for_invariant = {}
+        self.loose_bounds_for_invariant = {}
+
+        self.suggested_bounds = {}
+
         if basic_statistics is None:
             self.layer = layer
             self.var = var
 
-            # self.active = active
             self.observed_maximum = observed_maximum
             self.observed_minimum = observed_minimum
             if epsilon_twosided:
@@ -160,21 +172,13 @@ class invariantOnNeuron:
             self.range = observed_range
             self.mean = observed_mean
 
-            self.offset = {}
-            self.deltas = {}
-
-            self.real_bounds_for_invariant = {}
-            self.loose_bounds_for_invariant = {}
-
-            self.suggested_bounds = {}
-
             self.computeInitialOffsets()
             self.recomputeAllBounds(recompute_property=True)
 
         else:
-            assert layer>-1
-            assert var>-1
-            self.loadFromBasicStatistics(layer,var,basic_statistics,participates_in_invariant)
+            assert layer > -1
+            assert var > -1
+            self.loadFromBasicStatistics(layer, var, basic_statistics, tight_bounds)
 
 
 
@@ -185,7 +189,7 @@ class invariantOnNeuron:
 
         assert var in range(basic_statistics.layer_size)
 
-        self.participates_in_invariant = participates_in_invariant
+        self.tight_bounds = participates_in_invariant
 
         self.observed_minimum = basic_statistics.minimums[var]
         self.observed_maximum = basic_statistics.maximums[var]
@@ -209,18 +213,28 @@ class invariantOnNeuron:
     def isHalfActive(self):
         return self.suggested_bounds['l'] == 0
 
-    def includeInInvariant(self):
-        self.participates_in_invariant = True
+    def makeBoundsTight(self):
+        self.tight_bounds = True
         self.recomputeSuggestedBounds()
 
-    def excludeFromInvariant(self):
-        self.participates_in_invariant = False
+    def makeBoundsLoose(self):
+        self.tight_bounds = False
         self.recomputeSuggestedBounds()
 
-    def isDisjunctVerified(self,side: types_of_bounds):
-        # if side not in self.verified_disjunct.keys():
-        #     return False
-        assert side in self.verified_disjunct.keys()
+    def includeInInvariant(self, side: types_of_bounds):
+        assert side in types_of_bounds
+        self.participates_in_invariant[side] = True
+        # self.recomputeSuggestedBounds()
+
+    def excludeFromInvariant(self, side: types_of_bounds):
+        assert side in types_of_bounds
+        self.participates_in_invariant[side] = False
+        # self.recomputeSuggestedBounds()
+
+    def isDisjunctVerified(self, side: types_of_bounds):
+        if side not in self.verified_disjunct.keys():
+            return False
+        # assert side in self.verified_disjunct.keys()
         sign = type_of_bounds_to_sign[side]
 
         return sign*self.suggested_bounds[side] >= sign*self.verified_disjunct[side]
@@ -237,7 +251,7 @@ class invariantOnNeuron:
         elif self.loose_epsilon_compute == 'range':
             self.offset['l'] = self.range / 2
             self.offset['r'] = self.range / 2
-        else: # 'double'
+        else:  # 'double'
             for side in types_of_bounds:
                 self.offset[side] = self.epsilon_twosided[side]*2
 
@@ -246,7 +260,7 @@ class invariantOnNeuron:
 
     def getOffset(self,side: types_of_bounds):
         assert side in types_of_bounds
-        return self.epsilon_twosided[side] if self.participates_in_invariant else self.deltas[side]
+        return self.epsilon_twosided[side] if self.tight_bounds else self.deltas[side]
 
 
     def setEpsilon(self,side: types_of_bounds,new_epsilon: float):
@@ -265,7 +279,13 @@ class invariantOnNeuron:
         self.recomputeBounds(side)
 
     def setOffset(self,side: types_of_bounds, new_offset: float):
-        self.setEpsilon(side, new_offset) if self.participates_in_invariant else self.setDelta(side,new_offset)
+        self.setEpsilon(side, new_offset) if self.tight_bounds else self.setDelta(side, new_offset)
+
+    def zeroLowerBound(self):
+        self.makeBoundsLoose()
+        if self.suggested_bounds['l']>0:
+            self.setDelta('l',self.observed_minimum)
+        assert self.suggested_bounds['l'] == 0
 
 
     def halfOffset(self,side: types_of_bounds):
@@ -340,26 +360,26 @@ class invariantOnNeuron:
 
     def getSuggestedBound(self, side: types_of_bounds):
         assert side in types_of_bounds
-        if self.participates_in_invariant:
+        if self.tight_bounds:
             return self.real_bounds_for_invariant[side]
         else:
             return self.loose_bounds_for_invariant[side]
 
     def getSuggestedUpperBoud(self):
-        if self.participates_in_invariant:
+        if self.tight_bounds:
             return self.real_bounds_for_invariant['r']
         else:
             return self.loose_bounds_for_invariant['r']
 
     def getSuggestedLowerBound(self):
-        if self.participates_in_invariant:
+        if self.tight_bounds:
             return self.real_bounds_for_invariant['l']
         else:
             return self.loose_bounds_for_invariant['l']
 
     def strengthenOffset(self,side: types_of_bounds, adjust_epsilons: str, difference: float):
 
-        offset_dict = self.epsilon_twosided if self.participates_in_invariant else self.deltas
+        offset_dict = self.epsilon_twosided if self.tight_bounds else self.deltas
 
         if adjust_epsilons == 'half_all' or adjust_epsilons == 'half_random':
             new_offset = offset_dict[side] / 2
@@ -369,7 +389,7 @@ class invariantOnNeuron:
             print('Unsupported argument for strengthenEpsilons')
             sys.exit(1)
 
-        if self.participates_in_invariant:
+        if self.tight_bounds:
             self.setEpsilon(side, new_epsilon=new_offset)
         else:
             self.setDelta(side, new_delta=new_offset)
@@ -380,14 +400,14 @@ class invariantOnNeuron:
 
     def computeLowerBoundProperty(self):
         var = self.var
-        p =  'x' + str(var) + ' <= ' + str(self.suggested_bounds['l'])
-        dual_p = 'y' + str(var) + ' >= ' + str(self.suggested_bounds['l'])
+        p =  'x' + str(var) + ' >= ' + str(self.suggested_bounds['l'])
+        dual_p = 'y' + str(var) + ' <= ' + str(self.suggested_bounds['l'])
         return p, dual_p
 
     def computeUpperBoundProperty(self):
         var = self.var
-        p =  'x' + str(var) + ' >= ' + str(self.suggested_bounds['r'])
-        dual_p = 'y' + str(var) + ' <= ' + str(self.suggested_bounds['r'])
+        p =  'x' + str(var) + ' <= ' + str(self.suggested_bounds['r'])
+        dual_p = 'y' + str(var) + ' >= ' + str(self.suggested_bounds['r'])
         return p, dual_p
 
     def computeBoundProperty(self, side: str):
@@ -420,7 +440,7 @@ class generalInterpolantCandidate:
         else:
             self.inactive_neurons[(neuron_invariant.layer,neuron_invariant.var)] = neuron_invariant
 
-        if neuron_invariant.participates_in_invariant:
+        if neuron_invariant.tight_bounds:
             self.relevant_neurons[(neuron_invariant.layer,neuron_invariant.var)] = neuron_invariant
 
     def makeRelevant(self,layer,var):
@@ -434,9 +454,11 @@ class generalInterpolantCandidate:
 
 
 class layerInterpolateCandidate:
-    def __init__(self, layer = -1, layer_size=0):
+    def __init__(self, layer=-1, layer_size=0):
         self.layer = layer
         self.layer_size = layer_size
+
+        self.list_of_neurons = []
         self.list_of_neurons = [invariantOnNeuron()]*layer_size
 
         self.active_neurons = {}
@@ -499,7 +521,7 @@ class layerInterpolateCandidate:
             if var in self.active_neurons.keys():
                 self.active_neurons.pop(var)
 
-        if neuron_invariant.participates_in_invariant:
+        if neuron_invariant.tight_bounds:
             self.relevant_neurons[var] = neuron_invariant
         elif var in self.relevant_neurons.keys():
             self.relevant_neurons.pop(var)
@@ -515,11 +537,10 @@ class layerInterpolateCandidate:
             assert self.layer_size == basic_statistics.layer_size
 
         for var in range(self.layer_size):
-            # neuron_invariant = invariantOnNeuron(self.layer,var,basic_statistics=basic_statistics)
-            self.list_of_neurons[var].loadFromBasicStatistics(layer,var,basic_statistics)
+            neuron_invariant = invariantOnNeuron(self.layer, var, basic_statistics=basic_statistics)
+            self.addNeuron(neuron_invariant=neuron_invariant)
+            # self.list_of_neurons[var].loadFromBasicStatistics(layer,var,basic_statistics)
             self.adjustActivity(var)
-            # self.addNeuron(neuron_invariant=neuron_invariant)
-
 
         self.layer_minimums = basic_statistics.minimums
         self.layer_maximums = basic_statistics.maximums
@@ -528,16 +549,30 @@ class layerInterpolateCandidate:
             self.suggested_bounds[side] = \
                 [self.list_of_neurons[var].suggested_bounds[side] for var in range(self.layer_size)]
 
-    def includeInInvariant(self,var):
-        self.relevant_neurons[var] = self.list_of_neurons[var]
-        self.list_of_neurons[var].includeInInvariant()
+    def includeInInvariant(self,var: int, side: types_of_bounds):
+        self.relevant_neurons[(var,side)] = (self.list_of_neurons[var],side)
+        self.list_of_neurons[var].includeInInvariant(side)
+
+        # for side in types_of_bounds:
+        #     self.updateSuggestedBound(var, side)
+
+    def excludeFromInvariant(self,var: int, side: types_of_bounds):
+        self.relevant_neurons.pop((var,side))
+        self.list_of_neurons[var].excludeFromInvariant(side)
+
+        # for side in types_of_bounds:
+        #     self.updateSuggestedBound(var, side)
+
+    def makeBoundsTight(self,var):
+        # self.relevant_neurons[var] = self.list_of_neurons[var]
+        self.list_of_neurons[var].makeBoundsTight()
 
         for side in types_of_bounds:
             self.updateSuggestedBound(var, side)
 
-    def excludeFromInvariant(self,var):
-        self.relevant_neurons.pop(var)
-        self.list_of_neurons[var].excludeFromInvariant()
+    def makeBoundsLoose(self,var):
+        # self.relevant_neurons.pop(var)
+        self.list_of_neurons[var].makeBoundsLoose()
 
         for side in types_of_bounds:
             self.updateSuggestedBound(var, side)
@@ -593,10 +628,19 @@ class layerInterpolateCandidate:
     # TODO: make more interesting/randomized initial conditions
     def setInitialParticipatingNeurons(self):
         for var in range(self.layer_size):
-            if not self.list_of_neurons[var].isActive() or self.list_of_neurons[var].isHalfActive():
-                self.includeInInvariant(var)
+            if not self.list_of_neurons[var].isActive():
+                self.makeBoundsTight(var)
+                for side in types_of_bounds:
+                    self.includeInInvariant(var,side)
+            elif self.list_of_neurons[var].isHalfActive():
+                self.makeBoundsLoose(var)
+                for side in types_of_bounds:
+                    self.includeInInvariant(var,side)
             else:
-                self.excludeFromInvariant(var)
+                self.makeBoundsLoose(var)
+                self.includeInInvariant(var,side='r')    # TODO: exclude with some probability
+                self.list_of_neurons[var].zeroLowerBound()  # TODO: with some probability?
+                self.includeInInvariant(var, side = 'l')
 
     # Currently unused
     def getUnverifiedDisjuncts(self):
@@ -604,8 +648,9 @@ class layerInterpolateCandidate:
 
         for var in range(self.layer_size):
             for side in types_of_bounds:
-                if not self.list_of_neurons[var].isDisjunctVerified(side):
-                    unverified_disjuncts_list.append(self.list_of_neurons[var].interpolant_property[side])
+                if (self.list_of_neurons[var].participates_in_invariant[side]) and \
+                        (not self.list_of_neurons[var].isDisjunctVerified(side)):
+                    unverified_disjuncts_list.append(self.list_of_neurons[var].dual_interpolant_property[side])
 
         return unverified_disjuncts_list
 
@@ -613,13 +658,14 @@ class layerInterpolateCandidate:
         conjuncts = []
         for var in range(self.layer_size):
             for side in types_of_bounds:
-                conjuncts.append(self.list_of_neurons[var].interpolant_property[side])
+                if self.list_of_neurons[var].participates_in_invariant[side]:
+                    conjuncts.append(self.list_of_neurons[var].interpolant_property[side])
 
         return conjuncts
 
 
     def reportVerifiedDisjunct(self, var, side):
-        self.list_of_neurons[var].setDisjunctAsVerified(side)
+        self.list_of_neurons[var].SetDisjunctAsVerified(side)
 
 
 
@@ -657,17 +703,21 @@ class layerInterpolateCandidate:
 
             neuron_minimum = neuron.observed_minimum
             neuron_maximum = neuron.observed_maximum
+
+            assert neuron_maximum == self.layer_maximums[var]
+            assert neuron_minimum == self.layer_minimums[var]
+
             neuron_lb = neuron.suggested_bounds['l']
             neuron_ub = neuron.suggested_bounds['r']
 
             if layer_input[var] < neuron_minimum:  # lb - delta[i,'l'] <= xi <= lb (lb = layer minimum)
                 side = 'l'
                 difference = (neuron_minimum - layer_input[var])/(neuron_minimum - neuron_lb)
-            elif layer_input[var] > self.layer_maximums[var] and neuron.suggested_bounds['r'] > 0:
+            elif layer_input[var] > neuron_maximum and neuron_ub > 0:
                 # ub <= xi <= ub + delta[i,'r']
                 side = 'r'
                 difference = (layer_input[var] - neuron_maximum)/(neuron_ub - neuron_maximum)
-            elif layer_input[var] > 0 and 0 > self.layer_maximums[var]:
+            elif layer_input[var] > 0 and 0 > neuron_maximum:
                 # 0 = ub <= xi <= ub + delta[i,'r']
                 side = 'r'
                 difference = layer_input[var]
@@ -852,7 +902,7 @@ class MarabouNNetMCMH:
         assert self.marabou_nnet.property.exec_bounds_computed
 
         self.input_equations = self.marabou_nnet.property.get_exec_input_equations()
-        self.output_equations = self.marabou_nnet.property.get_exec_output_equation()
+        self.output_equations = self.marabou_nnet.property.get_exec_output_equations()
         self.output_bounds = self.marabou_nnet.property.get_exec_output_bounds()
 
 
@@ -983,6 +1033,7 @@ class MarabouNNetMCMH:
     def setOriginalPropertyLists(self):
         if self.marabou_nnet.property.mixed_properties_present() or self.marabou_nnet.property.ws_properties_present():
             print('Currently only support pure input and output properties')
+            print(self.marabou_nnet.property.properties_list)
             sys.exit(1)
 
         self.x_properties = self.marabou_nnet.property.get_original_x_properties()
@@ -1075,15 +1126,16 @@ class MarabouNNetMCMH:
 
     def verifyConjunctionWithMarabou(self,add_to_badset=True):
 
-        self.createOriginalInputPropertyFile()
+        self.createOriginalOutputPropertyFile()
+        self.addLayerPropertiesToOutputPropertyFile()
 
-        MarabouCore.createInputQuery(self.ipq1,self.network_filename1,self.property_filename1)
+        MarabouCore.createInputQuery(self.ipq2,self.network_filename2,self.property_filename2)
 
-        [vals,_] = solve_query(ipq=self.ipq1,verbose=True,verbosity=1)
+        [vals,_] = solve_query(ipq=self.ipq2,verbose=True,verbosity=0)
         bad_input = self.convertVectorFromDictToList(vals)
         if bad_input:  # SAT
             if add_to_badset:
-                self.good_set.append(bad_input)
+                self.bad_set.append(bad_input)
         return bad_input
 
 
@@ -1092,11 +1144,11 @@ class MarabouNNetMCMH:
         assert var in range(self.layer_size)
         assert side in types_of_bounds
 
-        self.createOriginalOutputPropertyFile()
+        self.createOriginalInputPropertyFile()
         self.addOutputLayerPropertyByIndexToInputPropertyFile(var, side)
-        MarabouCore.createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
+        MarabouCore.createInputQuery(self.ipq1, self.network_filename1, self.property_filename1)
 
-        [vals, _] = solve_query(self.ipq2, verbosity=1)
+        [vals, _] = solve_query(self.ipq1, verbose=True, verbosity=0)
         bad_input = self.convertVectorFromDictToList(vals)
         if bad_input:  # SAT
             if add_to_goodset:
@@ -1112,6 +1164,8 @@ class MarabouNNetMCMH:
         failed_disjuncts = []
         for var in range(self.layer_size):
             for side in types_of_bounds:
+                if not self.layer_interpolant_candidate.list_of_neurons[var].participates_in_invariant[side]:
+                    continue
                 if self.layer_interpolant_candidate.list_of_neurons[var].isDisjunctVerified(side):
                     continue
                 bad_input = self.verifyDisjunctWithMarabou(var,side,add_to_goodset=add_to_goodset)
@@ -1158,15 +1212,22 @@ class MarabouNNetMCMH:
 
 
 
-    def CandidateSearch(self, number_of_trials: int, individual_sample: int, timeout = 0):
+    def CandidateSearch(self, number_of_trials: int, individual_sample: int, timeout = 0, verbosity = 0):
 
         starting_time = time.time()
+        counter = 0
 
-        status, result, argument_list, time_elapsed = self.oneRoundCandidateSearch(total_trials=number_of_trials,
+        while True:
+            # Continue until success, failure, or time out
+
+            status, result, argument_list, time_elapsed = self.oneRoundCandidateSearch(total_trials=number_of_trials,
                                                                                    individual_sample = individual_sample,
                                                                                    timeout = timeout)
-        while True:
-        # Continue until success, failure, or time out
+            counter += 1
+            if verbosity>0:
+                print('Round number: ', counter)
+                print('time elapsed: ', time.time() - starting_time)
+
             if status == 'success':
                 return status, []
 
@@ -1179,11 +1240,17 @@ class MarabouNNetMCMH:
             if status == 'candidate_too_weak':
                 if argument_list:
                 # local candidate search returned a list of bad inputs
+                    if verbosity>0:
+                        print('One round of candidate search has found a list of bad inputs, adjusting offsets.')
                     bad_input = argument_list
-                    self.adjustConjunctionOnBadInput(bad_input,adjust_epsilons='all')
+                    epsilon_adjusted = self.adjustConjunctionOnBadInput(bad_input,adjust_epsilons='all')
+                    if verbosity>0:
+                        print('offsets adjusted: ', epsilon_adjusted)
                 else:
-                # no concrete bad inputs; making a radical adjustment
+                    # no concrete bad inputs; making a radical adjustment
                     self.layer_interpolant_candidate.halfAllOffsets()
+                    if verbosity>0:
+                        print('Conjunction too weak, no concrete bad input, halving all offsets.')
 
                 # TODO: improve.
                 #  Add probabilistic choice of different options: half deltas only.
@@ -1195,18 +1262,21 @@ class MarabouNNetMCMH:
 
             if status == 'failed_disjuncts':
                 self.adjustDisjunctsOnBadInputs(argument_list)
+                if verbosity>0:
+                    print('failed disjuncts, observed bounds adjusted: ', argument_list)
                 continue
 
             # TODO: change number of trials and the size of individual sample depending on progress?
 
 
 
-    def oneRoundCandidateSearch(self, total_trials=100, individual_sample = 20, timeout = 0):
+    def oneRoundCandidateSearch(self, total_trials=100, individual_sample = 20, timeout = 0, verbosity = 0):
 
         starting_time = time.time()
 
         result, out_of_bounds_inputs, differences_dict, time_elapsed = \
-            self.checkConjunction(total_trials=total_trials, individual_sample=individual_sample,timeout=timeout)
+            self.checkConjunction(total_trials=total_trials, individual_sample=individual_sample,timeout=timeout,
+                                  verbosity=verbosity)
 
         # if result == 'success':
         #     status = 'success'
@@ -1262,7 +1332,7 @@ class MarabouNNetMCMH:
 
 
     def checkConjunction(self,total_trials = 100, individual_sample = 20, number_of_epsilons_to_adjust = 1,
-                               timeout=0):
+                               timeout=0, verbosity = 0):
 
         # assert self.interpolant_candidate
 
@@ -1279,7 +1349,7 @@ class MarabouNNetMCMH:
 
             result,  epsilon_adjusted, out_of_bounds_inputs, difference_dict =  \
                 self.adjustConjunctionOnRandomInputs(sample_size=individual_sample, adjust_epsilons=True, add_to_bad_set=True,
-                                      number_of_epsilons_to_adjust=number_of_epsilons_to_adjust)
+                                      number_of_epsilons_to_adjust=number_of_epsilons_to_adjust, verbosity = verbosity)
             if result:
                 return 'success', [], {}, 0
 
@@ -1289,7 +1359,7 @@ class MarabouNNetMCMH:
 
 
     def adjustConjunctionOnRandomInputs(self, sample_size=100, adjust_epsilons = True, add_to_bad_set=True,
-                         number_of_epsilons_to_adjust = 1):
+                         number_of_epsilons_to_adjust = 1, verbosity = 0):
         # assert self.interpolant_candidate
 
         status = True # No counterexample found yet
@@ -1312,6 +1382,14 @@ class MarabouNNetMCMH:
             if result == 'within_bounds': # The counterexample is between the actual observed bounds
                 print("Candidate search has failed. Found a counterexample between observed lower and "
                       "upper bounds: \n layer input = ",layer_input, '\n output = ', output,   "\n Check if SAT?")
+                if verbosity > 2:
+                    for var in range(self.layer_interpolant_candidate.layer_size):
+                        print('var = ', var, ': min. = ', self.layer_interpolant_candidate.layer_minimums[var],
+                              ' max = ', self.layer_interpolant_candidate.layer_maximums[var],
+                              'property: ', self.layer_interpolant_candidate.list_of_neurons[var].interpolant_property['l'],
+                              ' ', self.layer_interpolant_candidate.list_of_neurons[var].interpolant_property['r'],
+                              ' input = ', layer_input[var])
+                self.verifyRawConjunction()
                 sys.exit(2)
 
             if result == 'out_of_bounds':  # A counterexample to the candidate found
@@ -1324,11 +1402,21 @@ class MarabouNNetMCMH:
                             or difference_dict[(var,side)]<one_differene_dict[(var,side)]:
                         difference_dict[(var,side)] = one_differene_dict[(var,side)]
 
+        if (not status) and (verbosity>0):
+            print('Counterexamples to the conjunction found by random input search.')
+            print('Number of random inputs considered: ', sample_size)
+            print('Number of counterexamples discovered: ', len(out_of_bounds_inputs))
+
         if (not status) and adjust_epsilons:
             epsilon_adjusted = \
                 self.layer_interpolant_candidate.strengthenEpsilons(out_of_bounds_inputs, difference_dict,
                                                                     adjust_epsilons='random',
                                                                     number_of_epsilons=number_of_epsilons_to_adjust)
+            if verbosity>1:
+                print ('all out of bound inputs: ', out_of_bounds_inputs)
+                print('difference dict = ', difference_dict)
+            if verbosity>0:
+                print('The following epsilons have been adjusted: ', epsilon_adjusted)
 
 
 
@@ -1347,7 +1435,7 @@ class MarabouNNetMCMH:
 
         result = 'success' # No counterexamples to the candidate found
 
-        if not self.verifyOutputProperty(y=output):
+        if self.verifyOutputProperty(y=output):
             if add_to_bad_set:
                 self.bad_set.append(layer_input)
 
@@ -1400,6 +1488,7 @@ class MarabouNNetMCMH:
             with open(self.property_filename2,'a') as f2:
                 for p in self.layer_interpolant_candidate.getConjunction():
                     f2.write(p)
+                    f2.write('\n')
         except:
             print('Something went wrong with writing to property_file2')
             sys.exit(1)
@@ -1434,6 +1523,7 @@ class MarabouNNetMCMH:
         try:
             with open(self.property_filename1, 'a') as f2:
                 f2.write(p)
+                f2.write('\n')
         except:
             print('Something went wrong with writing to property_file1')
             sys.exit(1)
@@ -1462,6 +1552,7 @@ class MarabouNNetMCMH:
 
 
         try:
+        # if True:
             nnet_object1, nnet_object2 = splitNNet(marabou_nnet=self.marabou_nnet, layer=self.layer)
 
             nnet_object1.writeNNet(network_filename1)
@@ -1491,16 +1582,19 @@ class MarabouNNetMCMH:
         try:
             with open(self.property_filename2,'a') as f2:
                 for var in range(self.layer_size):
-                    p = 'x <= '+str(self.layer_maximums[var])
+                    p = 'x' + str(var) + ' <= '+str(max(0,self.layer_interpolant_candidate.layer_maximums[var]))
                     f2.write(p)
-                    p = 'x >= '+str(self.layer_minimums[var])
+                    f2.write('\n')
+                    p = 'x' + str(var) + ' >= '+str(max(0,self.layer_interpolant_candidate.layer_minimums[var]))
                     f2.write(p)
+                    f2.write('\n')
         except:
             print('Something went wrong with writing to property_file2')
             sys.exit(1)
 
-        MarabouCore.createInputQuery(self.ipq2,self.property_filename2,self.property_filename2)
-        [vals,_] = solve_query(self.ipq2,verbosity=1)
+        MarabouCore.createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
+
+        [vals,_] = solve_query(self.ipq2, verbose=True, verbosity=0)
         return self.convertVectorFromDictToList(vals)
 
 
@@ -2769,51 +2863,14 @@ class advanced_mcmh_statistics:
 
 
 
-start_time = time.time()
-
-network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_1_1.nnet"
-property_filename = "../resources/properties/acas_property_4.txt"
-property_filename1 = "../resources/properties/acas_property_1.txt"
-
-
-
-output_filename = "test/ACASXU_experimental_v2a_1_9_output.nnet"
-
-network_filename1 = "test/ACASXU_experimental_v2a_1_9_output1.nnet"
-network_filename2 = "test/ACASXU_experimental_v2a_1_9_output2.nnet"
-
-
-output_property_file = "output_property_test1.txt"
-input_property_file = "input_property_test1.txt"
-
-mcmh_object = MarabouNNetMCMH(network_filename,property_filename,layer=5)
-
-mcmh_object.initiateVerificationProcess()
-
-
-
-input_property_file_sanity = "input_property_test2.txt"
-output_property_file1 = "output_property_test2.txt"
-
-
-
-
-
 #network_filename = "../maraboupy/regress_acas_nnet/ACASXU_run2a_1_7_batch_2000.nnet"
 
 
-mcmh_object = MarabouNNetMCMH(network_filename=network_filename, property_filename=property_filename)
+# mcmh_object = MarabouNNetMCMH(network_filename=network_filename, property_filename=property_filename)
 
 
 
-mcmh_object.setLayer(layer=5)
-
-
-
-
-
-
-
+# mcmh_object.setLayer(layer=5)
 
 
 # mcmh_object.marabou_nnet.property.compute_executables()
@@ -3040,4 +3097,117 @@ mcmh_object.setLayer(layer=5)
 
 
 
+
+start_time = time.time()
+
+network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_1_1.nnet"
+property_filename = "../resources/properties/acas_property_4.txt"
+property_filename1 = "../resources/properties/acas_property_1.txt"
+
+
+
+output_filename = "test/ACASXU_experimental_v2a_1_9_output.nnet"
+
+network_filename1 = "test/ACASXU_experimental_v2a_1_9_output1.nnet"
+network_filename2 = "test/ACASXU_experimental_v2a_1_9_output2.nnet"
+
+
+output_property_file = "output_property_test1.txt"
+input_property_file = "input_property_test1.txt"
+
+mcmh_object = MarabouNNetMCMH(network_filename,property_filename,layer=5)
+
+mcmh_object.initiateVerificationProcess(N=5000)
+
+
+#
+# input_property_file_sanity = "input_property_test2.txt"
+# output_property_file1 = "output_property_test2.txt"
+#
+
+
+print(mcmh_object.marabou_nnet.property.equations, '\n', mcmh_object.marabou_nnet.property.bounds)
+print(mcmh_object.marabou_nnet.property.properties_list)
+print(mcmh_object.layer_interpolant_candidate.layer_size)
+print(mcmh_object.layer_interpolant_candidate.layer_minimums)
+print(mcmh_object.layer_interpolant_candidate.layer_maximums)
+print(mcmh_object.layer_interpolant_candidate.suggested_bounds)
+
+for var in range(mcmh_object.layer_size):
+    print(var)
+    print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var])
+    print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].layer)
+    print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].var)
+    print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].observed_minimum)
+    print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].observed_maximum)
+    print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].epsilon_twosided)
+    print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].tight_bounds)
+    print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].deltas)
+    print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].range)
+    print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].suggested_bounds)
+
+
+print(mcmh_object.layer_interpolant_candidate.interpolant_candidate)
+print(mcmh_object.layer_interpolant_candidate.output_interpolant_candidate)
+print(mcmh_object.layer_interpolant_candidate.getConjunction())
+print(mcmh_object.layer_interpolant_candidate.getUnverifiedDisjuncts())
+
+mcmh_object.prepareForMarabouCandidateVerification(network_filename1,network_filename2,output_property_file,
+                                                   input_property_file)
+
+for var in range(mcmh_object.layer_size):
+    for side in types_of_bounds:
+        print(var, side, mcmh_object.layer_interpolant_candidate.list_of_neurons[var].tight_bounds,
+              mcmh_object.layer_interpolant_candidate.list_of_neurons[var].isDisjunctVerified(side))
+        print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side])
+
+
+current_time = time.time()
+
+# mcmh_object.verifyConjunctionWithMarabou()
+mcmh_object.verifyRawConjunction()
+
+print('time raw verification took: ', time.time() - current_time)
+
+
+current_time = time.time()
+
+mcmh_object.checkConjunction(total_trials=500,number_of_epsilons_to_adjust=5,verbosity=2)
+
+print('time check conjunction took: ', time.time() - current_time)
+
+sys.exit(0)
+
+
+for var in range(mcmh_object.layer_size):
+    list_of_times_before = []
+    list_of_times_after = []
+    if not mcmh_object.layer_interpolant_candidate.list_of_neurons[var].participates_in_invariant:
+
+        print(var, mcmh_object.layer_interpolant_candidate.list_of_neurons[var].participates_in_invariant)
+        for side in types_of_bounds:
+            if not mcmh_object.layer_interpolant_candidate.list_of_neurons[var].isDisjunctVerified(side):
+                print(side)
+                print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side])
+                start_time = time.time()
+                mcmh_object.verifyDisjunctWithMarabou(var,side,add_to_goodset=False)
+                current_time = time.time()
+                time_took = current_time - start_time
+                print('time before including = ', time_took)
+                list_of_times_before.append(time_took)
+
+
+        mcmh_object.layer_interpolant_candidate.includeInInvariant(var)
+
+        for side in types_of_bounds:
+            if not mcmh_object.layer_interpolant_candidate.list_of_neurons[var].isDisjunctVerified(side):
+                print('INCLUDED IN INVARIANT')
+                print(side)
+                print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side])
+                start_time = time.time()
+                mcmh_object.verifyDisjunctWithMarabou(var,side,add_to_goodset=False)
+                current_time = time.time()
+                time_took = current_time - start_time
+                print('time after including = ', time_took)
+                list_of_times_after.append(time_took)
 

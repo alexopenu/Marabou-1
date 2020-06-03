@@ -181,10 +181,10 @@ class Property:
         return y_list
 
     def mixed_properties_present(self):
-        return (self.properties_list['m'] != '')
+        return len(self.properties_list['m'])
 
     def ws_properties_present(self):
-        return (self.properties_list['ws'] != '')
+        return len(self.properties_list['ws'])
 
     def compute_executable_bounds(self,recompute=False):
         """

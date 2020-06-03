@@ -93,7 +93,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
             self.weights = []
             self.biases = []
 
-            self.sbt = None
+            self.nlr = None
             return
             
 
@@ -118,7 +118,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         self.weights = []
         self.biases = []
 
-        self.sbt = None
+        self.nlr = None
 
 
 
@@ -199,8 +199,8 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         self.biases = biases
 
         self.computeNetworkAttributes(use_nlr,filename="")
-        # NOTE: here we assume tha the filename is not used in createSBT()
-        # To-do (necessary? desireable?): create a new filename for the network
+        # NOTE: here we assume tha the filename is not used in createNLR()
+        # TODO (necessary? desireable?): create a new filename for the network
 
 
 

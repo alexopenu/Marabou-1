@@ -22,7 +22,6 @@
 
 InputQuery::InputQuery()
     : _networkLevelReasoner( NULL )
-    , _sbt( NULL )
 {
 }
 
@@ -33,12 +32,6 @@ InputQuery::~InputQuery()
     {
         delete _networkLevelReasoner;
         _networkLevelReasoner = NULL;
-    }
-
-    if ( _sbt )
-    {
-        delete _sbt;
-        _sbt = NULL;
     }
 }
 
@@ -226,14 +219,26 @@ InputQuery &InputQuery::operator=( const InputQuery &other )
     _outputIndexToVariable = other._outputIndexToVariable;
 
     freeConstraintsIfNeeded();
+
+    Map<PiecewiseLinearConstraint *, PiecewiseLinearConstraint *> oldToNew;
     for ( const auto &constraint : other._plConstraints )
-        _plConstraints.append( constraint->duplicateConstraint() );
+    {
+        auto dup = constraint->duplicateConstraint();
+        _plConstraints.append( dup );
+        oldToNew[constraint] = dup;
+    }
 
     if ( other._networkLevelReasoner )
     {
         if ( !_networkLevelReasoner )
             _networkLevelReasoner = new NetworkLevelReasoner;
+
         other._networkLevelReasoner->storeIntoOther( *_networkLevelReasoner );
+        auto indexToPLConstraint = _networkLevelReasoner->getIndexToPLConstraint();
+        for ( const auto &pair : indexToPLConstraint )
+            _networkLevelReasoner->setIndexToPLConstraint( pair.first._layer,
+                                                           pair.first._neuron,
+                                                           oldToNew[pair.second] );
     }
     else
     {
@@ -244,27 +249,11 @@ InputQuery &InputQuery::operator=( const InputQuery &other )
         }
     }
 
-    if ( other._sbt )
-    {
-        if ( !_sbt )
-            _sbt = new SymbolicBoundTightener;
-        other._sbt->storeIntoOther( *_sbt );
-    }
-    else
-    {
-        if ( _sbt )
-        {
-            delete _sbt;
-            _sbt = NULL;
-        }
-    }
-
     return *this;
 }
 
 InputQuery::InputQuery( const InputQuery &other )
     : _networkLevelReasoner( NULL )
-    , _sbt( NULL )
 {
     *this = other;
 }
@@ -343,7 +332,7 @@ void InputQuery::saveQuery( const String &fileName )
     // Lower Bounds
     for ( const auto &lb : _lowerBounds )
         queryFile->write( Stringf( "\n%d,%f", lb.first, lb.second ) );
-    
+
     // Upper Bounds
     for ( const auto &ub : _upperBounds )
         queryFile->write( Stringf( "\n%d,%f", ub.first, ub.second ) );
@@ -431,6 +420,29 @@ List<unsigned> InputQuery::getOutputVariables() const
     return result;
 }
 
+void InputQuery::printAllBounds() const
+{
+    printf( "InputQuery: Dumping all bounds\n" );
+
+    for ( unsigned i = 0; i < _numberOfVariables; ++i )
+    {
+        printf( "\tx%u: [", i );
+        if ( _lowerBounds.exists( i ) )
+            printf( "%lf, ", _lowerBounds[i] );
+        else
+            printf( "-INF, " );
+
+        if ( _upperBounds.exists( i ) )
+            printf( "%lf]", _upperBounds[i] );
+        else
+            printf( "+INF]" );
+        printf( "\n" );
+
+    }
+
+    printf( "\n\n" );
+}
+
 void InputQuery::printInputOutputBounds() const
 {
     printf( "Dumping bounds of the input and output variables:\n" );
@@ -478,11 +490,6 @@ void InputQuery::dump() const
         printf( "\t" );
         e.dump();
     }
-}
-
-void InputQuery::setSymbolicBoundTightener( SymbolicBoundTightener *sbt )
-{
-    _sbt = sbt;
 }
 
 void InputQuery::adjustInputOutputMapping( const Map<unsigned, unsigned> &oldIndexToNewIndex,

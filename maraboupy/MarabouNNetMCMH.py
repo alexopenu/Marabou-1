@@ -19,7 +19,7 @@ import numpy as np
 from random import choice
 from random import choices
 
-import seaborn as sns
+#import seaborn as sns
 import matplotlib.pyplot as plt
 
 # import matplotlib.mlab as mlab

@@ -1,4 +1,9 @@
 
+#!/usr/local/bin/python3
+
+import os
+os.chdir('/Users/alexus/Coding/my_marabou/Marabou/maraboupy/')
+
 #from MarabouNetworkNNetIPQ import *
 #from MarabouNetworkNNetProperty import *
 

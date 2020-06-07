@@ -12,6 +12,7 @@ from MarabouNNetMCMH import *
 # import re
 
 import sys
+import os
 
 # import parser
 
@@ -27,9 +28,43 @@ import scipy.stats as stats
 from random import randint
 
 
+def repeated_conjunction_verification(mcmh_object: MarabouNNetMCMH):
+    start_time = time.time()
+    counter = 0
+    conjunction_verified = False
+
+    while (time.time() - start_time < 9000):
+        counter += 1
+        current_time = time.time()
+
+        bad_input, _ = mcmh_object.verifyConjunctionWithMarabou(add_to_badset=True)
+
+        conjunction_time = time.time() - current_time
+
+        print("conjuction verification time: ", conjunction_time)
+
+        if bad_input:
+            mcmh_object.detailedDumpLayerInput(bad_input)
+            out_of_bounds_inputs, differene_dict = \
+                mcmh_object.layer_interpolant_candidate.analyzeBadLayerInput(bad_input)
+
+            print(out_of_bounds_inputs)
+            print(differene_dict)
+
+            epsilon_adjusted = mcmh_object.adjustConjunctionOnBadInput(bad_input, adjust_epsilons='half_all')
+
+            print(epsilon_adjusted)
+        else:
+            print('success')
+            print('number of loops: ', counter)
+            conjunction_verified = True
+            break
+
+        return conjunction_verified, counter
 
 
 start_time = time.time()
+
 
 
 
@@ -55,35 +90,9 @@ mcmh_object.prepareForMarabouCandidateVerification(network_filename1=network_fil
 
 mcmh_object.layer_interpolant_candidate.setInitialParticipatingNeurons(zero_bottoms=True)
 
-counter = 0
-conjunction_verified = False
-while(time.time()-start_time<600):
-    counter += 1
-    current_time = time.time()
 
-    bad_input, _ = mcmh_object.verifyConjunctionWithMarabou(add_to_badset=True)
 
-    conjunction_time = time.time() - current_time
-
-    print("conjuction verification time: ", conjunction_time)
-
-    if bad_input:
-        mcmh_object.detailedDumpLayerInput(bad_input)
-        out_of_bounds_inputs, differene_dict = \
-        mcmh_object.layer_interpolant_candidate.analyzeBadLayerInput(bad_input)
-
-        print(out_of_bounds_inputs)
-        print(differene_dict)
-
-        epsilon_adjusted = mcmh_object.adjustConjunctionOnBadInput(bad_input,adjust_epsilons='half_all')
-
-        print(epsilon_adjusted)
-    else:
-        print('success')
-        print('number of loops: ', counter)
-        conjunction_verified = True
-        break
-
+conjunction_verified, counter = repeated_conjunction_verification(mcmh_object)
 
 if not conjunction_verified:
     print('failure')
@@ -91,16 +100,93 @@ if not conjunction_verified:
     sys.exit(0)
 
 print('original conjunction modified and verified. Time elapsed', time.time() - start_time)
+print('number of loops: ', counter)
+
+
+new_start_time = time.time()
+
+failed_disjuncts = []
+exit_due_to_timeout = False
+counter = 0
+
+while(time.time()-new_start_time<9000):
+
+    counter += 1
+    inner_timer = time.time()
+
+    print('loop number ', counter, 'of the disjuncts cycle.')
+
+    failed_disjuncts, exit_due_to_timeout = mcmh_object.verifyUnverifiedDisjunctsWithMarabou(add_to_goodset=False,
+                                                                                             timeout=7200, verbosity=2)
+    if exit_due_to_timeout or not failed_disjuncts:
+        break
+
+    mcmh_object.adjustDisjunctsOnBadInputs(failed_disjuncts)
+
+    print('failed disjuncts, observed bounds adjusted: ', failed_disjuncts)
+
+    print('Verifying conjunction again.')
+
+    conjunction_time = time.time()
+
+    conjunction_verified, conjunction_counter = repeated_conjunction_verification(mcmh_object)
+    if not conjunction_verified:
+        print('failure to verify conjunction')
+        print('number of loops: ', conjunction_counter)
+        sys.exit(0)
+
+    print('conjunction modified and verified. Time took', time.time() - conjunction_time)
+
+
+
+
+
+print('\n\nLoop done.')
+print('number of loops done:', counter)
+print('Time elapsed since starting the cycle of disjuncts: ', time.time()-new_start_time)
+
+if exit_due_to_timeout:
+    print('time out!')
+
+if not failed_disjuncts:
+    print('Success! No failed disjuncts.')
+else:
+    print('failed disjuncts: ', failed_disjuncts)
+
+print('\n\nVerifying the original network with Marabou!')
+
+marabou_time = time.time()
+
+
+
+# MarabouCore.createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
+
+vals, stats = solve_query(mcmh_object.ipq2,verbose=True,verbosity=0,timeout=9000)
+
+bad_input = mcmh_object.convertVectorFromDictToList(vals)
+
+print('Time elapsed since the beginning of marabou verification: ', time.time()-marabou_time)
+
+if stats.hasTimedOut():
+    print('time out!')
+
+if bad_input:  # SAT
+    print('SAT! Bad input: ', bad_input)
+
 
 sys.exit(0)
 
-mcmh_object.layer_interpolant_candidate.excludeFromInvariant(var=14, side='r')
+
+
+
+
+# mcmh_object.layer_interpolant_candidate.excludeFromInvariant(var=14, side='r')
 
 new_start_time = time.time()
 
 conjunction_verified = False
 counter = 0
-while(time.time()-new_start_time<600):
+while(time.time()-new_start_time<18000):
     counter += 1
     current_time = time.time()
 
@@ -147,17 +233,6 @@ print('new conjunction modified and verified. Time elapsed', time.time() - new_s
 sys.exit(0)
 
 
-
-failed_disjuncts, exit_due_to_timeout = mcmh_object.verifyUnverifiedDisjunctsWithMarabou(add_to_goodset=False,
-                                                                                         timeout=600, verbosity=2)
-
-if exit_due_to_timeout:
-    print('time out!')
-
-if not failed_disjuncts:
-    print('No failed disjuncts')
-else:
-    print('failed disjuncts: ', failed_disjuncts)
 
 
 sys.exit(0)

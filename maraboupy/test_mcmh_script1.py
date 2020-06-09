@@ -1,14 +1,3 @@
-#!/usr/bin/python3
-
-import os
-import sys
-#os.chdir('/cs/labs/guykatz/alexus/my_marbou/Marabou-1/maraboupy')
-sys.path.append('/cs/labs/guykatz/alexus/my_marbou/Marabou-1/maraboupy/')
-sys.stdout = open('./test_mcmh_slurm_output', 'w')
-
-
-
-print (os.getcwd())
 
 #!/usr/local/bin/python3
 
@@ -34,7 +23,7 @@ import time
 
 import numpy as np
 
-#import seaborn as sns
+import seaborn as sns
 import matplotlib.pyplot as plt
 # import matplotlib.mlab as mlab
 import scipy.stats as stats
@@ -68,19 +57,19 @@ def repeated_conjunction_verification(mcmh_object: MarabouNNetMCMH):
                                                                        number_of_epsilons_to_adjust=5)
 
             print(epsilon_adjusted)
-            continue
         else:
             print('success')
             print('number of loops: ', counter)
             conjunction_verified = True
             break
-    return conjunction_verified, counter
+
+        return conjunction_verified, counter
 
 
 start_time = time.time()
 
 
-for i in [2,3,5,6]:
+for i in [1]:
 
     network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_1_" + str(i) + ".nnet"
     property_filename = "../resources/properties/acas_property_4.txt"

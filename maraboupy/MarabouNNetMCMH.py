@@ -1236,6 +1236,9 @@ class MarabouNNetMCMH:
 
                 if verbosity>0:
                     print('Requires verification')
+                if verbosity>1:
+                    print('Dual property to verify:')
+                    print(self.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side])
 
                 bad_input, exit_due_to_timeout = self.verifyDisjunctWithMarabou(var, side, add_to_goodset=add_to_goodset,
                                                            timeout=individual_timeout)

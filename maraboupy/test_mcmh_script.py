@@ -1,4 +1,6 @@
 
+#!/usr/local/bin/python3
+
 #from MarabouNetworkNNetIPQ import *
 #from MarabouNetworkNNetProperty import *
 

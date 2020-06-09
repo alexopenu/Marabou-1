@@ -1,6 +1,11 @@
 #!/usr/bin/python3
 
+import os
+import sys
+#os.chdir('/cs/labs/guykatz/alexus/my_marbou/Marabou-1/maraboupy')
+sys.path.append('/cs/labs/guykatz/alexus/my_marbou/Marabou-1/maraboupy/')
 
+print (os.getcwd())
 #from MarabouNetworkNNetIPQ import *
 #from MarabouNetworkNNetProperty import *
 
@@ -12,8 +17,6 @@ from MarabouNetworkNNetExtentions import *
 from MarabouNNetMCMH import *
 
 # import re
-
-import sys
 
 # import parser
 
@@ -28,6 +31,8 @@ import matplotlib.pyplot as plt
 import scipy.stats as stats
 from random import randint
 
+
+sys.stdout = open('./test_mcmh_slurm_output', 'w')
 
 
 
@@ -55,6 +60,8 @@ mcmh_object.prepareForMarabouCandidateVerification(network_filename1=network_fil
 
 mcmh_object.layer_interpolant_candidate.setInitialParticipatingNeurons(zero_bottoms=True)
 
+
+'''
 print(mcmh_object.layer_interpolant_candidate.list_of_neurons[14].deltas['l'],
       mcmh_object.layer_interpolant_candidate.list_of_neurons[14].deltas['r'],
       mcmh_object.layer_interpolant_candidate.list_of_neurons[14].tight_bounds,
@@ -62,6 +69,7 @@ print(mcmh_object.layer_interpolant_candidate.list_of_neurons[14].deltas['l'],
       mcmh_object.layer_interpolant_candidate.list_of_neurons[14].suggested_bounds['r'],
       '\n',
       mcmh_object.layer_interpolant_candidate.getConjunction())
+'''
 
 counter = 0
 conjunction_verified = False

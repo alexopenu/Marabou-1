@@ -123,6 +123,7 @@ for i in [4,2,3,5,6,1]:
 
     print('\n\n\n\nNetwork file: ', network_filename)
     print('Property file: ', property_filename)
+    print('layer = 4')
     # property_filename1 = "../resources/properties/acas_property_1.txt"
 
 
@@ -134,7 +135,7 @@ for i in [4,2,3,5,6,1]:
     input_property_file = "input_property_test1.txt"
 
 
-    mcmh_object = MarabouNNetMCMH(network_filename=network_filename, property_filename=property_filename, layer=5)
+    mcmh_object = MarabouNNetMCMH(network_filename=network_filename, property_filename=property_filename, layer=4)
 
     mcmh_object.initiateVerificationProcess(N=5000,compute_loose_offsets='range')
     mcmh_object.prepareForMarabouCandidateVerification(network_filename1=network_filename1, network_filename2=network_filename2,

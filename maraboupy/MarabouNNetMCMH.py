@@ -19,7 +19,11 @@ import numpy as np
 from random import choice
 from random import choices
 
-#import seaborn as sns
+try:
+    import seaborn as sns
+except ImportError:
+    print('module seaborn not installed')
+
 import matplotlib.pyplot as plt
 
 # import matplotlib.mlab as mlab
@@ -368,7 +372,7 @@ class invariantOnNeuron:
         else:
             return self.loose_bounds_for_invariant[side]
 
-    def getSuggestedUpperBoud(self):
+    def getSuggestedUpperBound(self):
         if self.tight_bounds:
             return self.real_bounds_for_invariant['r']
         else:
@@ -385,13 +389,17 @@ class invariantOnNeuron:
         offset_dict = self.epsilon_twosided if self.tight_bounds else self.deltas
         old_offset = offset_dict[side]
 
-        if not self.tight_bounds or adjust_epsilons == 'half_all' or adjust_epsilons == 'half_random':
+        # if not self.tight_bounds or adjust_epsilons == 'half_all' or adjust_epsilons == 'half_random':
+        if adjust_epsilons == 'half_all' or adjust_epsilons == 'half_random':
             new_offset = old_offset / 2
         elif adjust_epsilons == 'all' or adjust_epsilons == 'random':
-            new_offset = old_offset * (1 + difference) / 2
+            # new_offset = old_offset * (1 + difference) / 2
+            new_offset = old_offset * difference / 2
         else:
             print('Unsupported argument for strengthenEpsilons')
             sys.exit(1)
+
+
 
         if self.tight_bounds:
             self.setEpsilon(side, new_epsilon=new_offset)
@@ -404,7 +412,7 @@ class invariantOnNeuron:
 
     def computeLowerBoundProperty(self):
         var = self.var
-        p =  'x' + str(var) + ' >= ' + str(self.suggested_bounds['l'])
+        p = 'x' + str(var) + ' >= ' + str(self.suggested_bounds['l'])
         dual_p = 'y' + str(var) + ' <= ' + str(self.suggested_bounds['l'])
         return p, dual_p
 
@@ -741,17 +749,17 @@ class layerInterpolateCandidate:
             neuron_lb = neuron.suggested_bounds['l']
             neuron_ub = neuron.suggested_bounds['r']
 
-            if layer_input[var] < neuron_minimum:  # lb - delta[i,'l'] <= xi <= lb (lb = layer minimum)
+            if layer_input[var] < neuron_minimum:  # lb - delta[i,'l'] <= xi <= lmim (lmim = layer minimum)
                 side = 'l'
                 difference = (neuron_minimum - layer_input[var])/(neuron_minimum - neuron_lb)
             elif layer_input[var] > neuron_maximum and neuron_ub > 0:
-                # ub <= xi <= ub + delta[i,'r']
+                # lmax <= xi <= lmax + delta[i,'r']
                 side = 'r'
                 difference = (layer_input[var] - neuron_maximum)/(neuron_ub - neuron_maximum)
             elif layer_input[var] > 0 and 0 > neuron_maximum:
-                # 0 = ub <= xi <= ub + delta[i,'r']
+                # lmax < 0  <= xi <= lmax + delta[i,'r']
                 side = 'r'
-                difference = layer_input[var]
+                difference = layer_input[var]/neuron_ub
             else:
                 continue
 

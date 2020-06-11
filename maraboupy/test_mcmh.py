@@ -1,5 +1,5 @@
 
-#!/usr/local/bin/python3
+#!/usr/bin/python3
 
 import os
 os.chdir('/Users/alexus/Coding/my_marabou/Marabou/maraboupy/')
@@ -49,7 +49,7 @@ output_property_file = "output_property_test1.txt"
 input_property_file = "input_property_test1.txt"
 
 
-mcmh_object = MarabouNNetMCMH(network_filename=network_filename, property_filename=property_filename, layer=5)
+mcmh_object = MarabouNNetMCMH(network_filename=network_filename, property_filename=property_filename, layer=4)
 
 mcmh_object.initiateVerificationProcess(N=5000,compute_loose_offsets='range')
 mcmh_object.prepareForMarabouCandidateVerification(network_filename1=network_filename1, network_filename2=network_filename2,
@@ -69,20 +69,55 @@ print(mcmh_object.layer_interpolant_candidate.list_of_neurons[14].deltas['l'],
 counter = 0
 conjunction_verified = False
 
+
+for i in range(5):
+
+    current_time = time.time()
+
+
+
+    print(mcmh_object.checkConjunction(total_trials=100, individual_sample=10000, number_of_epsilons_to_adjust=5,
+                                       verbosity=2,extremes=False))
+
+    print('time check conjunction took: ', time.time() - current_time)
+
+for i in range(5):
+
+    current_time = time.time()
+
+
+
+    print(mcmh_object.checkConjunction(total_trials=100, individual_sample=10000, number_of_epsilons_to_adjust=5,
+                                       verbosity=2,extremes=True))
+
+    print('time check conjunction took: ', time.time() - current_time)
+
+
+for var in range(mcmh_object.layer_interpolant_candidate.layer_size):
+    print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].getSuggestedLowerBound(), '<= x' + str(var) +'<= ',
+          mcmh_object.layer_interpolant_candidate.list_of_neurons[var].getSuggestedUpperBound())
+
+
+
+bad_input, _ = mcmh_object.verifyConjunctionWithMarabou(add_to_badset=True)
+
 current_time = time.time()
 
-print(mcmh_object.checkConjunction(total_trials=100, individual_sample=10000, number_of_epsilons_to_adjust=5,
-                                   verbosity=2,extremes=False))
+if bad_input:
+    mcmh_object.detailedDumpLayerInput(bad_input)
+    out_of_bounds_inputs, differene_dict = \
+        mcmh_object.layer_interpolant_candidate.analyzeBadLayerInput(bad_input)
 
-print('time check conjunction took: ', time.time() - current_time)
+    print(out_of_bounds_inputs)
+    print(differene_dict)
 
-current_time = time.time()
+    epsilon_adjusted = mcmh_object.adjustConjunctionOnBadInput(bad_input, adjust_epsilons='random', number_of_epsilons_to_adjust=10)
 
+    print(epsilon_adjusted)
 
-print(mcmh_object.checkConjunction(total_trials=100, individual_sample=10000, number_of_epsilons_to_adjust=5,
-                                   verbosity=2,extremes=True))
+    print('Time Marabou took: ', time.time()-current_time)
 
-print('time check conjunction took: ', time.time() - current_time)
+sys.exit(0)
 
 
 while(time.time()-start_time<600):

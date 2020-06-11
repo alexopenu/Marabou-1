@@ -116,7 +116,7 @@ else:
 start_time = time.time()
 
 
-for i in [4,2,3,5,6,1]:
+for i in [1]:
 
     network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_1_" + str(i) + ".nnet"
     property_filename = "../resources/properties/acas_property_4.txt"

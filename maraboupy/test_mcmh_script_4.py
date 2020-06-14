@@ -71,12 +71,12 @@ def repeated_conjunction_verification(mcmh_object: MarabouNNetMCMH):
               '<= x' + str(var) + '<= ',
               mcmh_object.layer_interpolant_candidate.list_of_neurons[var].getSuggestedUpperBound())
 
-    while (time.time() - start_time) < timeout:
+    while (time.time() - start_time) < timeout*10:
         counter += 1
         current_time = time.time()
 
 
-        bad_input, timed_out = mcmh_object.verifyConjunctionWithMarabou(add_to_badset=True, timeout = timeout)
+        bad_input, timed_out = mcmh_object.verifyConjunctionWithMarabou(add_to_badset=True, timeout = timeout*6)
 
         conjunction_time = time.time() - current_time
 
@@ -108,9 +108,9 @@ def repeated_conjunction_verification(mcmh_object: MarabouNNetMCMH):
 
 
 if cluster_run:
-    timeout = 9000
+    timeout = 1500
 else:
-    timeout = 60
+    timeout = 30
 
 
 start_time = time.time()
@@ -170,7 +170,7 @@ for i in [4]:
         print('loop number ', counter, 'of the disjuncts cycle.')
 
         failed_disjuncts, exit_due_to_timeout = mcmh_object.verifyUnverifiedDisjunctsWithMarabou(add_to_goodset=False,
-                                                                                                 timeout=int(timeout*0.75),
+                                                                                                 timeout=int(timeout*3),
                                                                                                  verbosity=2)
         if exit_due_to_timeout:
             'time out in verifyUnverifiedDisjunctsWithMarabou'

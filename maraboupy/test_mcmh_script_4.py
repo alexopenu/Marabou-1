@@ -201,6 +201,7 @@ for i in [4]:
     print('\n\nLoop done.')
     print('number of loops done:', counter)
     print('Time elapsed since starting the cycle of disjuncts: ', time.time()-new_start_time)
+    print('Time overall since the beginning of time: ', time.time()-start_time)
 
     if exit_due_to_timeout:
         print('time out!')

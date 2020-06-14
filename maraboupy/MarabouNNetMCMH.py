@@ -228,12 +228,12 @@ class invariantOnNeuron:
     def includeInInvariant(self, side: types_of_bounds):
         assert side in types_of_bounds
         self.participates_in_invariant[side] = True
-        # self.recomputeSuggestedBounds()
+        self.recomputeAllBounds(recompute_property=True)
 
     def excludeFromInvariant(self, side: types_of_bounds):
         assert side in types_of_bounds
         self.participates_in_invariant[side] = False
-        # self.recomputeSuggestedBounds()
+        self.recomputeAllBounds(recompute_property=True)
 
     def isDisjunctVerified(self, side: types_of_bounds):
         if side not in self.verified_disjunct.keys():
@@ -302,9 +302,9 @@ class invariantOnNeuron:
 
         self.recomputeRealBound(side)
         self.recomputeLooseBound(side)
-        self.recomputeSuggestedBound(side)
-        if recompute_property:
-            self.recomputeInterpolantProperty(side)
+        self.recomputeSuggestedBound(side, recompute_property=recompute_property)
+        # if recompute_property:
+        #     self.recomputeInterpolantProperty(side)
 
 
 
@@ -331,12 +331,14 @@ class invariantOnNeuron:
         epsilon = self.epsilon_twosided[side]
         if side == 'l':
             bound = self.observed_minimum - epsilon
+            self.real_bounds_for_invariant[side] = max(bound, 0)
         elif side == 'r':
             bound = self.observed_maximum + epsilon
+            self.real_bounds_for_invariant[side] = -1 if bound < -1 else max(bound, 0.01)
         else: # side not in types_of_bounds!
             assert False
 
-        self.real_bounds_for_invariant[side] = max(bound,0)
+
 
     def recomputeLooseBound(self, side: types_of_bounds):
 
@@ -344,12 +346,14 @@ class invariantOnNeuron:
 
         if side == 'l':
             bound = self.observed_minimum - delta
+            self.loose_bounds_for_invariant[side] = max(bound, 0)
         elif side == 'r':
             bound = self.observed_maximum + delta
+            self.loose_bounds_for_invariant[side] = -1 if bound < -1 else max(bound, 1)
         else: # side not in types_of_bounds!
             assert False
 
-        self.loose_bounds_for_invariant[side] = max(bound,0)
+
 
 
     def recomputeSuggestedBound(self,side: types_of_bounds, recompute_property = True):
@@ -373,12 +377,20 @@ class invariantOnNeuron:
             return self.loose_bounds_for_invariant[side]
 
     def getSuggestedUpperBound(self):
+        if not self.includeInInvariant('r'):
+            return self.loose_bounds_for_invariant['r']+infinity
+        # TODO: make this more systematic!
+
         if self.tight_bounds:
             return self.real_bounds_for_invariant['r']
         else:
             return self.loose_bounds_for_invariant['r']
 
     def getSuggestedLowerBound(self):
+        if not self.includeInInvariant('l'):
+            return max(self.loose_bounds_for_invariant['l']-infinity,-1)
+        # TODO: make this more systematic!
+
         if self.tight_bounds:
             return self.real_bounds_for_invariant['l']
         else:
@@ -687,8 +699,8 @@ class layerInterpolateCandidate:
         conjuncts = []
         for var in range(self.layer_size):
             for side in types_of_bounds:
-                if self.list_of_neurons[var].participates_in_invariant[side]:
-                    conjuncts.append(self.list_of_neurons[var].interpolant_property[side])
+                # if self.list_of_neurons[var].participates_in_invariant[side]:
+                conjuncts.append(self.list_of_neurons[var].interpolant_property[side])
 
         return conjuncts
 

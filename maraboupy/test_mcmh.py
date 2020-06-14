@@ -36,7 +36,7 @@ from random import randint
 
 start_time = time.time()
 
-network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_1_1.nnet"
+network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_1_4.nnet"
 property_filename = "../resources/properties/acas_property_4.txt"
 property_filename1 = "../resources/properties/acas_property_1.txt"
 
@@ -65,6 +65,22 @@ print(mcmh_object.layer_interpolant_candidate.list_of_neurons[14].deltas['l'],
       mcmh_object.layer_interpolant_candidate.list_of_neurons[14].suggested_bounds['r'],
       '\n',
       mcmh_object.layer_interpolant_candidate.getConjunction())
+
+
+included_vars = choices(range(mcmh_object.layer_size),k=10)
+
+for var in range(mcmh_object.layer_size):
+    for side in types_of_bounds:
+        if var not in included_vars:
+            include_side = False
+        else:
+            include_side = choice([False, True])
+
+        if include_side:
+            mcmh_object.layer_interpolant_candidate.includeInInvariant(var, side)
+        else:
+            mcmh_object.layer_interpolant_candidate.excludeFromInvariant(var,side)
+
 
 counter = 0
 conjunction_verified = False

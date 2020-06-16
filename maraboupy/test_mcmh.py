@@ -34,6 +34,10 @@ from random import randint
 
 
 
+
+
+
+
 start_time = time.time()
 
 network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_1_4.nnet"
@@ -41,22 +45,51 @@ property_filename = "../resources/properties/acas_property_4.txt"
 property_filename1 = "../resources/properties/acas_property_1.txt"
 
 
-network_filename1 = "test/ACASXU_experimental_v2a_1_9_output1.nnet"
-network_filename2 = "test/ACASXU_experimental_v2a_1_9_output2.nnet"
+network_filename1 = "test/ACASXU_experimental_v2a_1_9_input.nnet"
+network_filename2 = "test/ACASXU_experimental_v2a_1_9_output.nnet"
 
 
 output_property_file = "output_property_test1.txt"
 input_property_file = "input_property_test1.txt"
 
+disjunct_network_file = "test/ACASXU_experimental_v2a_1_9_disjunct.nnet"
 
-mcmh_object = MarabouNNetMCMH(network_filename=network_filename, property_filename=property_filename, layer=4)
+
+mcmh_object = MarabouNNetMCMH(network_filename=network_filename, property_filename=property_filename, layer=5)
 
 mcmh_object.initiateVerificationProcess(N=5000,compute_loose_offsets='range')
 mcmh_object.prepareForMarabouCandidateVerification(network_filename1=network_filename1, network_filename2=network_filename2,
-                                                   property_filename1=output_property_file, property_filename2=input_property_file)
+                                                   property_filename1=output_property_file, property_filename2=input_property_file,
+                                                   network_filename_disjunct=disjunct_network_file)
 
 
 mcmh_object.layer_interpolant_candidate.setInitialParticipatingNeurons(zero_bottoms=True)
+
+mcmh_object.createOriginalOutputPropertyFile()
+mcmh_object.addLayerPropertiesToOutputPropertyFile()
+
+
+
+mcmh_object.createOriginalInputPropertyFile()
+mcmh_object.addOutputLayerPropertyByIndexToInputPropertyFile(13,'r')
+
+mcmh_object.createTruncatedInputNetworkByNeuron(var=49)
+
+ipq = MarabouCore.InputQuery()
+
+MarabouCore.createInputQuery(ipq, network_filename, property_filename)
+
+for var in range(5):
+    print(ipq.getLowerBound(var), mcmh_object.ipq.getUpperBound(var))
+
+
+
+print('hidden layer: ')
+for var in range(5,10):
+    print(ipq.getLowerBound(var), mcmh_object.ipq.getUpperBound(var))
+
+
+sys.exit(0)
 
 print(mcmh_object.layer_interpolant_candidate.list_of_neurons[14].deltas['l'],
       mcmh_object.layer_interpolant_candidate.list_of_neurons[14].deltas['r'],
@@ -67,20 +100,20 @@ print(mcmh_object.layer_interpolant_candidate.list_of_neurons[14].deltas['l'],
       mcmh_object.layer_interpolant_candidate.getConjunction())
 
 
-included_vars = choices(range(mcmh_object.layer_size),k=10)
-
-for var in range(mcmh_object.layer_size):
-    for side in types_of_bounds:
-        if var not in included_vars:
-            include_side = False
-        else:
-            include_side = choice([False, True])
-
-        if include_side:
-            mcmh_object.layer_interpolant_candidate.includeInInvariant(var, side)
-        else:
-            mcmh_object.layer_interpolant_candidate.excludeFromInvariant(var,side)
-
+# included_vars = choices(range(mcmh_object.layer_size),k=10)
+#
+# for var in range(mcmh_object.layer_size):
+#     for side in types_of_bounds:
+#         if var not in included_vars:
+#             include_side = False
+#         else:
+#             include_side = choice([False, True])
+#
+#         if include_side:
+#             mcmh_object.layer_interpolant_candidate.includeInInvariant(var, side)
+#         else:
+#             mcmh_object.layer_interpolant_candidate.excludeFromInvariant(var,side)
+#
 
 counter = 0
 conjunction_verified = False

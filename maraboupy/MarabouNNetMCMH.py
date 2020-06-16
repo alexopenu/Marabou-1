@@ -973,6 +973,9 @@ class MarabouNNetMCMH:
         self.property_filename1 = ''
         self.property_filename2 = ''
 
+        # Filename for the network used to verify a single disjunct
+        self.network_filename_disjunct = ''
+
         # Input queries reserved for verification of the interpolant candidate with Marabou
         self.ipq1 = MarabouCore.InputQuery()
         self.ipq2 = MarabouCore.InputQuery()
@@ -1071,11 +1074,13 @@ class MarabouNNetMCMH:
         self.epsilon = epsilon
 
 
-    def setFilenames(self, network_filename1 = '', network_filename2 = '', property_filename1='',property_filename2=''):
+    def setFilenames(self, network_filename1 = '', network_filename2 = '', property_filename1='',property_filename2='',
+                     network_filename_disjunct = ''):
         assert property_filename1 or self.property_filename1
         assert property_filename2 or self.property_filename2
         assert network_filename1 or self.network_filename1
         assert network_filename2 or self.network_filename2
+        assert network_filename_disjunct or self.network_filename_disjunct
 
         if property_filename1:
             self.property_filename1=property_filename1
@@ -1085,6 +1090,8 @@ class MarabouNNetMCMH:
             self.network_filename1 = network_filename1
         if network_filename2:
             self.network_filename2 = network_filename2
+        if network_filename_disjunct:
+            self.network_filename_disjunct = network_filename_disjunct
 
     def setOriginalPropertyLists(self):
         if self.marabou_nnet.property.mixed_properties_present() or self.marabou_nnet.property.ws_properties_present():
@@ -1168,12 +1175,15 @@ class MarabouNNetMCMH:
 
     # Was more important in an older version. Perhaps redundant now?
     def prepareForMarabouCandidateVerification(self, network_filename1 = '', network_filename2 = '',
-                                               property_filename1 = '', property_filename2 = ''):
+                                               property_filename1 = '', property_filename2 = '',
+                                               network_filename_disjunct = ''):
 
         if self.marabou_verification_initiated:
             print('Warning: repeated request to split the network and/or set filenames.')
 
-        self.setFilenames(network_filename1,network_filename2,property_filename1,property_filename2)
+        self.setFilenames(network_filename1=network_filename1,network_filename2=network_filename2,
+                          property_filename1=property_filename1,property_filename2=property_filename2,
+                          network_filename_disjunct=network_filename_disjunct)
         self.split_network()
 
         self.marabou_verification_initiated = True
@@ -1203,13 +1213,22 @@ class MarabouNNetMCMH:
 
 
     # returns [], True if timed out
-    def verifyDisjunctWithMarabou(self,var: int, side: str, add_to_goodset=True, timeout = 0):
+    def verifyDisjunctWithMarabou(self,var: int, side: str, add_to_goodset=True, timeout = 0,
+                                  truncated_output_layer=True):
         assert var in range(self.layer_size)
         assert side in types_of_bounds
 
         self.createOriginalInputPropertyFile()
-        self.addOutputLayerPropertyByIndexToInputPropertyFile(var, side)
-        MarabouCore.createInputQuery(self.ipq1, self.network_filename1, self.property_filename1)
+        self.addOutputLayerPropertyByIndexToInputPropertyFile(var=var, side=side,
+                                                              truncated_output_layer=truncated_output_layer)
+
+        if truncated_output_layer:
+            self.createTruncatedInputNetworkByNeuron(var)
+            network_filename1 = self.network_filename_disjunct
+        else:
+            network_filename1 = self.network_filename1
+
+        MarabouCore.createInputQuery(self.ipq1, network_filename1, self.property_filename1)
 
         [vals, stats] = solve_query(self.ipq1, verbose=True, verbosity=0, timeout=timeout)
         bad_input = self.convertVectorFromDictToList(vals)
@@ -1227,7 +1246,7 @@ class MarabouNNetMCMH:
 
 
     def verifyUnverifiedDisjunctsWithMarabou(self, add_to_goodset=True, timeout = 0, individual_timeout = 0,
-                                             verbosity = 0):
+                                             verbosity = 0, truncated_output_layer=True):
 
         if not individual_timeout:
             individual_timeout = timeout
@@ -1260,8 +1279,10 @@ class MarabouNNetMCMH:
                     print('Dual property to verify:')
                     print(self.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side])
 
-                bad_input, exit_due_to_timeout = self.verifyDisjunctWithMarabou(var, side, add_to_goodset=add_to_goodset,
-                                                           timeout=individual_timeout)
+                bad_input, exit_due_to_timeout = self.verifyDisjunctWithMarabou(var, side,
+                                                                                add_to_goodset=add_to_goodset,
+                                                                                timeout=individual_timeout,
+                                                                                truncated_output_layer=truncated_output_layer)
 
                 if exit_due_to_timeout:
                     break
@@ -1274,11 +1295,13 @@ class MarabouNNetMCMH:
 
 
 
-    def verifyAllDisjunctsWithMarabou(self,add_to_goodset=True):
+    def verifyAllDisjunctsWithMarabou(self,add_to_goodset=True, truncated_output_layer=True):
         failed_disjuncts = []
         for var in range(self.layer_size):
             for side in types_of_bounds:
-                bad_input, _ = self.verifyDisjunctWithMarabou(var,side,add_to_goodset=add_to_goodset)
+                bad_input, _ = \
+                    self.verifyDisjunctWithMarabou(var,side,add_to_goodset=add_to_goodset,
+                                                   truncated_output_layer=truncated_output_layer)
                 if not bad_input: #UNSAT
                     continue
                 failed_disjuncts.append((var,side,bad_input))
@@ -1606,8 +1629,7 @@ class MarabouNNetMCMH:
             print('Something went wrong with writing to property_file2')
             sys.exit(1)
 
-
-    def addOutputLayerPropertyByIndexToInputPropertyFile(self,var: int, side: str):
+    def addOutputLayerPropertyByIndexToInputPropertyFile(self, var: int, side: str, truncated_output_layer=True):
         '''
         adds one property (string) from self.output_interpolant_candidate to self.property_filename1
             which is the property file for the network whose output layer is self.layer
@@ -1619,8 +1641,11 @@ class MarabouNNetMCMH:
         assert var in range(self.layer_size)
         assert side in types_of_bounds
 
-        self.addOutputLayerPropertyToInputPropertyFile(
-            p=self.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side])
+        p = self.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side]
+        if truncated_output_layer:
+            p = re.sub('y(\d)+', 'y0', p, count=1)
+
+        self.addOutputLayerPropertyToInputPropertyFile(p=p)
 
     def addOutputLayerPropertyToInputPropertyFile(self,p=''):
         '''
@@ -1673,9 +1698,33 @@ class MarabouNNetMCMH:
 
         except:
             print("Something went wrong with spltting the network and writing the output networks to files.")
+            sys.exit(1)
 
         self.network_filename1 = network_filename1
         self.network_filename2 = network_filename2
+
+
+    def createTruncatedInputNetworkByNeuron(self,var: int):
+        assert var in range(self.layer_size)
+        assert self.network_filename_disjunct
+
+        nnet_object_disjunct = MarabouNetworkNNet(filename=self.network_filename1)
+
+        new_output_layer_weights = nnet_object_disjunct.weights[-1][var]
+        new_output_layer_biases = nnet_object_disjunct.biases[-1][var]
+
+        nnet_object_disjunct.weights[-1] = [new_output_layer_weights]
+        nnet_object_disjunct.biases[-1] = [new_output_layer_biases]
+        # nnet_object_disjunct.weights[-1].append(new_output_layer_weights)
+        # nnet_object_disjunct.biases[-1].append(new_output_layer_biases)
+
+        try:
+            nnet_object_disjunct.writeNNet(fileName=self.network_filename_disjunct)
+        except:
+            print('Something went wrong writing to the single disjunct file')
+            sys.exit(1)
+
+
 
 
 

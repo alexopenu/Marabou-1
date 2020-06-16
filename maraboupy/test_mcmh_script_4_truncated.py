@@ -175,7 +175,7 @@ for i in [4]:
 
         failed_disjuncts, exit_due_to_timeout = \
             mcmh_object.verifyUnverifiedDisjunctsWithMarabou(add_to_goodset=False, timeout=int(timeout*3), verbosity=2,
-                                                             truncated_output_layer=False)
+                                                             truncated_output_layer=True)
         if exit_due_to_timeout:
             'time out in verifyUnverifiedDisjunctsWithMarabou'
         print('time verifyUnverifiedDisjunctsWithMarabou took: ', time.time()-inner_timer)

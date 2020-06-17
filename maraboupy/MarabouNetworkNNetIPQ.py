@@ -112,15 +112,16 @@ class MarabouNetworkNNetIPQ(MarabouNetworkNNetExtendedParent.MarabouNetworkNNetE
         self.tighten_bBounds()
 
     def tightenInputBounds(self):
+        print(self.inputVars)
         for var in self.inputVars.flatten():
-             true_lower_bound = self.ipq2.getLowerBound(var)
-             true_upper_bound = self.ipq2.getUpperBound(var)
-             if self.lowerBounds[var] < true_lower_bound:
-                 self.setLowerBound(var,true_lower_bound)
-                 print ('Adjusting lower bound for input variable',var,"to be",true_lower_bound)
-             if self.upperBounds[var] > true_upper_bound:
-                 self.setUpperBound(var,true_upper_bound)
-                 print ("Adjusting upper bound for input variable",var,"to be",true_upper_bound)
+            true_lower_bound = self.ipq2.getLowerBound(var)
+            true_upper_bound = self.ipq2.getUpperBound(var)
+            if self.lowerBounds[var] < true_lower_bound:
+                self.setLowerBound(var,true_lower_bound)
+                print ('Adjusting lower bound for input variable',var,"to be",true_lower_bound)
+            if self.upperBounds[var] > true_upper_bound:
+                self.setUpperBound(var,true_upper_bound)
+                print ("Adjusting upper bound for input variable",var,"to be",true_upper_bound)
 
     def tightenOutputBounds(self):
         for var in self.outputVars.flatten():

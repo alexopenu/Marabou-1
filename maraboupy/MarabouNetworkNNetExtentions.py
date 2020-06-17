@@ -19,11 +19,10 @@
  **/
 '''
 
-
 from MarabouNetworkNNetExtended import *
 from  MarabouNetworkNNet import *
 import numpy as np
-import re
+
 
 def splitList(list,l):
     return list[:l], list[l:]
@@ -56,8 +55,8 @@ def splitNNet(marabou_nnet: MarabouNetworkNNet, layer: int):
     '''
     No normalization for the outputs of the first network
     '''
-    means1[-1] = 0
-    ranges1[-1] = 1
+    outputmean1 = 0
+    outputrange1 = 1
 
     '''
     The mins and maxs of the second input layer are taken to be the lower and the upper bounds of b 
@@ -75,24 +74,27 @@ def splitNNet(marabou_nnet: MarabouNetworkNNet, layer: int):
     '''
     No normalization for the new input layer
     '''
-    means2 = [0] * (new_input_size+1)
-    ranges2 = [1] * (new_input_size+1)
+    means2 = [0] * (new_input_size)
+    ranges2 = [1] * (new_input_size)
 
     '''
     The mean and the range for the output for the second network are the mean and the range of 
     the original output
     '''
-    means2[-1] = marabou_nnet.inputMeans[-1]
-    ranges2[-1] = marabou_nnet.inputRanges[-1]
+    outputmean2 = marabou_nnet.outputMean
+    outputrange2 = marabou_nnet.outputRange
 
-    # NOTE that these choices may affect the evaluations! One should be careful with applying normalization.
 
     marabou_nnet1 = MarabouNetworkNNetExtended()
     marabou_nnet2 = MarabouNetworkNNetExtended()
 
-    marabou_nnet1.resetNetworkFromParameters(mins1, maxs1, means1, ranges1, weights1, biases1)
-    marabou_nnet2.resetNetworkFromParameters(mins2, maxs2, means2, ranges2, weights2, biases2)
+    marabou_nnet1.resetNetworkFromParameters(mins1, maxs1, means1, ranges1, outputmean1, outputrange1, weights1, biases1)
+    marabou_nnet2.resetNetworkFromParameters(mins2, maxs2, means2, ranges2, outputmean2, outputrange2, weights2, biases2)
 
+    # print(marabou_nnet.inputMeans)
+    # print(marabou_nnet.inputRanges)
+    # print(marabou_nnet1.inputMeans)
+    # print(marabou_nnet2.inputMeans)
 
     return marabou_nnet1,marabou_nnet2
 

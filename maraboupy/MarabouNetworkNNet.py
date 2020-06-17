@@ -30,13 +30,16 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
     """
     Class that implements a MarabouNetwork from an NNet file.
     """
-
-    def __init__ (self, filename, use_nlr=False):
+    # def __init__ (self, filename, use_nlr=False):
+    def __init__ (self, filename, normalize=False):
         """
         Constructs a MarabouNetworkNNet object from an .nnet file.
 
         Args:
             filename: path to the .nnet file.
+            normalize: (bool) True if network parameters should be adjusted to incorporate
+                          network input/output normalization. Otherwise, properties must be written
+                          with the normalization already incorporated.
         Attributes:
 
         set in constructor:
@@ -49,11 +52,14 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
             inputMaximums    (list of floats) Maximum value for each input.
             inputMeans       (list of floats) Mean value for each input.
             inputRanges      (list of floats) Range for each input
+            outputMean       (float) Mean value of outputs
+            outputRange      (float) Range of output values
             weights          (list of list of lists) Outer index corresponds to layer
                                 number.
             biases           (list of lists) Outer index corresponds to layer number.
 
-            nlr              The NetworkLeverReasoner object
+
+            nlr              The NetworkLeverReasoner object (gone?)
 
 
             inputVars
@@ -77,8 +83,11 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
 
 
 
+
         """
         super(MarabouNetworkNNet,self).__init__()
+
+        self.normalize = normalize
 
         if not filename:
             self.numLayers = 0
@@ -90,6 +99,8 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
             self.inputMaximums = []
             self.inputMeans = []
             self.inputRanges = []
+            self.outputMean = 0
+            self.outputRange = 0
             self.weights = []
             self.biases = []
 
@@ -97,10 +108,11 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
             return
             
 
-        # read the file and load values
+        # Read the file and load values
         self.read_nnet(filename)
 
-        self.computeNetworkAttributes(use_nlr,filename)
+
+        self.computeNetworkAttributes(use_nlr=False, filename = "")
 
     def clearNetwork(self):
         # call clear() from parent
@@ -118,15 +130,12 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         self.weights = []
         self.biases = []
 
-        self.nlr = None
+        # self.nlr = None
 
 
-
-
-
-
-    def resetNetworkFromParameters(self,inputMinimums,inputMaximums, inputMeans,inputRanges, weights,biases,\
-                                   numLayers=-1,layerSizes=[],inputSize=-1,outputSize=-1,maxLayersize=-1,use_nlr = False):
+    def resetNetworkFromParameters(self,inputMinimums,inputMaximums, inputMeans,inputRanges, outputMean, outputRange,
+                                   weights,biases,numLayers=-1,layerSizes=[],inputSize=-1,outputSize=-1,maxLayersize=-1,
+                                   use_nlr = False, check_correctness = True):
 
         #Clearing the attributes that will be computed (clear() method from parent)
         self.clear()
@@ -160,30 +169,26 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
 
         # Checking that the parameters provided in the arguments agree with what we have computed
 
-        inputError = False
-        if numLayers != _numLayers:
-            numLayers = _numLayers
-            inputError = True
-            errorPlace = 1
-        if inputSize != _inputSize:
-            inputSize = _inputSize
-            inputError = True
-            errorPlace = 2
-        if outputSize != _outputSize:
-            outputSize = _outputSize
-            inputError = True
-            errorPlace = 3
-        if layerSizes != _layerSizes:
-            layerSizes = _layerSizes
-            inputError = True
-            errorPlace = 4
-        if maxLayersize != _maxLayerSize:
-            maxLayersize = _maxLayerSize
-            inputError = True
-            errorPlace = 5
+        if check_correctness:
+            errorPlace = 0
+            if numLayers != _numLayers:
+                numLayers = _numLayers
+                errorPlace = 1
+            if inputSize != _inputSize:
+                inputSize = _inputSize
+                errorPlace = 2
+            if outputSize != _outputSize:
+                outputSize = _outputSize
+                errorPlace = 3
+            if layerSizes != _layerSizes:
+                layerSizes = _layerSizes
+                errorPlace = 4
+            if maxLayersize != _maxLayerSize:
+                maxLayersize = _maxLayerSize
+                errorPlace = 5
 
-        if inputError:
-            print("\nSomething went wrong with the arguments, corrected! Error code : ",errorPlace,"\n")
+            if errorPlace:
+                print("\nSomething went wrong with the arguments, corrected! Error code : ", errorPlace, "\n")
 
 
         self.numLayers = numLayers
@@ -195,37 +200,44 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         self.inputMaximums = inputMaximums
         self.inputMeans = inputMeans
         self.inputRanges = inputRanges
+        self.outputMean = outputMean
+        self.outputRange = outputRange
         self.weights = weights
         self.biases = biases
 
-        self.computeNetworkAttributes(use_nlr,filename="")
+        # self.computeNetworkAttributes(use_nlr,filename="")
         # NOTE: here we assume tha the filename is not used in createNLR()
         # TODO (necessary? desireable?): create a new filename for the network
 
 
 
-    def computeNetworkAttributes(self,use_nlr,filename=""):
+    def computeNetworkAttributes(self,use_nlr=False,filename=""):
         # compute variable ranges
-        self.variableRanges()
+        # self.variableRanges()
 
         # identify variables involved in relu constraints
-        relus = self.findRelus()
+        # relus = self.findRelus()
+
 
         # build all equations that govern the network
-        equations = self.buildEquations()
-        for equation in equations:
-            e = Equation()
-            for term in equation[:-1]:
-                e.addAddend(term[1], term[0])
-            e.setScalar(equation[-1])
-            self.addEquation(e)
+        # equations = self.buildEquations()
+        # for equation in equations:
+        #     e = Equation()
+        #     for term in equation[:-1]:
+        #         e.addAddend(term[1], term[0])
+        #     e.setScalar(equation[-1])
+        #     self.addEquation(e)
 
+# =======
+        # Add equations that govern the network
+        self.buildEquations()
+# >>>>>>> master
 
-        # add all the relu constraints
-        for relu in relus:
-            self.addRelu(relu[0], relu[1])
+        # Add variables involved in relu constraints
+        self.addRelus()
 
-        # Set all the bounds defined in the .nnet file
+        # Compute variable ranges
+        self.variableRanges()
 
         # Set input variable bounds
         for i, i_var in enumerate(self.inputVars[0]):
@@ -238,51 +250,53 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
 
         # Set the number of variables
         self.numVars = self.numberOfVariables()
-        if use_nlr:
-            self.nlr = self.createNLR(filename)
-        else:
-            self.nlr = None
-
-    def createNLR(self, filename):
-        nlr = MarabouCore.NetworkLevelReasoner()
-        nlr.setNumberOfLayers(self.numLayers + 1)
-
-        for layer, size in enumerate(self.layerSizes):
-            nlr.setLayerSize(layer, size)
-        nlr.allocateMemoryByTopology()
-        # Biases
-        for layer in range(len(self.biases)):
-            for node in range(len(self.biases[layer])):
-                nlr.setBias(layer + 1, node, self.biases[layer][node])
-        # Weights
-        for layer in range(len(self.weights)): # starting from the first hidden layer
-            for target in range(len(self.weights[layer])):
-                for source in range(len(self.weights[layer][target])):
-                    nlr.setWeight(layer, source, target, self.weights[layer][target][source])
-
-        # Activation Functions
-        RELU = MarabouCore.NetworkLevelReasoner.ReLU;
-        for layer in range(len(self.weights) - 1): # only hidden layers
-            for neuron in range(len(self.weights[layer])):
-                nlr.setNeuronActivationFunction(layer + 1, neuron, RELU );
-
-        # Variable indexing
-        for layer in range(len(self.layerSizes))[1:-1]:
-            for node in range(self.layerSizes[layer]):
-                nlr.setWeightedSumVariable(layer, node, self.nodeTo_b(layer, node))
-                nlr.setActivationResultVariable(layer, node, self.nodeTo_f(layer, node))
-
-        for node in range(self.inputSize):
-            nlr.setActivationResultVariable(0, node, self.nodeTo_f(0, node))
-
-        for node in range(self.outputSize):
-            nlr.setWeightedSumVariable(len(self.layerSizes) - 1, node, self.nodeTo_b(len(self.layerSizes) - 1, node))
-
-        return nlr
+# <<<<<<< HEAD
+#         if use_nlr:
+#             self.nlr = self.createNLR(filename)
+#         else:
+#             self.nlr = None
+#
+#     def createNLR(self, filename):
+#         nlr = MarabouCore.NetworkLevelReasoner()
+#         nlr.setNumberOfLayers(self.numLayers + 1)
+#
+#         for layer, size in enumerate(self.layerSizes):
+#             nlr.setLayerSize(layer, size)
+#         nlr.allocateMemoryByTopology()
+#         # Biases
+#         for layer in range(len(self.biases)):
+#             for node in range(len(self.biases[layer])):
+#                 nlr.setBias(layer + 1, node, self.biases[layer][node])
+#         # Weights
+#         for layer in range(len(self.weights)): # starting from the first hidden layer
+#             for target in range(len(self.weights[layer])):
+#                 for source in range(len(self.weights[layer][target])):
+#                     nlr.setWeight(layer, source, target, self.weights[layer][target][source])
+#
+#         # Activation Functions
+#         RELU = MarabouCore.NetworkLevelReasoner.ReLU;
+#         for layer in range(len(self.weights) - 1): # only hidden layers
+#             for neuron in range(len(self.weights[layer])):
+#                 nlr.setNeuronActivationFunction(layer + 1, neuron, RELU );
+#
+#         # Variable indexing
+#         for layer in range(len(self.layerSizes))[1:-1]:
+#             for node in range(self.layerSizes[layer]):
+#                 nlr.setWeightedSumVariable(layer, node, self.nodeTo_b(layer, node))
+#                 nlr.setActivationResultVariable(layer, node, self.nodeTo_f(layer, node))
+#
+#         for node in range(self.inputSize):
+#             nlr.setActivationResultVariable(0, node, self.nodeTo_f(0, node))
+#
+#         for node in range(self.outputSize):
+#             nlr.setWeightedSumVariable(len(self.layerSizes) - 1, node, self.nodeTo_b(len(self.layerSizes) - 1, node))
+#
+#         return nlr
+# =======
+# >>>>>>> master
 
     def getMarabouQuery(self):
         ipq = super(MarabouNetworkNNet, self).getMarabouQuery()
-        ipq.setNetworkLevelReasoner(self.nlr)
         return ipq
 
 
@@ -318,10 +332,10 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
             inputMaximums = [float(x) for x in line.strip().split(",")[:-1]]
 
             line = f.readline()
-            inputMeans = [float(x) for x in line.strip().split(",")[:-1]]
+            means = [float(x) for x in line.strip().split(",")[:-1]]
 
             line = f.readline()
-            inputRanges = [float(x) for x in line.strip().split(",")[:-1]]
+            ranges = [float(x) for x in line.strip().split(",")[:-1]]
 
             weights=[]
             biases = []
@@ -352,11 +366,24 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
             self.maxLayersize = maxLayersize
             self.inputMinimums = inputMinimums
             self.inputMaximums = inputMaximums
-            self.inputMeans = inputMeans
-            self.inputRanges = inputRanges
+            self.inputMeans = means[:-1]
+            self.inputRanges = ranges[:-1]
+            self.outputMean = means[-1]
+            self.outputRange = ranges[-1]
             self.weights = weights
             self.biases = biases
 
+# <<<<<<< HEAD
+# =======
+            # Convert input bounds from their original values to normalized values if normalization is not being incorporated
+            if not self.normalize:
+                for i in range(self.inputSize):
+                    self.inputMinimums[i] = (self.inputMinimums[i] - self.inputMeans[i]) / self.inputRanges[i]
+                    self.inputMaximums[i] = (self.inputMaximums[i] - self.inputMeans[i]) / self.inputRanges[i]
+
+    # """
+    # Compute the variable number ranges for each type (b, f)
+# >>>>>>> master
 
     def writeNNet(self, fileName: str):
         '''
@@ -419,8 +446,11 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
                 ','.join(str(self.inputMaximums[i]) for i in range(self.inputSize)) + ',\n')  # Maximum Input Values
 
 
-            f2.write(','.join(str(self.inputMeans[i]) for i in range(self.inputSize + 1)) + ',\n')  # Means for normalizations
-            f2.write(','.join(str(self.inputRanges[i]) for i in range(self.inputSize + 1)) + ',\n')  # Ranges for noramlizations
+            f2.write(','.join(str(self.inputMeans[i]) for i in range(self.inputSize)) +
+                     ',' + str(self.outputMean) + ',\n')  # Means for normalizations
+            f2.write(','.join(str(self.inputRanges[i]) for i in range(self.inputSize)) +
+                     ',' + str(self.outputRange) + ',\n')  # Ranges for normalizations
+
 
             ##################
             # Write weights and biases of neural network
@@ -450,7 +480,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
             None
         """
 
-        input_variables = []
+        # input_variables = []
         b_variables = []
         f_variables = []
         output_variables = []
@@ -536,6 +566,8 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
             offset += self.layerSizes[layer]
 
             return offset + node
+
+# <<<<<<< HEAD
 
 
 
@@ -637,57 +669,89 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         equations_count = 0
         marabou_equations = []
 
+# =======
+#     """
+#     Construct the Marabou equations
+#     Arguments:
+#         None
+#     """
+#     def buildEquations(self):
+# # >>>>>>> master
         for layer, size in enumerate(self.layerSizes):
             if layer == 0:
                 continue
 
             for node in range(size):
-                #add marabou equation
+                bias = self.biases[layer-1][node]
 
-                equations_aux.append([])
-                equations_aux[equations_count].append([self.nodeTo_b(layer, node), -1.0])
+                # Add marabou equation and add addend for output variable
+                e = Equation()
+                e.addAddend(-1.0, self.nodeTo_b(layer, node))
+
+                # Add addends for weighted input variables
                 for previous_node in range(self.layerSizes[layer-1]):
-                    equations_aux[equations_count].append([self.nodeTo_f(layer-1, previous_node), self.weights[layer-1][node][previous_node]])
+                    weight = self.weights[layer-1][node][previous_node]
 
+                    # Adjust weights and bias of first layer to incorporate input normalization
+                    if self.normalize and layer == 1:
+                        weight /= self.inputRanges[previous_node]
+                        bias -= weight * self.inputMeans[previous_node]
 
-                equations_aux[equations_count].append(-self.biases[layer-1][node])
-                equations_count += 1
+                    # Adjust weights of output layer to incorporate output normalization
+                    elif self.normalize and layer == len(self.layerSizes) - 1:
+                        weight *= self.outputRange
+                    e.addAddend(weight, self.nodeTo_f(layer-1, previous_node))
 
+                # Adjust bias of output layer to incorporate output normalization
+                if self.normalize and layer == len(self.layerSizes) - 1:
+                    bias = bias * self.outputRange + self.outputMean
+                e.setScalar(-bias)
+                self.addEquation(e)
+
+# <<<<<<< HEAD
         return equations_aux
 
 
-    def findRelus(self):
-
-        """
-        Identify all relus and their associated variable numbers.
-        Arguments:
-            None
-        Returns:
-            relus   (list of lists) that represents all the relus in
-                the network.
-        """
-
+    # def findRelus(self):
+    #
+    #     """
+    #     Identify all relus and their associated variable numbers.
+    #     Arguments:
+    #         None
+    #     Returns:
+    #         relus   (list of lists) that represents all the relus in
+    #             the network.
+    #     """
+    #
+# =======
+    """
+    Identify all relus and their associated variable numbers and add them to Marabou network
+    Arguments:
+        None
+    """
+    def addRelus(self):
+# >>>>>>> master
         relus = []
         hidden_layers = self.layerSizes[1:-1]
         for layer, size in enumerate(hidden_layers):
             for node in range(size):
-                relus.append([self.nodeTo_b(layer+1, node), self.nodeTo_f(layer+1, node)])
-
-        return relus
+                self.addRelu(self.nodeTo_b(layer+1, node), self.nodeTo_f(layer+1, node))
 
     def numberOfVariables(self):
         return self.layerSizes[0] + 2*sum(self.layerSizes[1:-1]) + 1*self.layerSizes[-1]
 
-    def getInputMinimum(self, input):
-        return (self.inputMinimums[input] - self.inputMeans[input]) / self.inputRanges[input]
+    def getInputMinimum(self, inputVar):
+        return self.inputMinimums[inputVar]
 
-    def getInputMaximum(self, input):
-        return (self.inputMaximums[input] - self.inputMeans[input]) / self.inputRanges[input]
+# <<<<<<< HEAD
+#     def getInputMaximum(self, input):
+#         return (self.inputMaximums[input] - self.inputMeans[input]) / self.inputRanges[input]
+#
+        # =======
+    def getInputMaximum(self, inputVar):
+        return self.inputMaximums[inputVar]
 
-
-
-
-
+    # >>>>>>> master
 
     def evaluateNetwork(self, inputs, normalize_inputs=True, normalize_outputs=True, activate_output_layer=False):
 

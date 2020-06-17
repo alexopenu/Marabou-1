@@ -89,7 +89,7 @@ for var in range(5,10):
     print(ipq.getLowerBound(var), mcmh_object.ipq.getUpperBound(var))
 
 
-sys.exit(0)
+# sys.exit(0)
 
 print(mcmh_object.layer_interpolant_candidate.list_of_neurons[14].deltas['l'],
       mcmh_object.layer_interpolant_candidate.list_of_neurons[14].deltas['r'],

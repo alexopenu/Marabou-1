@@ -27,9 +27,9 @@ import MarabouNetworkNNet
 
 class MarabouNetworkNNetExtendedParent(MarabouNetworkNNet.MarabouNetworkNNet):
 
-    def __init__(self, filename="", property_filename = "", use_nlr = False, compute_ipq = False):
+    def __init__(self, filename="", property_filename = "", normalize = False, use_nlr = False, compute_ipq = False):
         '''
         Passes the arguments to the parent constructor.
         '''
-        super(MarabouNetworkNNetExtendedParent, self).__init__(filename=filename, use_nlr=use_nlr)
+        super(MarabouNetworkNNetExtendedParent, self).__init__(filename=filename)
 

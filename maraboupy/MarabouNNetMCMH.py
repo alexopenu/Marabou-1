@@ -5,7 +5,7 @@
 from MarabouNetworkNNetExtended import *
 
 from Marabou import *
-import MarabouCore
+from MarabouCore import *
 from MarabouNetworkNNetExtentions import *
 
 # import re
@@ -19,10 +19,12 @@ import numpy as np
 from random import choice
 from random import choices
 
+import warnings
+
 try:
     import seaborn as sns
 except ImportError:
-    print('module seaborn not installed')
+    warnings.warn('Module seaborn not installed')
 
 import matplotlib.pyplot as plt
 
@@ -36,7 +38,7 @@ import matplotlib.pyplot as plt
 
 # 'l' stands for left (lower)
 # 'r' stands for right (upper)
-types_of_bounds = ['l','r']
+types_of_bounds = ['l', 'r']
 type_of_bounds_to_sign = {'l': -1, 'r': 1}
 
 infinity = 100
@@ -377,7 +379,7 @@ class invariantOnNeuron:
             return self.loose_bounds_for_invariant[side]
 
     def getSuggestedUpperBound(self):
-        if not self.includeInInvariant('r'):
+        if not self.participates_in_invariant['r']:
             return self.loose_bounds_for_invariant['r']+infinity
         # TODO: make this more systematic!
 
@@ -387,7 +389,7 @@ class invariantOnNeuron:
             return self.loose_bounds_for_invariant['r']
 
     def getSuggestedLowerBound(self):
-        if not self.includeInInvariant('l'):
+        if not self.participates_in_invariant['l']:
             return max(self.loose_bounds_for_invariant['l']-infinity,-1)
         # TODO: make this more systematic!
 
@@ -1198,9 +1200,9 @@ class MarabouNNetMCMH:
         self.createOriginalOutputPropertyFile()
         self.addLayerPropertiesToOutputPropertyFile()
 
-        MarabouCore.createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
-
-        [vals,stats] = solve_query(ipq=self.ipq2,verbose=True,verbosity=0, timeout = timeout)
+        createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
+        options = createOptions(verbosity=0, timeoutInSeconds=timeout)
+        [vals,stats] = solve_query(ipq=self.ipq2,verbose=True, options=options)
         bad_input = self.convertVectorFromDictToList(vals)
 
         if stats.hasTimedOut():

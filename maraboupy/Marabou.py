@@ -18,7 +18,8 @@
 
 import warnings
 
-from MarabouCore import *
+# from MarabouCore import *
+import MarabouCore
 
 # Import parsers if required packages are installed
 try:
@@ -130,7 +131,7 @@ def createOptions( numWorkers=4, initialTimeout=5, initialDivides=0, onlineDivid
     """
     Create an option object
     """
-    options = Options()
+    options = MarabouCore.Options()
     options._numWorkers = numWorkers
     options._initialTimeout = initialTimeout
     options._initialDivides = initialDivides

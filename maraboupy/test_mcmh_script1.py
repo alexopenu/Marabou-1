@@ -14,7 +14,7 @@ print (os.getcwd())
 #from MarabouNetworkNNetIPQ import *
 #from MarabouNetworkNNetProperty import *
 
-from MarabouNetworkNNetExtended import *
+from MarabouNetworkNNetQuery import *
 
 from Marabou import *
 from MarabouNetworkNNetExtentions import *
@@ -173,7 +173,7 @@ for i in [1]:
 
 
 
-    # MarabouCore.createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
+    # MarabouCore.createInputQuery(self.marabou_ipq, self.network_filename2, self.property_filename2)
 
     vals, stats = solve_query(mcmh_object.marabou_nnet.ipq2,verbose=True,verbosity=0,timeout=18000)
 

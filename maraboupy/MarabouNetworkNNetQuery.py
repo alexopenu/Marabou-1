@@ -1,7 +1,8 @@
 
+
 '''
 /* *******************                                                        */
-/*! \file MarabouNetworkNNetProperty.py
+/*! \file MarabouNetworkNNetExtended.py
  ** \verbatim
  ** Top contributors (to current version):
  ** Alex Usvyatsov
@@ -12,34 +13,44 @@
  ** directory for licensing information.\endverbatim
  **
  ** \brief
- ** This class extends MarabouNetworkNNet class
- ** Adds property (to be proven) as an attribute
+ ** This class extends MarabouNetworkNNet class.
+ ** Inherits from both MarabouNetworkNNetIPQ and MarabouNetworkNNetProperty
  **
  ** [[ Add lengthier description here ]]
  **/
 '''
 
 
-import MarabouNetworkNNetExtended
-from Property import *
 
+from MarabouNetworkNNetProperty import *
+from MarabouNetworkNNetIPQ import *
 
-
-class MarabouNetworkNNetProperty(MarabouNetworkNNetExtended.MarabouNetworkNNetExtended):
+class MarabouNetworkNNetQuery(MarabouNetworkNNetIPQ, MarabouNetworkNNetProperty):
     """
-    Class that implements a MarabouNetwork from an NNet file with a property from a property file.
+    Class that implements a MarabouNetwork from an NNet file
+    Includes extended features: Property and IPQ
     """
-
-    def __init__ (self, filename="", property_filename="", normalize = False, compute_internal_ipq=False, use_nlr=False):
+    def __init__ (self, filename="", property_filename = "", normalize = False, compute_internal_ipq = False, use_nlr = False, ):
         """
-        Constructs a MarabouNetworkNNetProperty object from an .nnet file.
-        Imports a property from a property file
+        Constructs a MarabouNetworkNNetExtended object from an .nnet file.
+
+        Read a property from a property file and stores as a Property object
+        Computes the input query and stores as an InputQuery object
+
+        By default computes Input Query from the nnet (and property) files, not from the MarabouNetwork object
+        (this results in a more accurate input query)
+
 
         Args:
             filename: path to the .nnet file.
             property_filename: path to the property file
-        Attributes:
 
+
+        Attributes from MarabouNetworkNNetIPQ:
+            internal_ipq             an Input Query object computed from the network (the MarabouNetwork object)
+            marabou_ipq             an Input Query object created from the file (and maybe a property file); more accurate.
+
+        Attributes from MarabouNetworkNNetProperty:
             property         Property object
 
         Attributes from MarabouNetworkNNet:
@@ -77,19 +88,6 @@ class MarabouNetworkNNetProperty(MarabouNetworkNNetExtended.MarabouNetworkNNetEx
 
 
         """
-        super(MarabouNetworkNNetProperty,self).__init__(filename=filename, normalize=normalize, use_nlr=use_nlr)
-
-        print('property filename = ', property_filename)
-
-        self.property = Property(property_filename)
-
-
-
-    # def writePropertyToFile(self,property_filename: str):
-    #     '''
-    #         Write Property to file in the correct format
-    #     '''
-    #
-    #     TO IMPLEMENT
-
-
+        print('property_filename = ', property_filename)
+        super(MarabouNetworkNNetQuery, self).__init__(filename=filename, property_filename=property_filename,
+                                                      normalize=normalize, compute_internal_ipq=compute_internal_ipq, use_nlr=use_nlr)

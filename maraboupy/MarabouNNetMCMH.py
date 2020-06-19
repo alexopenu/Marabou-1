@@ -2,7 +2,7 @@
 #from MarabouNetworkNNetIPQ import *
 #from MarabouNetworkNNetProperty import *
 
-from MarabouNetworkNNetExtended import *
+from MarabouNetworkNNetQuery import *
 
 from Marabou import *
 from MarabouCore import *
@@ -897,14 +897,14 @@ class layerInterpolateCandidate:
 class MarabouNNetMCMH:
 
     def __init__(self, network_filename: str, property_filename: str, layer=-1):
-        self.marabou_nnet = MarabouNetworkNNetExtended(filename=network_filename, property_filename=property_filename)
+        self.marabou_nnet = MarabouNetworkNNetQuery(filename=network_filename, property_filename=property_filename)
 
         self.network_filename = network_filename
         self.property_filename = property_filename
 
         # The input query corresponding to the network+property, computed from the files by Marabou query parse.
         # Storing locally for convenience.
-        self.ipq = self.marabou_nnet.ipq2
+        self.ipq = self.marabou_nnet.marabou_ipq
 
         # Will be changed to True when initial network files have been created
         self.marabou_verification_initiated = False
@@ -1721,7 +1721,7 @@ class MarabouNNetMCMH:
         # nnet_object_disjunct.biases[-1].append(new_output_layer_biases)
 
         try:
-            nnet_object_disjunct.writeNNet(fileName=self.network_filename_disjunct)
+            nnet_object_disjunct.writeNNet(file_name=self.network_filename_disjunct)
         except:
             print('Something went wrong writing to the single disjunct file')
             sys.exit(1)
@@ -3047,7 +3047,7 @@ class advanced_mcmh_statistics:
 
 # mcmh_object.marabou_nnet.property.compute_executables()
 
-# solve_query(mcmh_object.marabou_nnet.ipq2,property_filename)
+# solve_query(mcmh_object.marabou_nnet.marabou_ipq,property_filename)
 
 #print(nnet_object.marabou_nnet.property.exec_bounds)
 #print(nnet_object.marabou_nnet.property.exec_equations)
@@ -3112,7 +3112,7 @@ class advanced_mcmh_statistics:
 #             The disjunct leads to a property that needs to be verified
 #             '''
 #             nnet_object1 = MarabouNetworkNNetExtended(output_filename1, output_property_file1)
-#             solution = solve_query(nnet_object1.ipq2, verbosity=0)[0]
+#             solution = solve_query(nnet_object1.marabou_ipq, verbosity=0)[0]
 #             if solution:  #  SAT; the dict is not empty!
 #                 num_sats+=1
 #                 string = "lower bound" if lb else "upper bound"
@@ -3127,7 +3127,7 @@ class advanced_mcmh_statistics:
 #
 # # for (var,lb,string) in sats:
 #
-# # solve_query(nnet_object2.ipq2,verbosity=0)
+# # solve_query(nnet_object2.marabou_ipq,verbosity=0)
 #
 # time1 = time.time()
 #

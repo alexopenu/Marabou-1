@@ -290,7 +290,7 @@ class MarabouNetwork(object):
         if not useMarabou:
             return self.evaluateWithoutMarabou(inputValues)
             # At the moment ignoring options
-            # Note: currently only implemented for MarabouNetworkNNet
+            # Note: currently only implemented correctly for MarabouNetworkNNet
 
     def findError(self, inputValues, options=None, filename="evaluateWithMarabou.log"):
         """
@@ -314,7 +314,6 @@ class MarabouNetwork(object):
         Function to evaluate network directly (without Marabou) at a given point
         Arguments:
             inputValues: list of (np arrays) representing input to network
-            useMarabou: (bool) whether to use Marabou solver or TF/NNet
         Returns:
             outputValues: (np array) representing output of network
 
@@ -324,8 +323,9 @@ class MarabouNetwork(object):
         NOTE: evaluateNetwork is only implemented for MarabouNetworkNNet!
         NOTE: evaluateNetwork takes and returns a list
         """
-
-        # return np.array([self.evaluateNetwork(inputValues.flatten().tolist(),normalize_inputs=False,normalize_outputs=False)])
-        return self.evaluateNetwork(inputValues.flatten().tolist(), normalize_inputs=False, normalize_outputs=False)
+        try:
+            return self.evaluateNetwork(inputValues.flatten().tolist(), normalize_inputs=False, normalize_outputs=False)
+        except NameError:
+            return []
 
 

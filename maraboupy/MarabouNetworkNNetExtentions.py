@@ -22,7 +22,7 @@
 import warnings
 
 try:
-    from MarabouNetworkNNetExtended import *
+    from MarabouNetworkNNetQuery import *
 except ImportError:
     warnings.warn('Module MarabouNNetExtended not installed.')
 
@@ -92,11 +92,11 @@ def splitNNet(marabou_nnet: MarabouNetworkNNet, layer: int):
     outputrange2 = marabou_nnet.outputRange
 
     try:
-        marabou_nnet1 = MarabouNetworkNNetExtended()
-        marabou_nnet2 = MarabouNetworkNNetExtended()
-    except NotImplementedError:
-        marabou_nnet1 = MarabouNetworkNNet()
-        marabou_nnet2 = MarabouNetworkNNet()
+        marabou_nnet1 = MarabouNetworkNNetQuery(normalize=True)
+        marabou_nnet2 = MarabouNetworkNNetQuery(normalize=True)
+    except NameError:
+        marabou_nnet1 = MarabouNetworkNNet(normalize=True)
+        marabou_nnet2 = MarabouNetworkNNet(normalize=True)
 
 
     marabou_nnet1.resetNetworkFromParameters(mins1, maxs1, means1, ranges1, outputmean1, outputrange1, weights1, biases1)
@@ -160,7 +160,8 @@ def test_split_network(nnet_object: MarabouNetworkNNet,
 
             # Comparing the output of the first network to the output to layer of the original one
             if layer>=0:
-                layer_output = nnet_object.evaluateNetworkToLayer(inputs, last_layer=layer, normalize_inputs=False, normalize_outputs=False, activate_output_layer=True)
+                layer_output = nnet_object.evaluateNetworkToLayer(inputs, last_layer=layer, normalize_inputs=False,
+                                                                  normalize_outputs=False, activate_output_layer=True)
                 if not (layer_output == output1).all():
                        print("Failed1")
                 output2b = nnet_object.evaluateNetworkFromLayer(layer_output,first_layer=layer)
@@ -168,10 +169,12 @@ def test_split_network(nnet_object: MarabouNetworkNNet,
 
             # The main comparison: comparing running the input through the original network to running it
             # through the first followed by the second.
-            true_output = nnet_object.evaluateNetworkToLayer(inputs, last_layer=-1, normalize_inputs=False, normalize_outputs=False)
+            true_output = nnet_object.evaluateNetworkToLayer(inputs, last_layer=-1, normalize_inputs=False,
+                                                             normalize_outputs=False)
             true_output_b = nnet_object.evaluateNetwork(inputs,normalize_inputs=False,normalize_outputs=False)
 
-            output2 = nnet_object2.evaluateNetworkToLayer(output1,last_layer=-1, normalize_inputs=False, normalize_outputs=False)
+            output2 = nnet_object2.evaluateNetworkToLayer(output1,last_layer=-1, normalize_inputs=False,
+                                                          normalize_outputs=False)
 
             if not (true_output == output2).all():
                    print("Failed2")

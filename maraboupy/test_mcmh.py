@@ -7,7 +7,7 @@ os.chdir('/Users/alexus/Coding/my_marabou/Marabou/maraboupy/')
 #from MarabouNetworkNNetIPQ import *
 #from MarabouNetworkNNetProperty import *
 
-from MarabouNetworkNNetExtended import *
+from MarabouNetworkNNetQuery import *
 
 from Marabou import *
 from MarabouNetworkNNetExtentions import *
@@ -283,7 +283,7 @@ sys.exit(0)
 mcmh_object = MarabouNNetMCMH(network_filename=network_filename, property_filename=property_filename)
 mcmh_object.marabou_nnet.property.compute_executables()
 
-# solve_query(mcmh_object.marabou_nnet.ipq2,property_filename)
+# solve_query(mcmh_object.marabou_nnet.marabou_ipq,property_filename)
 
 #print(nnet_object.marabou_nnet.property.exec_bounds)
 #print(nnet_object.marabou_nnet.property.exec_equations)
@@ -359,7 +359,7 @@ sats = []
 #             The disjunct leads to a property that needs to be verified
 #             '''
 #             nnet_object1 = MarabouNetworkNNetExtended(output_filename1, output_property_file1)
-#             solution = solve_query(nnet_object1.ipq2, verbosity=0)[0]
+#             solution = solve_query(nnet_object1.marabou_ipq, verbosity=0)[0]
 #             if solution:  #  SAT; the dict is not empty!
 #                 num_sats+=1
 #                 string = "lower bound" if lb else "upper bound"
@@ -374,7 +374,7 @@ print(sats)
 
 # for (var,lb,string) in sats:
 
-# solve_query(nnet_object2.ipq2,verbosity=0)
+# solve_query(nnet_object2.marabou_ipq,verbosity=0)
 
 print("Time taken: ",time.time()-start_time)
 

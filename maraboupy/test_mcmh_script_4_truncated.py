@@ -221,7 +221,7 @@ for i in [4]:
 
 
 
-    # MarabouCore.createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
+    # MarabouCore.createInputQuery(self.marabou_ipq, self.network_filename2, self.property_filename2)
 
     vals, stats = solve_query(mcmh_object.marabou_nnet.ipq2,verbose=True,verbosity=0,timeout=int(timeout*1.5))
 

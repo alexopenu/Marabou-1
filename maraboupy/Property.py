@@ -13,7 +13,7 @@
  ** directory for licensing information.\endverbatim
  **
  ** \brief
- ** This class represensts property (expression) of a neural network to be verified
+ ** This class represents a property of a neural network to be verified
  **
  ** [[ Add lengthier description here ]]
  **/
@@ -24,8 +24,9 @@
 from PropertyParser import *
 import parser
 
-types_of_properties = ['x', 'y', 'ws', 'm']
-types_of_io_properties = ['x', 'y', 'm']
+types_of_property_by_variables = ['x', 'y', 'ws', 'm']
+types_of_io_property_by_variables = ['x', 'y', 'm']
+classes_of_property = ['b','e']
 
 '''
     'x'     : input property (mentions only input variables)
@@ -38,9 +39,9 @@ types_of_io_properties = ['x', 'y', 'm']
 
 class Property:
     '''
-        Python class that represents a property
+        Python class that represents a Marabou property
         Contains two dictionaries: equations and properties
-        Keys in the dictionaries are of the type types_of_properties: 'x','y','ws','m' (mixed)
+        Keys in the dictionaries are of the type types_of_property_by_variables: 'x','y','ws','m'
         Each value is a list of strings
 
         If executables have been computed, also contains two dictionaries of executable versions of the
@@ -48,15 +49,15 @@ class Property:
 
         Currently only supports properties that mention input and output variables only
 
-        input variable i is referred to as inputs[i]
-        output variable i is referred to as output[i]
+        input variable i is referred to as x[i]
+        output variable i is referred to as y[i]
         Evaluates the expressions (equations and bounds) with python's parser, by
         turning the string into an executable expression
 
-        NOTE: CURRENTLY DOES NOT SUPPORT VERIFICATION OF BOUNDS ON HIDDEN VARIABLES (TO-DO!)
+        TODO: ADD SUPPORT FOR BOUNDS ON HIDDEN VARIABLES.
     '''
 
-    def __init__(self,property_filename,compute_executable_bounds = False, compute_executable_equations = False):
+    def __init__(self, property_filename, compute_executable_bounds=False, compute_executable_equations=False):
         """
         Creates an object of type Property
 
@@ -72,20 +73,20 @@ class Property:
         If requested, also computes lists of executable expressions (for efficiency of evaluation later)
 
         Attributes:
-            self.properties_list = []   list of all properties; includes tuples of the form (type1,type2,property)
-                                        type1 is 'e' (equation) or 'b' (bound)
-                                        type2 is 'x', 'y', 'ws', or 'm' (mixed)
+            self.properties_list = []   list of all properties; includes tuples of the form (class,type,property)
+                                        class is 'e' (equation) or 'b' (bound)
+                                        type is types_of_property_by_variables: 'x', 'y', 'ws', or 'm'
                                         property is the original (unchanged) string representing the property
 
 
-            self.equations              dictionary (type2: list of equations)
-                                            where type2 is 'x','y' or 'm' (mixed) , and each equation is a string
-            self.bounds                 dictionary (type2: list of bounds)
+            self.equations              dictionary (type: list of equations)
+                                            where type is 'x','y' or 'm' (mixed) , and each equation is a string
+            self.bounds                 dictionary (type: list of bounds)
                                             where bound is a bound on one variable (string)
 
 
-            self.exec_equations         dictionary (type2: list of equations) (executable)
-            self.exec_bounds            dictionaty (type2: list of bounds) (executable)
+            self.exec_equations         dictionary (type: list of equations) (executable)
+            self.exec_bounds            dictionaty (type: list of bounds) (executable)
 
 
         """
@@ -96,7 +97,7 @@ class Property:
 
         self.properties_list = dict()
 
-        for t in types_of_properties:
+        for t in types_of_property_by_variables:
             self.exec_equations[t] = []
             self.exec_bounds[t] = []
 
@@ -108,7 +109,7 @@ class Property:
 
         if property_filename == "":
             print('No property file!')
-            for t in types_of_properties:
+            for t in types_of_property_by_variables:
                 self.equations[t] = []
                 self.bounds[t] = []
 
@@ -186,7 +187,7 @@ class Property:
     def ws_properties_present(self):
         return len(self.properties_list['ws'])
 
-    def compute_executable_bounds(self,recompute=False):
+    def compute_executable_bounds(self, recompute=False):
         """
         Computes the list of executable bounds for efficiency of evaluation
         NOTE: Does nothing if the list is already non-empty and recompute==False
@@ -195,15 +196,14 @@ class Property:
             self.exec_bounds = dict()
 
         if not self.exec_bounds:
-            for t in types_of_properties:
+            for t in types_of_property_by_variables:
                 self.exec_bounds[t] = []
                 for bound in self.bounds[t]:
                     exec_equation = parser.expr(bound).compile()
                     self.exec_bounds[t].append(exec_equation)
         self.exec_bounds_computed = True
 
-
-    def compute_executable_equations(self,recompute=False):
+    def compute_executable_equations(self, recompute=False):
         """
         Computes the list of executable equations for efficiency of evaluation
         NOTE: Does nothing if the list is already non-empty and recompute==False
@@ -212,7 +212,7 @@ class Property:
             self.exec_equations = dict()
 
         if not self.exec_equations:
-            for t in types_of_properties:
+            for t in types_of_property_by_variables:
                 self.exec_equations[t] = []
                 for equation in self.equations[t]:
                     exec_equation = parser.expr(equation).compile()
@@ -223,8 +223,7 @@ class Property:
         self.compute_executable_equations(recompute)
         self.compute_executable_bounds(recompute)
 
-
-    def verify_equations(self,x,y):
+    def verify_equations(self, x, y):
         """
         Returns True iff all the equations hold on the input and the output variables
         :param x: list (inputs)
@@ -234,7 +233,7 @@ class Property:
         NOTE: x and y are lists (or np arrays) and they are used in the evaluation function,
         since they are encoded into the expressions in the lists equation and bounds
         """
-        for t in types_of_io_properties:
+        for t in types_of_io_property_by_variables:
             for equation in self.equations[t]:
                 exec_equation = parser.expr(equation).compile()
                 if not eval(exec_equation):
@@ -242,7 +241,7 @@ class Property:
 
         return True
 
-    def verify_bounds(self,x,y):
+    def verify_bounds(self, x, y):
         """
         Returns True iff all the bounds hold on the input and the output variables
         :param x: list (inputs)
@@ -252,7 +251,7 @@ class Property:
         NOTE: x and y are lists (or np arrays) and they are used in the evaluation function,
         since they are encoded into the expressions in the lists equation and bounds
         """
-        for t in types_of_io_properties:
+        for t in types_of_io_property_by_variables:
             for bound in self.bounds[t]:
                 exec_equation = parser.expr(bound).compile()
                 if not eval(exec_equation):
@@ -260,9 +259,7 @@ class Property:
 
         return True
 
-
-
-    def verify_io_property(self,x,y):
+    def verify_io_property(self, x, y):
         """
         Returns True iff the property holds on the input and the output variables
         :param x: list (inputs)
@@ -275,7 +272,7 @@ class Property:
         return self.verify_bounds(x, y) and self.verify_equations(x, y)
 
 
-    def verify_equations_exec(self,x,y):
+    def verify_equations_exec(self, x, y):
         """
         Returns True iff all the equations hold on the input and the output variables
         Verifies using the precomputed executable list
@@ -290,14 +287,14 @@ class Property:
         """
         assert self.exec_equations_computed
 
-        for t in types_of_io_properties:
+        for t in types_of_io_property_by_variables:
             for exec_equation in self.exec_equations[t]:
                 if not eval(exec_equation):
                     return False
 
         return True
 
-    def verify_bounds_exec(self,x,y):
+    def verify_bounds_exec(self, x, y):
         """
         Returns True iff all the bounds hold on the input and the output variables
         Verifies using the precomputed executable list
@@ -312,16 +309,16 @@ class Property:
         """
         assert self.exec_bounds_computed
 
-        for t in types_of_io_properties:
+        for t in types_of_io_property_by_variables:
             for exec_equation in self.exec_bounds[t]:
                 if not eval(exec_equation):
                     return False
 
         return True
 
-    def verify_io_property_exec(self,input,output):
+    def verify_io_property_exec(self, x, y):
         """
-        Returns True iff the property holds on the input and the output variables
+        Returns True iff the property holds on the x and the y variables
         Verifies using the precomputed executable list
         Asserts that the list is non-empty
 
@@ -332,11 +329,10 @@ class Property:
         NOTE: x and y are lists (or np arrays) and they are used in the evaluation function,
         since they are encoded into the expressions in the lists equation and bounds
         """
-        return self.verify_bounds_exec(x=input, y=output) and self.verify_equations_exec(x=input, y=output)
+        return self.verify_bounds_exec(x=x, y=y) and self.verify_equations_exec(x=x, y=y)
 
 
-
-    def verify_specific_io_properties(self, x=[], y=[], input=True, output = True, bdds = True, eqs = True,
+    def verify_specific_io_properties(self, x=[], y=[], input=True, output=True, bdds=True, eqs=True,
                                       use_executables=False):
         '''
         verifies specific properties of the input and the output variables
@@ -369,52 +365,52 @@ class Property:
         return self.verify_specific_io_equations(x=x, y=[], input=True, output=False, use_executables=use_executables)
 
 
-    def property_dict_getter_by_type(self, type1, use_executables = False):
+    def property_dict_getter_by_type(self, class_of_property: classes_of_property, use_executables=False):
         '''
         returns the appropriate dictionary
-            if type1 == 'e', returns the dictionary of equations
-            if type1 == 'b', returns the dictionary of bounds
+            if class_of_property == 'e', returns the dictionary of equations
+            if class_of_property == 'b', returns the dictionary of bounds
             if use_executables == True, returns the appropriate dictionary of executables
-        :param type1: 'e','b'
+        :param class_of_property: 'e','b'
         :param use_executables: bool
         :return: dictionary
         '''
-        assert type1 in ['e','b']
+        assert class_of_property in classes_of_property
 
         if use_executables:
-            if type1 == 'b':
+            if class_of_property == 'b':
                 assert self.exec_bounds_computed
             else:
                 assert self.exec_equations_computed
 
-            if type1 == 'e':
+            if class_of_property == 'e':
                 return self.exec_equations
 
             return self.exec_bounds
 
-        if type1 == 'e':
+        if class_of_property == 'e':
             return self.equations
 
         return self.bounds
 
 
-    def get_specific_properties(self, type1, type2, use_executables=False):
+    def get_specific_properties(self, class_of_property, type_of_property, use_executables=False):
         '''
         Returns a list of properties of the appropriate types
-            e.g. if type1 == 'b' and type2 == 'x' returns the list of bounds on the x variables
+            e.g. if class_of_property == 'b' and type_of_property == 'x' returns the list of bounds on the x variables
             if use_executables==True returns the appropriate list of executables
-        :param type1: 'b','e'
-        :param type2: type_of_properties
+        :param class_of_property: 'b','e'
+        :param type_of_property: type_of_properties
         :param use_executables: bool (if True, returns list of executables)
         :return: list of strings (if use_executables==False) or executable expressions (if use_executables==True)
         '''
-        assert type1 in ['b','e']
-        assert type2 in types_of_properties
+        assert class_of_property in classes_of_property
+        assert type_of_property in types_of_property_by_variables
 
-        return self.property_dict_getter_by_type(type1, use_executables)[type2]
+        return self.property_dict_getter_by_type(class_of_property, use_executables)[type_of_property]
 
 
-    def verify_specific_io_bounds(self, x=[], y=[], input=False, output = False, use_executables=False):
+    def verify_specific_io_bounds(self, x=[], y=[], input=False, output=False, use_executables=False):
         '''
         verifies bounds on input and output variables
         if input is True, verifies self.bounds['x']
@@ -438,11 +434,10 @@ class Property:
         bounds_to_verify = []
 
         if input:
-            bounds_to_verify += self.get_specific_properties('b','x', use_executables)
+            bounds_to_verify += self.get_specific_properties('b', 'x', use_executables)
 
         if output:
-            bounds_to_verify += self.get_specific_properties('b','y', use_executables)
-
+            bounds_to_verify += self.get_specific_properties('b', 'y', use_executables)
 
         exec_bounds = bounds_to_verify if use_executables \
             else [parser.expr(bound).compile() for bound in bounds_to_verify]
@@ -497,7 +492,7 @@ class Property:
 
 
 
-    def verify_specific_properties(self, x=[], y=[], input=False, output = False, bdds = False, eqs = False,
+    def verify_specific_properties(self, x=[], y=[], input=False, output=False, bdds=False, eqs=False,
                                    use_executables=False):
         '''
         This method is the most general method for verifying properties of specific type only
@@ -519,52 +514,54 @@ class Property:
         if output:
             assert y
 
-        for t in types_of_io_properties:
+        for t in types_of_io_property_by_variables:
             if not input and (t == 'x' or t == 'm'):
                 continue
             if not output and (t == 'y' or t == 'm'):
                 continue
 
             for p in self.properties_list[t]:
-                # if not ((p['type2'] == 'x') or (p['type2'] == 'y')):
+                # if not ((p['type_of_property'] == 'x') or (p['type_of_property'] == 'y')):
                 #     continue
-                if not eqs and p['type1'] == 'e':
+                if not eqs and p['class_of_property'] == 'e':
                     continue
-                if not bdds and p['type1'] == 'b':
+                if not bdds and p['class_of_property'] == 'b':
                     continue
-                # if not input and p['type2'] == 'x':
+                # if not input and p['type_of_property'] == 'x':
                 #     continue
-                # if not output and p['type2'] == 'y':
+                # if not output and p['type_of_property'] == 'y':
                 #     continue
 
-                if not self.verify_property_by_index(p['index'], x, y, p['type1'], p['type2'], use_executables):
+                if not self.verify_property_by_index(p['index'], x, y, p['class_of_property'], p['type_of_property'],
+                                                     use_executables=use_executables):
                     return False
 
         return True
 
 
-    def verify_property_by_index(self, index, x, y, type1, type2, use_executables=False):
+    def verify_property_by_index(self, index, x, y, class_of_property: classes_of_property,
+                                 type_of_property: types_of_property_by_variables, use_executables=False):
         '''
-        verifies the property of type1,type2 by index in the appropriate list
-            e.g., if type1 == 'e' and type2 == 'x', the list is self.equations['x']
+        verifies the property of class class_of_property,type_of_property by index in the appropriate list
+            e.g., if class_of_property == 'e' and type_of_property == 'x', the list is self.equations['x']
             and the property to verify is self.equations['x'][index]
         :param index: int
         :param x:
         :param y:
-        :param type1: 'e' or 'b'
-        :param type2: type_of_property
+        :param class_of_property: 'e' or 'b'
+        :param type_of_property: type_of_property
         :param use_executables: bool
         :return: bool
         '''
-        if type1 == 'e':
+        if class_of_property == 'e':
             if use_executables:
                 assert self.exec_equations_computed
-            prop = self.exec_equations[type2][index] if use_executables \
-                else parser.expr(self.equations[type2][index]).compile()
-        elif type1 == 'b':
-            prop = self.exec_bounds[type2][index] if use_executables \
-                else parser.expr(self.bounds[type2][index]).compile()
-        else: # Currently not supported
+            prop = self.exec_equations[type_of_property][index] if use_executables \
+                else parser.expr(self.equations[type_of_property][index]).compile()
+        elif class_of_property == 'b':
+            prop = self.exec_bounds[type_of_property][index] if use_executables \
+                else parser.expr(self.bounds[type_of_property][index]).compile()
+        else:  # Other types are currently not supported. TODO: add support.
             return
 
         return eval(prop)

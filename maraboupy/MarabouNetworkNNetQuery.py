@@ -2,7 +2,7 @@
 
 '''
 /* *******************                                                        */
-/*! \file MarabouNetworkNNetExtended.py
+/*! \file MarabouNetworkNNetQuery.py
  ** \verbatim
  ** Top contributors (to current version):
  ** Alex Usvyatsov
@@ -64,10 +64,11 @@ class MarabouNetworkNNetQuery(MarabouNetworkNNetIPQ, MarabouNetworkNNetProperty)
             inputMaximums    (list of floats) Maximum value for each input.
             inputMeans       (list of floats) Mean value for each input.
             inputRanges      (list of floats) Range for each input
+            outputMean       (float) Mean value of outputs
+            outputRange      (float) Range of output values
             weights          (list of list of lists) Outer index corresponds to layer
                                 number.
             biases           (list of lists) Outer index corresponds to layer number.
-            sbt              The SymbolicBoundTightener object
 
             inputVars
             b_variables

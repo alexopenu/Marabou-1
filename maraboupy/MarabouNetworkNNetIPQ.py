@@ -23,10 +23,10 @@
 
 
 
+import warnings
 
 import MarabouNetworkNNetExtended
 import MarabouCore
-import numpy as np
 
 class MarabouNetworkNNetIPQ(MarabouNetworkNNetExtended.MarabouNetworkNNetExtended):
     """
@@ -59,10 +59,11 @@ class MarabouNetworkNNetIPQ(MarabouNetworkNNetExtended.MarabouNetworkNNetExtende
             inputMaximums    (list of floats) Maximum value for each input.
             inputMeans       (list of floats) Mean value for each input.
             inputRanges      (list of floats) Range for each input
+            outputMean       (float) Mean value of outputs
+            outputRange      (float) Range of output values
             weights          (list of list of lists) Outer index corresponds to layer
                                 number.
             biases           (list of lists) Outer index corresponds to layer number.
-            sbt              The SymbolicBoundTightener object
 
             inputVars
             b_variables
@@ -91,14 +92,14 @@ class MarabouNetworkNNetIPQ(MarabouNetworkNNetExtended.MarabouNetworkNNetExtende
         else:
             self.internal_ipq = None
 
-        self.marabou_ipq = MarabouCore.InputQuery()
         if filename:
+            self.marabou_ipq = MarabouCore.InputQuery()
             self.computeMarabouIPQ(network_filename=filename, property_filename=property_filename)
         else:
-            self.marabou_ipq = self.getMarabouQuery()
+            self.marabou_ipq = None
 
     def getIPQ(self):
-        return self.marabou_ipq
+        return self.marabou_ipq if self.marabou_ipq else self.internal_ipq
 
     def computeIPQInternally(self):
         self.internal_ipq = self.getMarabouQuery()
@@ -108,55 +109,62 @@ class MarabouNetworkNNetIPQ(MarabouNetworkNNetExtended.MarabouNetworkNNetExtende
 
     def tightenBounds(self):
         # Re-tightens bounds on variables from the Input Query computed directly from the file (more accurate)
+        if not self.marabou_ipq:
+            warnings.warn('Marabou IPQ has not been computed. Failed to adjust bounds.')
+            return
         self.tightenInputBounds()
         self.tightenOutputBounds()
         self.tighten_fBounds()
         self.tighten_bBounds()
 
     def tightenInputBounds(self):
-        print(self.inputVars)
-        for var in self.inputVars.flatten():
-            true_lower_bound = self.marabou_ipq.getLowerBound(var)
-            true_upper_bound = self.marabou_ipq.getUpperBound(var)
-            if self.lowerBounds[var] < true_lower_bound:
-                self.setLowerBound(var,true_lower_bound)
-                print ('Adjusting lower bound for input variable',var,"to be",true_lower_bound)
-            if self.upperBounds[var] > true_upper_bound:
-                self.setUpperBound(var,true_upper_bound)
-                print ("Adjusting upper bound for input variable",var,"to be",true_upper_bound)
+        # print(self.inputVars)
+        if self.marabou_ipq:
+            for var in self.inputVars.flatten():
+                true_lower_bound = self.marabou_ipq.getLowerBound(var)
+                true_upper_bound = self.marabou_ipq.getUpperBound(var)
+                if self.lowerBounds[var] < true_lower_bound:
+                    self.setLowerBound(var,true_lower_bound)
+                    print ('Adjusting lower bound for input variable',var,"to be",true_lower_bound)
+                if self.upperBounds[var] > true_upper_bound:
+                    self.setUpperBound(var,true_upper_bound)
+                    print ("Adjusting upper bound for input variable",var,"to be",true_upper_bound)
 
     def tightenOutputBounds(self):
-        for var in self.outputVars.flatten():
-            true_lower_bound = self.marabou_ipq.getLowerBound(var)
-            true_upper_bound = self.marabou_ipq.getUpperBound(var)
-            if (not self.lowerBoundExists(var) or self.lowerBounds[var] < true_lower_bound):
-                self.setLowerBound(var, true_lower_bound)
-                print('Adjusting lower bound for output variable', var, "to be", true_lower_bound)
-            if (not self.upperBoundExists(var) or self.upperBounds[var] > true_upper_bound):
-                self.setUpperBound(var, true_upper_bound)
-                print("Adjusting upper bound for output variable", var, "to be", true_upper_bound)
+        if self.marabou_ipq:
+            for var in self.outputVars.flatten():
+                true_lower_bound = self.marabou_ipq.getLowerBound(var)
+                true_upper_bound = self.marabou_ipq.getUpperBound(var)
+                if (not self.lowerBoundExists(var) or self.lowerBounds[var] < true_lower_bound):
+                    self.setLowerBound(var, true_lower_bound)
+                    print('Adjusting lower bound for output variable', var, "to be", true_lower_bound)
+                if (not self.upperBoundExists(var) or self.upperBounds[var] > true_upper_bound):
+                    self.setUpperBound(var, true_upper_bound)
+                    print("Adjusting upper bound for output variable", var, "to be", true_upper_bound)
 
     def tighten_bBounds(self):
-        for var in self.b_variables:
-            true_lower_bound = self.marabou_ipq.getLowerBound(var)
-            true_upper_bound = self.marabou_ipq.getUpperBound(var)
-            if (not self.lowerBoundExists(var) or self.lowerBounds[var] < true_lower_bound):
-                self.setLowerBound(var, true_lower_bound)
-                #print('Adjusting lower bound for b variable', var, "to be", true_lower_bound)
-            if (not self.upperBoundExists(var) or self.upperBounds[var] > true_upper_bound):
-                self.setUpperBound(var, true_upper_bound)
-                #print("Adjusting upper bound for b variable", var, "to be", true_upper_bound)
+        if self.marabou_ipq:
+            for var in self.b_variables:
+                true_lower_bound = self.marabou_ipq.getLowerBound(var)
+                true_upper_bound = self.marabou_ipq.getUpperBound(var)
+                if (not self.lowerBoundExists(var) or self.lowerBounds[var] < true_lower_bound):
+                    self.setLowerBound(var, true_lower_bound)
+                    #print('Adjusting lower bound for b variable', var, "to be", true_lower_bound)
+                if (not self.upperBoundExists(var) or self.upperBounds[var] > true_upper_bound):
+                    self.setUpperBound(var, true_upper_bound)
+                    #print("Adjusting upper bound for b variable", var, "to be", true_upper_bound)
 
     def tighten_fBounds(self):
-        for var in self.f_variables:
-            true_lower_bound = self.marabou_ipq.getLowerBound(var)
-            true_upper_bound = self.marabou_ipq.getUpperBound(var)
-            if (not self.lowerBoundExists(var) or self.lowerBounds[var] < true_lower_bound):
-                self.setLowerBound(var, true_lower_bound)
-                #print('Adjusting lower bound for f variable', var, "to be", true_lower_bound)
-            if (not self.upperBoundExists(var) or self.upperBounds[var] > true_upper_bound):
-                self.setUpperBound(var, true_upper_bound)
-                #print("Adjusting upper bound for f variable", var, "to be", true_upper_bound)
+        if self.marabou_ipq:
+            for var in self.f_variables:
+                true_lower_bound = self.marabou_ipq.getLowerBound(var)
+                true_upper_bound = self.marabou_ipq.getUpperBound(var)
+                if (not self.lowerBoundExists(var) or self.lowerBounds[var] < true_lower_bound):
+                    self.setLowerBound(var, true_lower_bound)
+                    #print('Adjusting lower bound for f variable', var, "to be", true_lower_bound)
+                if (not self.upperBoundExists(var) or self.upperBounds[var] > true_upper_bound):
+                    self.setUpperBound(var, true_upper_bound)
+                    #print("Adjusting upper bound for f variable", var, "to be", true_upper_bound)
 
     def testInputBounds(self):
         for var in self.inputVars.flatten():
@@ -169,6 +177,9 @@ class MarabouNetworkNNetIPQ(MarabouNetworkNNetExtended.MarabouNetworkNNetExtende
 
     def tightenBoundsFromInternalIPQ(self):
         # Re-tightens bounds on variables from the Input Query computed from the MarabouNetwork object (less accurate)
+        if not self.internal_ipq:
+            warnings.warn('Internal IPQ has not been computed. Failed to adjust bounds.')
+            return
         self.tightenInputBoundsFromInternalIPQ()
         self.tightenOutputBoundsFromInternalIPQ()
         self.tighten_fBoundsFromInternalIPQ()
@@ -176,46 +187,50 @@ class MarabouNetworkNNetIPQ(MarabouNetworkNNetExtended.MarabouNetworkNNetExtende
 
 
     def tightenInputBoundsFromInternalIPQ(self):
-        for var in self.inputVars.flatten():
-             true_lower_bound = self.internal_ipq.getLowerBound(var)
-             true_upper_bound = self.internal_ipq.getUpperBound(var)
-             if self.lowerBounds[var] < true_lower_bound:
-                 self.setLowerBound(var,true_lower_bound)
-                 print('Adjusting lower bound for input variable', var, "to be", true_lower_bound)
-             if self.upperBounds[var] > true_upper_bound:
-                 self.setUpperBound(var,true_upper_bound)
-                 print("Adjusting upper bound for input variable", var, "to be", true_upper_bound)
+        if self.internal_ipq:
+            for var in self.inputVars.flatten():
+                 true_lower_bound = self.internal_ipq.getLowerBound(var)
+                 true_upper_bound = self.internal_ipq.getUpperBound(var)
+                 if self.lowerBounds[var] < true_lower_bound:
+                     self.setLowerBound(var,true_lower_bound)
+                     print('Adjusting lower bound for input variable', var, "to be", true_lower_bound)
+                 if self.upperBounds[var] > true_upper_bound:
+                     self.setUpperBound(var,true_upper_bound)
+                     print("Adjusting upper bound for input variable", var, "to be", true_upper_bound)
 
     def tightenOutputBoundsFromInternalIPQ(self):
-        for var in self.outputVars.flatten():
-            true_lower_bound = self.internal_ipq.getLowerBound(var)
-            true_upper_bound = self.internal_ipq.getUpperBound(var)
-            if (not self.lowerBoundExists(var) or self.lowerBounds[var] < true_lower_bound):
-                self.setLowerBound(var, true_lower_bound)
-                print('Adjusting lower bound for output variable', var, "to be", true_lower_bound)
-            if (not self.upperBoundExists(var) or self.upperBounds[var] > true_upper_bound):
-                self.setUpperBound(var, true_upper_bound)
-                print("Adjusting upper bound for output variable", var, "to be", true_upper_bound)
+        if self.internal_ipq:
+            for var in self.outputVars.flatten():
+                true_lower_bound = self.internal_ipq.getLowerBound(var)
+                true_upper_bound = self.internal_ipq.getUpperBound(var)
+                if (not self.lowerBoundExists(var) or self.lowerBounds[var] < true_lower_bound):
+                    self.setLowerBound(var, true_lower_bound)
+                    print('Adjusting lower bound for output variable', var, "to be", true_lower_bound)
+                if (not self.upperBoundExists(var) or self.upperBounds[var] > true_upper_bound):
+                    self.setUpperBound(var, true_upper_bound)
+                    print("Adjusting upper bound for output variable", var, "to be", true_upper_bound)
 
     def tighten_bBoundsFromInternalIPQ(self):
-        for var in self.b_variables:
-            true_lower_bound = self.internal_ipq.getLowerBound(var)
-            true_upper_bound = self.internal_ipq.getUpperBound(var)
-            if (not self.lowerBoundExists(var) or self.lowerBounds[var] < true_lower_bound):
-                self.setLowerBound(var, true_lower_bound)
-                print('Adjusting lower bound for b variable', var, "to be", true_lower_bound)
-            if (not self.upperBoundExists(var) or self.upperBounds[var] > true_upper_bound):
-                self.setUpperBound(var, true_upper_bound)
-                print("Adjusting upper bound for b variable", var, "to be", true_upper_bound)
+        if self.internal_ipq:
+            for var in self.b_variables:
+                true_lower_bound = self.internal_ipq.getLowerBound(var)
+                true_upper_bound = self.internal_ipq.getUpperBound(var)
+                if (not self.lowerBoundExists(var) or self.lowerBounds[var] < true_lower_bound):
+                    self.setLowerBound(var, true_lower_bound)
+                    print('Adjusting lower bound for b variable', var, "to be", true_lower_bound)
+                if (not self.upperBoundExists(var) or self.upperBounds[var] > true_upper_bound):
+                    self.setUpperBound(var, true_upper_bound)
+                    print("Adjusting upper bound for b variable", var, "to be", true_upper_bound)
 
     def tighten_fBoundsFromInternalIPQ(self):
-        for var in self.f_variables:
-            true_lower_bound = self.internal_ipq.getLowerBound(var)
-            true_upper_bound = self.internal_ipq.getUpperBound(var)
-            if (not self.lowerBoundExists(var) or self.lowerBounds[var] < true_lower_bound):
-                self.setLowerBound(var, true_lower_bound)
-                print('Adjusting lower bound for f variable', var, "to be", true_lower_bound)
-            if (not self.upperBoundExists(var) or self.upperBounds[var] > true_upper_bound):
-                self.setUpperBound(var, true_upper_bound)
-                print("Adjusting upper bound for f variable", var, "to be", true_upper_bound)
+        if self.internal_ipq:
+            for var in self.f_variables:
+                true_lower_bound = self.internal_ipq.getLowerBound(var)
+                true_upper_bound = self.internal_ipq.getUpperBound(var)
+                if (not self.lowerBoundExists(var) or self.lowerBounds[var] < true_lower_bound):
+                    self.setLowerBound(var, true_lower_bound)
+                    print('Adjusting lower bound for f variable', var, "to be", true_lower_bound)
+                if (not self.upperBoundExists(var) or self.upperBounds[var] > true_upper_bound):
+                    self.setUpperBound(var, true_upper_bound)
+                    print("Adjusting upper bound for f variable", var, "to be", true_upper_bound)
 

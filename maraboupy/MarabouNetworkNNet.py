@@ -57,15 +57,12 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
                                 number.
             biases           (list of lists) Outer index corresponds to layer number.
 
-
-            nlr              The NetworkLeverReasoner object (gone?)
-
-
+         others:
             inputVars
             b_variables
             f_variables
             outputVars
-
+            numVars
 
         Attributes from parent (MarabouNetwork)
 
@@ -199,11 +196,8 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         self.weights = weights
         self.biases = biases
 
-        # self.computeNetworkAttributes(use_nlr,filename="")
-        # NOTE: here we assume tha the filename is not used in createNLR()
+        self.computeNetworkAttributes()
         # TODO (necessary? desireable?): create a new filename for the network
-
-
 
     def computeNetworkAttributes(self):
 

@@ -1,3 +1,5 @@
+import os
+os.chdir('..')
 
 from MarabouNetworkNNetExtentions import *
 
@@ -56,7 +58,11 @@ def test_split_and_write():
     output_filename1 = "test/ACASXU_experimental_v2a_1_9_output1.nnet"
     output_filename2 = "test/ACASXU_experimental_v2a_1_9_output2.nnet"
 
-    nnet_object = MarabouNetworkNNetQuery(filename=network_filename)
+    try:
+        nnet_object = MarabouNetworkNNetQuery(filename=network_filename, property_filename=property_filename)
+    except NameError:
+        warnings.warn('MarabouNetworkNNetQuery not installed, can not test split and and write.')
+        return
     nnet_object.tightenBounds()
     nnet_object.writeNNet(output_filename)
 

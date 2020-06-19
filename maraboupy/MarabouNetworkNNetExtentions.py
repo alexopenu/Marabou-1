@@ -12,8 +12,8 @@
  ** directory for licensing information.\endverbatim
  **
  ** \brief
- ** Implements several operations on objets of types MarabouNetworkNNet
- ** Main feature implemented here is splitting a network of type into two
+ ** Implements several operations on objects of types MarabouNetworkNNet
+ ** Main feature currently implemented here is splitting a network of type into two
  **
  ** [[ Add lengthier description here ]]
  **/
@@ -24,7 +24,7 @@ import warnings
 try:
     from MarabouNetworkNNetQuery import *
 except ImportError:
-    warnings.warn('Module MarabouNNetExtended not installed.')
+    warnings.warn('Module MarabouNNetQuery not installed.')
 
 from MarabouNetworkNNet import *
 import numpy as np
@@ -41,9 +41,9 @@ def splitNNet(marabou_nnet: MarabouNetworkNNet, layer: int):
     original network after the given layer.
     Note that the input layer is considered layer 0.
     '''
-    if (layer < 1) or (layer > marabou_nnet.numLayers):
-            print("nothing to do")
-            return(False)
+    if (layer < 0) or (layer > marabou_nnet.numLayers-1):
+        warnings.warn("Can not split the network given layer = ", layer)
+        return None, None
     weights1, weights2 = splitList(marabou_nnet.weights, layer)
     biases1, biases2 = splitList(marabou_nnet.biases, layer)
 
@@ -73,7 +73,7 @@ def splitNNet(marabou_nnet: MarabouNetworkNNet, layer: int):
     # Note: the mins and the maxs for the second network can (and most probably will) contain None values!
     # Should not matter at the moment, since we should never normalize the inputs for the second layer.
 
-    mins2,maxs2 = marabou_nnet.getBoundsForLayer(layer,f=False)
+    mins2, maxs2 = marabou_nnet.getBoundsForLayer(layer, f=False)
 
     # maxs2 = [0]*new_input_size  # Change!
     # mins2 = [0]*new_input_size  # Change!
@@ -102,7 +102,7 @@ def splitNNet(marabou_nnet: MarabouNetworkNNet, layer: int):
     marabou_nnet1.resetNetworkFromParameters(mins1, maxs1, means1, ranges1, outputmean1, outputrange1, weights1, biases1)
     marabou_nnet2.resetNetworkFromParameters(mins2, maxs2, means2, ranges2, outputmean2, outputrange2, weights2, biases2)
 
-    return marabou_nnet1,marabou_nnet2
+    return marabou_nnet1, marabou_nnet2
 
 
 def createRandomInputsForNetwork(marabou_nnet: MarabouNetworkNNet):
@@ -116,6 +116,7 @@ def createRandomInputsForNetwork(marabou_nnet: MarabouNetworkNNet):
             inputs.append(random_value)
         return inputs
 
+
 def computeRandomOutputs(marabou_nnet: MarabouNetworkNNet, N: int):
         output_set =[]
         for i in range(N):
@@ -127,6 +128,7 @@ def computeRandomOutputs(marabou_nnet: MarabouNetworkNNet, N: int):
 
         return output_set
 
+
 def computeRandomOutputsToLayer(marabou_nnet: MarabouNetworkNNet,layer: int, N: int):
         output_set =[]
         for i in range(N):
@@ -137,6 +139,7 @@ def computeRandomOutputsToLayer(marabou_nnet: MarabouNetworkNNet,layer: int, N: 
             output_set.append(layer_output)
 
         return output_set
+
 
 def test_split_network(nnet_object: MarabouNetworkNNet,
                        nnet_object1: MarabouNetworkNNet, nnet_object2: MarabouNetworkNNet, N = 1000, layer = -1):
@@ -193,68 +196,3 @@ def test_split_network(nnet_object: MarabouNetworkNNet,
 
             if not (true_output_c == output2).all():
                    print("Failed4")
-
-
-# def splitPropertyFile(property_filename: str,input_property_file: str, output_property_file: str)
-#         """
-#         Reads  property_file and divides it into two files:
-#         input_property_file: all constraints all the input (x) variables
-#         output_property_file: all constraints all the output (y) variables
-#
-#         :param property_filename: str
-#         :param input_property_file: str
-#         :param output_property_file: str
-#         :return:
-#         """
-#         reg_input = re.compile(r'[x](\d+)')
-#         # matches a substring of the form x??? where ? are digits
-#
-#         reg_output = re.compile(r'[y](\d+)')
-#         # matches a substring of the form y??? where ? are digits
-#
-#         reg_equation = re.compile(r'[+-][xy](\d+) ([+-][xy](\d+) )+(<=|>=|=) [+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$')
-#         # matches a string that is a legal equation with input (x??) or output (y??) variables
-#
-#         reg_bound = re.compile(r'[xy](\d+) (<=|>=|=) [+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?')
-#         # matches a string which represents a legal bound on an input or an output variable
-#
-#         try:
-#             with open(property_filename) as f:
-#                 line = f.readline()
-#                 while(line):
-#                     if reg_equation.match(line): #Equation
-#
-#
-#                         #replace xi by x[i] and yi by y[i]
-#                         new_str = line.strip()
-#                         new_str = reg_input.sub(r"x[\1]", new_str)
-#
-#                         new_str = reg_output.sub(r"y[\1]", new_str)
-#
-#                         # Debug
-#                         print('equation')
-#                         print(new_str)
-#
-#                         equations.append(new_str)
-#                     else: #New bound
-#                         assert reg_bound.match(line) #At this point the line has to match a legal bound
-#
-#
-#                         # replace xi by x[i] and yi by y[i]
-#                         new_str = line.strip()
-#                         new_str = reg_input.sub(r"x[\1]", new_str)
-#
-#                         new_str = reg_output.sub(r"y[\1]", new_str)
-#
-#                         print('bound: ', new_str) #Debug
-#
-#
-#
-#                         bounds.append(new_str)
-#                     line = f.readline()
-#             print('successfully read property file: ', property_filename)
-#             return equations, bounds
-#
-#         except:
-#             print('something went wrong while reading the property file', property_filename)
-#

@@ -23,7 +23,7 @@
 import sys
 import re
 
-types_of_eq_properties = ['x', 'y', 'ws', 'm']
+types_of_property_by_variables = ['x', 'y', 'ws', 'm']
 '''
     'x'     : input property (mentions only input variables)
     'y'     : output property (mentions only output variables)
@@ -41,15 +41,19 @@ def parseProperty(property_filename):
         Replaces occurrences of y?? (where ?? are digits) by y[??]
         (for convenience of evaluating the expression with python's parser)
         Returns:
-             two dictionaries: equations amd bounds
-                each dictionary has as keys the type (type2) of property: 'x','y','m',(mixed),'ws'
+             two dictionaries: equations and bounds
+                each dictionary has as keys the type (types_of_property_by_variables) of property:
+                'x','y','m',(mixed),'ws'
+
                 values are lists of properties of the appropriate type
                     e.g., bounds['x'] is a list of bounds on input variables, where x?? has ben replaced by x[??]
+                    so for example, bounds['x'] can look like this: ['x[0] >= 0', 'x[1] <= 0.01']
 
-             a list of all properties, given as a list of tuples of strings: (type1,type2,property,index)
+             a list of all properties, given as a list of tuples of strings:
+             (class_of_property,type_of_property,property,index)
                 where:
-                    type1 is 'e' (equation) or 'b' (bound)
-                    type2 is 'x','y','ws', or 'm' (for 'mixed'),
+                    class_of_property is 'e' (equation) or 'b' (bound)
+                    type_of_property is 'x','y','ws', or 'm' (for 'mixed'),
                     property is a line from the property file (unchanged)
                     index is the index of a bound/equation in the appropriate list
 
@@ -79,37 +83,28 @@ def parseProperty(property_filename):
     reg_ws_bound = re.compile(r'[w][s][_](\d+)[_](\d+) (<=|>=|=) [+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?')
     # matches a string which represents a legal bound on a hidden variable
 
-
-
     try:
-    #if True:
-        # num_bounds = -1 # running index in self.bounds
-        # num_eqs = -1    # running index in self.equiations
-
-
         with open(property_filename) as f:
             line = f.readline()
             while(line):
 
-                type2 = ''
+                type_of_property = ''
 
-                # Computing type2: input/output/ws/mixed
+                # Computing type_of_property: input/output/ws/mixed
                 if (reg_input.search(line)): # input variables present
-                    type2 = 'x'
+                    type_of_property = 'x'
                 if (reg_output.search(line)): # output variables present
-                    type2 = 'm' if type2 else 'y'
+                    type_of_property = 'm' if type_of_property else 'y'
                 if (reg_ws.search(line)): # hidden variable present
-                    type2 = 'm' if type2 else 'ws'
+                    type_of_property = 'm' if type_of_property else 'ws'
 
-                if not type2:
+                if not type_of_property:
                     print('An expression of an unknown type found while attempting to parse '
                           'property file ', property_filename)
                     print('expression: ', line)
                     sys.exit(1)
 
-
-                if reg_equation.match(line): # Equation
-
+                if reg_equation.match(line):  # Equation
 
                     #replace xi by x[i] and yi by y[i]
                     new_str = line.strip()
@@ -121,16 +116,13 @@ def parseProperty(property_filename):
                     print('equation')
                     print(new_str)
 
-                    index = len(equations[type2])
+                    index = len(equations[type_of_property])
 
-                    equations[type2].append(new_str)
+                    equations[type_of_property].append(new_str)
 
-                    type1='e'
+                    class_of_property='e'
 
-                    # num_eqs+=1
-
-                elif reg_bound.match(line): # I/O Bound
-
+                elif reg_bound.match(line):  # I/O Bound
 
                     # replace xi by x[i] and yi by y[i]
                     new_str = line.strip()
@@ -138,32 +130,30 @@ def parseProperty(property_filename):
 
                     new_str = reg_output.sub(r"y[\1]", new_str)
 
-                    print('bound: ', new_str) #Debug
+                    print('bound: ', new_str)  #Debug
 
-                    index = len(bounds[type2])
+                    index = len(bounds[type_of_property])
 
-                    bounds[type2].append(new_str)
+                    bounds[type_of_property].append(new_str)
 
-                    type1 = 'b'
+                    class_of_property = 'b'
 
-                    # num_bounds+=1
                 else:
-                    assert reg_ws_bound.match(line) # At this point the line has to match a legal ws bound
+                    assert reg_ws_bound.match(line)  # At this point the line has to match a legal ws bound
 
                     index = len(bounds['ws'])
                     bounds['ws'].append(line.strip()) # Storing without change
 
-                    type1 = 'b' # Perhaps at some point better add a new type for ws_bound?
+                    class_of_property = 'b'  # Perhaps at some point better add a new type for ws_bound?
 
-
-                properties[type2].append({'type1': type1,'type2': type2,'line': line, 'index': index})
-
+                properties[type_of_property].append({'class_of_property': class_of_property,
+                                                     'type_of_property': type_of_property,'line': line, 'index': index})
 
                 line = f.readline()
         print('successfully read property file: ', property_filename)
         return equations, bounds, properties
 
     except:
-        print('something went wrong while parsing the property file', property_filename)
+        print('Something went wrong while parsing the property file', property_filename)
         sys.exit(1)
 

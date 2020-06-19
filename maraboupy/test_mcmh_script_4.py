@@ -12,7 +12,7 @@ if cluster_run: # Running on the cluster
     sys.stdout = open('./test_mcmh_slurm_output', 'w')
 
 
-print(os.getcwd())
+
 
 
 from MarabouNNetMCMH import *

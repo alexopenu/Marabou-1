@@ -16,7 +16,10 @@
  **/
 '''
 import warnings
-from .MarabouCore import *
+try:
+    from .MarabouCore import *
+except ImportError:
+    from MarabouCore import *
 
 # Import parsers if required packages are installed
 try:
@@ -106,7 +109,7 @@ def solve_query(ipq, filename="", verbose=True, options=None):
     """
     if options is None:
         options = createOptions()
-    vals, stats = MarabouCore.solve(ipq, options, filename)
+    vals, stats = solve(ipq, options, filename)
     if verbose:
         if stats.hasTimedOut():
             print ("TO")

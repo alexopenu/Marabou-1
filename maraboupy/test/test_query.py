@@ -1,4 +1,4 @@
-# Supress warnings caused by tensorflow
+# Suppress warnings caused by tensorflow
 import warnings
 warnings.filterwarnings('ignore', category = DeprecationWarning)
 warnings.filterwarnings('ignore', category = PendingDeprecationWarning)

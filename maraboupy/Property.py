@@ -1,22 +1,14 @@
-
-
 '''
-/* *******************                                                        */
-/*! \file Property.py
- ** \verbatim
- ** Top contributors (to current version):
- ** Alex Usvyatsov
- ** This file is part of the Marabou project.
- ** Copyright (c) 2017-2019 by the authors listed in the file AUTHORS
- ** in the top-level source directory) and their institutional affiliations.
- ** All rights reserved. See the file COPYING in the top-level source
- ** directory for licensing information.\endverbatim
- **
- ** \brief
- ** This class represents a property of a neural network to be verified
- **
- ** [[ Add lengthier description here ]]
- **/
+Top contributors (to current version):
+    - Alex Usvyatsov
+
+This file is part of the Marabou project.
+Copyright (c) 2017-2019 by the authors listed in the file AUTHORS
+in the top-level source directory) and their institutional affiliations.
+All rights reserved. See the file COPYING in the top-level source
+directory for licensing information.
+
+Property represents a property for Marabou input query
 '''
 
 import warnings
@@ -25,7 +17,9 @@ import sys
 import parser
 import re
 
-from MarabouCore import *
+import MarabouCore
+
+#from MarabouCore import *
 
 TYPES_OF_PROPERTIES_BY_VARIABLE = ['x', 'y', 'h', 'm']
 TYPES_OF_IO_PROPERTIES_BY_VARIABLE = ['x', 'y', 'm']
@@ -45,7 +39,7 @@ CLASSES_OF_PROPERTY = ['b', 'e']
 
 
 class Property:
-    '''
+    """
         Python class that represents a Marabou property
         Contains two dictionaries: equations and properties
         Keys in the dictionaries are of the type TYPES_OF_PROPERTIES_BY_VARIABLE: 'x','y','h','m'
@@ -63,7 +57,7 @@ class Property:
 
         TODO: ADD SUPPORT FOR BOUNDS ON HIDDEN VARIABLES.
         TODO: (desirable?) Add/update bounds and equations to Marabou IPQ
-    '''
+    """
 
     def __init__(self, property_filename, compute_executable_bounds=True, compute_executable_equations=True,
                  compute_marabou_lists=True):
@@ -141,73 +135,154 @@ class Property:
 
 
     def get_input_bounds(self):
+        """Returns the list of bounds on the input variables
+
+        Returns:
+            (list of str)
+        """
         return self.bounds['x']
 
     def get_output_bounds(self):
+        """Returns the list of bounds on the output variables
+
+        Returns:
+            (list of str)
+        """
         return self.bounds['y']
 
     def get_input_equations(self):
+        """Returns the list of equations mentioning only the input variables
+
+        Returns:
+            (list of str)
+        """
         return self.bounds['x']
 
     def get_output_equation(self):
+        """Returns the list of equations mentioning only the output variables
+
+        Returns:
+            (list of str)
+        """
         return self.bounds['y']
 
     def get_exec_input_bounds(self):
+        """Returns the list of executable bounds on the input variables
+
+        Returns:
+            (list of executable expressions)
+        """
         if not self.exec_bounds_computed:
             warnings.warn('Executable bounds have not been computed')
             return []
         return self.exec_bounds['x']
 
     def get_exec_output_bounds(self):
+        """Returns the list of executable bounds on the output variables
+
+        Returns:
+            (list of executable expressions)
+        """
         if not self.exec_bounds_computed:
             warnings.warn('Executable bounds hev not been computed')
             return []
         return self.exec_bounds['y']
 
     def get_exec_input_equations(self):
+        """Returns the list of executable equations mentioning only the input variables
+
+        Returns:
+            (list of executable expressions)
+        """
         if not self.exec_equations_computed:
             warnings.warn('Executable equations have not been computed')
             return []
         return self.exec_equations['x']
 
     def get_exec_output_equations(self):
+        """Returns the list of executable equations mentioning only the output variables
+
+        Returns:
+            (list of executable expressions)
+        """
         if not self.exec_equations_computed:
             warnings.warn('Executable equations have not been computed')
             return []
         return self.exec_equations['y']
 
     def get_exec_mixed_equations(self):
+        """Returns the list of executable equations mentioning mixed types of variables
+
+        Returns:
+            (list of executable expressions)
+        """
         if not self.exec_equations_computed:
-            warnings.warn('Executable equations haev not been computed')
+            warnings.warn('Executable equations have not been computed')
             return []
         return self.exec_equations['m']
 
     def get_original_x_properties(self):
+        """Returns the list of input properties as they appear in the property file
+
+        Returns:
+            (list of str)
+        """
         x_list = [p['line'] for p in self.properties_list['x']]
         return x_list
 
     def get_original_y_properties(self):
+        """Returns the list of output properties as they appear in the property file
+
+        Returns:
+            (list of str)
+        """
         y_list = [p['line'] for p in self.properties_list['y']]
         return y_list
 
-    def get_original_ws_properties(self):
+    def get_original_h_properties(self):
+        """Returns the list of properties on hidden neurons, as they appear in the property file
+
+        Returns:
+            (list of str)
+        """
+
         y_list = [p['line'] for p in self.properties_list['ws']]
         return y_list
 
     def get_original_mixed_properties(self):
+        """Returns the list of properties mentioning mixed types of variables, as they appear in the property file
+
+        Returns:
+            (list of str)
+        """
+
         y_list = [p['line'] for p in self.properties_list['m']]
         return y_list
 
     def mixed_properties_present(self):
-        return len(self.properties_list['m'])
+        """Returns True if there are properties that mention more than one type of neuron (e.g., input and output),
+        False otherwise
+
+        Returns:
+            (bool)
+        """
+        return (len(self.properties_list['m']) > 0)
 
     def h_properties_present(self):
-        return len(self.properties_list['h'])
+        """Returns True if there are properties on hidden neurons, False otherwise
+
+        Returns:
+            (bool)
+        """
+        return (len(self.properties_list['h']) > 0)
 
     def compute_executable_bounds(self, recompute=False):
-        """
-        Computes the list of executable bounds for efficiency of evaluation
+        """ Computes the list of executable bounds for later efficiency of evaluation
+        
         NOTE: Does nothing if the list is already non-empty and recompute==False
+        
+         Args:
+            recompute (bool): if True, recomputes the expressions even if the list is currently non-empty
         """
         if recompute:
             self.exec_bounds = dict()
@@ -221,9 +296,12 @@ class Property:
         self.exec_bounds_computed = True
 
     def compute_executable_equations(self, recompute=False):
-        """
-        Computes the list of executable equations for efficiency of evaluation
+        """ Computes the list of executable equations for later efficiency of evaluation
+
         NOTE: Does nothing if the list is already non-empty and recompute==False
+
+         Args:
+            recompute (bool): if True, recomputes the expressions even if the list is currently non-empty
         """
         if recompute:
             self.exec_equations = dict()
@@ -237,43 +315,54 @@ class Property:
         self.exec_equations_computed = True
 
     def compute_executables(self,recompute=False):
+        """Computes the list of executable properties
+
+         Args:
+            recompute (bool): if True, recomputes the expressions even if the lists are currently non-empty
+        """
         self.compute_executable_equations(recompute)
         self.compute_executable_bounds(recompute)
 
     def verify_equations(self, x, y):
-        """
-        Returns True iff all the equations hold on the input and the output variables
-        :param x: list (inputs)
-        :param y: list (outputs)
-        :return: bool
+        """Returns True iff all the equations hold on the input and the output variables
 
-        NOTE: x and y are lists (or np arrays) and they are used in the evaluation function,
-        since they are encoded into the expressions in the lists equation and bounds
+        Args:
+            x (list of float): List of values for the input variables
+            y (list of float): List of values for the output variables
+
+        Returns:
+            (bool)
         """
         for t in TYPES_OF_IO_PROPERTIES_BY_VARIABLE:
             for equation in self.equations[t]:
                 exec_equation = parser.expr(equation).compile()
                 if not eval(exec_equation):
                     return False
-
+        """
+        NOTE: x and y are lists (or np arrays) and they are used in the evaluation function,
+        since they are encoded into the expressions in the lists equation and bounds
+        """
         return True
 
     def verify_bounds(self, x, y):
-        """
-        Returns True iff all the bounds hold on the input and the output variables
-        :param x: list (inputs)
-        :param y: list (outputs)
-        :return: bool
+        """Returns True iff all the bounds hold on the input and the output variables
 
-        NOTE: x and y are lists (or np arrays) and they are used in the evaluation function,
-        since they are encoded into the expressions in the lists equation and bounds
+        Args:
+            x (list of float): List of values for the input variables
+            y (list of float): List of values for the output variables
+
+        Returns:
+            (bool)
         """
         for t in TYPES_OF_IO_PROPERTIES_BY_VARIABLE:
             for bound in self.bounds[t]:
                 exec_equation = parser.expr(bound).compile()
                 if not eval(exec_equation):
                     return False
-
+        """
+        NOTE: x and y are lists (or np arrays) and they are used in the evaluation function,
+        since they are encoded into the expressions in the lists equation and bounds
+        """
         return True
 
     def verify_io_property(self, x, y):
@@ -599,7 +688,8 @@ class Property:
             if variable == 'x':  # Input variable
                 var_index = ipq.inputVariableByIndex(indices)
                 if type_of_bound == 'l':
-                    if ipq.
+                    pass
+                # TODO: complete!
 
 
 

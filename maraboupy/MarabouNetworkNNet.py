@@ -284,7 +284,6 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
 
         # Open the file we wish to write
         with open(file_name, 'w') as f2:
-
             #####################
             # First, we write the header lines:
             # The first line written is just a line of text
@@ -304,8 +303,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
             #     used during training
             # The ninth line begins the network weights and biases
             ####################
-            # f2.write("// The contents of this file are licensed under the Creative Commons\n")
-            # f2.write("// Attribution 4.0 International License: https://creativecommons.org/licenses/by/4.0/\n")
+
             f2.write("// Neural Network File Format by Kyle Julian, Stanford 2016\n")
             f2.write("// Network written to file by writeNNet() method of class MarabouNetworkNNet\n")
 
@@ -401,7 +399,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         Returns:
             (int)
 
-        :meta-private:
+        :meta private:
         """
         assert(0 < layer)
         assert(layer <= self.numLayers)
@@ -422,7 +420,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         Returns:
             (int)
 
-        :meta-private:
+        :meta private:
         """
         assert(layer >= 0)
         assert(layer < self.numLayers)
@@ -575,7 +573,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         """ Evaluate network directly (without Marabou) at a given point
 
         Args:
-            inputValues (list of np array): Input to the network
+            inputValues (list of np array): Input to network
 
         Returns:
             (np array): Output of the network
@@ -591,12 +589,12 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         and layer last_layer (output layer by default)
 
         Args:
-            inputs: (list of float):         Network inputs to be evaluated
-            first_layer:  (int):              The initial layer of the evaluation
-            last_layer: (int):                The last layer of the evaluation
-            normalize_inputs: (bool):         If True and first_layer==0, normalization of inputs is performed
-            normalize_outputs: (bool):        If True, normalization of output is undone
-            activate_output_layer: (bool):    If True, the last layer is activated, otherwise it is not.
+            inputs (list of float):         Network inputs to be evaluated
+            first_layer  (int):              The initial layer of the evaluation
+            last_layer (int):                The last layer of the evaluation
+            normalize_inputs (bool):         If True and first_layer==0, normalization of inputs is performed
+            normalize_outputs (bool):        If True, normalization of output is undone
+            activate_output_layer (bool):    If True, the last layer is activated, otherwise it is not.
 
         Returns:
             (list of float): the result of the evaluation

@@ -102,12 +102,11 @@ def test_to_query(tmpdir):
     assert stats_net.hasTimedOut()
     assert stats_ipq.hasTimedOut()
 
-
 def test_get_marabou_query(tmpdir):
-    '''
+    """
     Tests that input query generated from a network in Maraboupy is identical to the input query generated directly by
     Marabou from the same network file (relies on saveQuery, compares the output of saveQuery on the two queries).
-    '''
+    """
     network = load_acas_network()
     ipq1 = network.getMarabouQuery()
 
@@ -122,7 +121,6 @@ def test_get_marabou_query(tmpdir):
     MarabouCore.saveQuery(ipq1, ipq2_filename)
     diff = call(['diff', ipq1_filename, ipq2_filename])
     assert not diff
-
 
 def load_onnx_network():
     """

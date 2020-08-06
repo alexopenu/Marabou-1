@@ -1,4 +1,4 @@
-
+from MarabouNetworkQuery import *
 from MarabouNetworkNNet import *
 
 from Marabou import *
@@ -27,19 +27,17 @@ import matplotlib.pyplot as plt
 # from statsmodels.nonparametric.api import KDEUnivariate
 # from random import randint
 
-
-
-
+TYPES_OF_BOUNDS = ['l', 'r']
 # 'l' stands for left (lower)
 # 'r' stands for right (upper)
-types_of_bounds = ['l', 'r']
-type_of_bounds_to_sign = {'l': -1, 'r': 1}
 
-infinity = 100
+TYPE_OF_BOUNDS_TO_SIGN = {'l': -1, 'r': 1}
+
+INFINITY = 100
 
 
 class basic_mcmh_statistics:
-    def __init__(self,good_set = [], epsilon=0.01, two_sided = True):
+    def __init__(self, good_set=[], epsilon=0.01, two_sided=True):
         self.epsilon = epsilon
 
         self.layer_size = 0
@@ -54,10 +52,9 @@ class basic_mcmh_statistics:
         self.statistics_computed = False
 
         if len(good_set):
-            self.recompute_statistics(good_set,two_sided)
+            self.recompute_statistics(good_set, two_sided)
 
-
-    def recompute_statistics(self,good_set=[],two_sided=True):
+    def recompute_statistics(self, good_set=[], two_sided=True):
 
         if not len(good_set):
             self.statistics_computed = False
@@ -72,17 +69,15 @@ class basic_mcmh_statistics:
         else:
             self.good_matrix = np.array(good_set)
             self.layer_size = len(good_set[0])
-            self.minimums = [np.min(self.good_matrix[:,var]) for var in range(self.layer_size)]
+            self.minimums = [np.min(self.good_matrix[:, var]) for var in range(self.layer_size)]
             self.maximums = [np.max(self.good_matrix[:, var]) for var in range(self.layer_size)]
             self.mean = [np.mean(self.good_matrix[:, var]) for var in range(self.layer_size)]
-            self.range = [self.maximums[var]-self.minimums[var] for var in range(self.layer_size)]
-            self.epsiloni_twosided = {'l': [0]*self.layer_size, 'r': [0]*self.layer_size}
-            self.epsiloni = [0]*self.layer_size
+            self.range = [self.maximums[var] - self.minimums[var] for var in range(self.layer_size)]
+            self.epsiloni_twosided = {'l': [0] * self.layer_size, 'r': [0] * self.layer_size}
+            self.epsiloni = [0] * self.layer_size
 
             self.computeEpsilonsUniformly()
             self.statistics_computed = True
-
-
 
     def computeEpsilonsUniformly(self):
         '''
@@ -97,8 +92,7 @@ class basic_mcmh_statistics:
         for var in range(self.layer_size):
             self.computeEpsilonsForVariable(var)
 
-
-    def computeEpsilonsForVariable(self,var,compute_twosided = True):
+    def computeEpsilonsForVariable(self, var, compute_twosided=True):
 
         outputs = self.good_matrix[:, var]
         sample_size = len(outputs)
@@ -108,34 +102,32 @@ class basic_mcmh_statistics:
         mean = self.mean[var]
 
         # self.range[var] = maximum-minimum
-        self.epsiloni[var] = self.range[var]/sample_size
+        self.epsiloni[var] = self.range[var] / sample_size
 
         if compute_twosided:
             small_outputs = [output for output in outputs if (output <= mean)]
-            small_range = mean-minimum
+            small_range = mean - minimum
             big_outputs = [output for output in outputs if (output > mean)]
-            big_range = maximum-mean
+            big_range = maximum - mean
 
-            self.epsiloni_twosided['l'][var] = small_range/len(small_outputs)
-            self.epsiloni_twosided['r'][var] = big_range/len(big_outputs)
+            self.epsiloni_twosided['l'][var] = small_range / len(small_outputs)
+            self.epsiloni_twosided['r'][var] = big_range / len(big_outputs)
 
-
-    def graphGoodSetDist(self,i=0):
+    def graphGoodSetDist(self, i=0):
 
         assert self.statistics_computed
 
-        sns.distplot([output[i] for output in self.good_matrix],label='Variable'+str(i))
+        sns.distplot([output[i] for output in self.good_matrix], label='Variable' + str(i))
         plt.legend()
         plt.show()
 
 
-
 class invariantOnNeuron:
 
-    def __init__(self, layer = -1, var = -1, participates_in_invariant = True, tight_bounds = True,
-                 observed_minimum = -np.infty, observed_maximum = np.infty, observed_range = 0, observed_mean = 0,
-                 epsilon_twosided = None,
-                 loose_epsilons_compute = 'range', loose_epsilon_const = 0,
+    def __init__(self, layer=-1, var=-1, participates_in_invariant=True, tight_bounds=True,
+                 observed_minimum=-np.infty, observed_maximum=np.infty, observed_range=0, observed_mean=0,
+                 epsilon_twosided=None,
+                 loose_epsilons_compute='range', loose_epsilon_const=0,
                  basic_statistics: basic_mcmh_statistics = None):
 
         self.participates_in_invariant = {'l': participates_in_invariant, 'r': participates_in_invariant}
@@ -180,10 +172,8 @@ class invariantOnNeuron:
             assert var > -1
             self.loadFromBasicStatistics(layer, var, basic_statistics, tight_bounds)
 
-
-
-    def loadFromBasicStatistics(self,layer: int,var: int, basic_statistics: basic_mcmh_statistics,
-                                participates_in_invariant = True):
+    def loadFromBasicStatistics(self, layer: int, var: int, basic_statistics: basic_mcmh_statistics,
+                                participates_in_invariant=True):
         self.layer = layer
         self.var = var
 
@@ -221,28 +211,27 @@ class invariantOnNeuron:
         self.tight_bounds = False
         self.recomputeSuggestedBounds()
 
-    def includeInInvariant(self, side: types_of_bounds):
-        assert side in types_of_bounds
+    def includeInInvariant(self, side: TYPES_OF_BOUNDS):
+        assert side in TYPES_OF_BOUNDS
         self.participates_in_invariant[side] = True
         self.recomputeAllBounds(recompute_property=True)
 
-    def excludeFromInvariant(self, side: types_of_bounds):
-        assert side in types_of_bounds
+    def excludeFromInvariant(self, side: TYPES_OF_BOUNDS):
+        assert side in TYPES_OF_BOUNDS
         self.participates_in_invariant[side] = False
         self.recomputeAllBounds(recompute_property=True)
 
-    def isDisjunctVerified(self, side: types_of_bounds):
+    def isDisjunctVerified(self, side: TYPES_OF_BOUNDS):
         if side not in self.verified_disjunct.keys():
             return False
         # assert side in self.verified_disjunct.keys()
-        sign = type_of_bounds_to_sign[side]
+        sign = TYPE_OF_BOUNDS_TO_SIGN[side]
 
-        return sign*self.suggested_bounds[side] >= sign*self.verified_disjunct[side]
+        return sign * self.suggested_bounds[side] >= sign * self.verified_disjunct[side]
 
-    def SetDisjunctAsVerified(self, side: types_of_bounds):
-        assert side in types_of_bounds
+    def SetDisjunctAsVerified(self, side: TYPES_OF_BOUNDS):
+        assert side in TYPES_OF_BOUNDS
         self.verified_disjunct[side] = self.suggested_bounds[side]
-
 
     def computeInitialOffsets(self):
         if self.loose_epsilon_compute == 'const':
@@ -252,25 +241,25 @@ class invariantOnNeuron:
             self.offset['l'] = self.range  # / 2
             self.offset['r'] = self.range  # / 2
         else:  # 'double'
-            for side in types_of_bounds:
-                self.offset[side] = self.epsilon_twosided[side]*32  # 2^5 (will require five halves-somewhat arbitrary)
+            for side in TYPES_OF_BOUNDS:
+                self.offset[side] = self.epsilon_twosided[
+                                        side] * 32  # 2^5 (will require five halves-somewhat arbitrary)
 
-        for side in types_of_bounds:
+        for side in TYPES_OF_BOUNDS:
             self.deltas[side] = self.offset[side]
 
-    def getOffset(self,side: types_of_bounds):
-        assert side in types_of_bounds
+    def getOffset(self, side: TYPES_OF_BOUNDS):
+        assert side in TYPES_OF_BOUNDS
         return self.epsilon_twosided[side] if self.tight_bounds else self.deltas[side]
 
-
-    def setEpsilon(self,side: types_of_bounds,new_epsilon: float):
-        assert side in types_of_bounds
+    def setEpsilon(self, side: TYPES_OF_BOUNDS, new_epsilon: float):
+        assert side in TYPES_OF_BOUNDS
         self.epsilon_twosided[side] = new_epsilon
 
         self.recomputeBounds(side)
 
-    def setDelta(self,side: types_of_bounds, new_delta: float):
-        assert side in types_of_bounds
+    def setDelta(self, side: TYPES_OF_BOUNDS, new_delta: float):
+        assert side in TYPES_OF_BOUNDS
         self.deltas[side] = new_delta
 
         if self.epsilon_twosided[side] < new_delta:
@@ -279,51 +268,43 @@ class invariantOnNeuron:
 
         self.recomputeBounds(side)
 
-    def setOffset(self,side: types_of_bounds, new_offset: float):
+    def setOffset(self, side: TYPES_OF_BOUNDS, new_offset: float):
         self.setEpsilon(side, new_offset) if self.tight_bounds else self.setDelta(side, new_offset)
 
     def zeroLowerBound(self):
         self.makeBoundsLoose()
-        if self.suggested_bounds['l']>0:
-            self.setDelta('l',self.observed_minimum)
+        if self.suggested_bounds['l'] > 0:
+            self.setDelta('l', self.observed_minimum)
         assert self.suggested_bounds['l'] == 0
 
-
-    def halfOffset(self,side: types_of_bounds):
+    def halfOffset(self, side: TYPES_OF_BOUNDS):
         offset = self.getOffset(side)
-        self.setOffset(side,offset/2)
+        self.setOffset(side, offset / 2)
 
-
-    def recomputeBounds(self,side,recompute_property = True):
-
+    def recomputeBounds(self, side, recompute_property=True):
         self.recomputeRealBound(side)
         self.recomputeLooseBound(side)
         self.recomputeSuggestedBound(side, recompute_property=recompute_property)
         # if recompute_property:
         #     self.recomputeInterpolantProperty(side)
 
+    def recomputeAllBounds(self, recompute_property=True):
 
-
-    def recomputeAllBounds(self, recompute_property = True):
-
-        for side in types_of_bounds:
+        for side in TYPES_OF_BOUNDS:
             self.recomputeRealBound(side)
             self.recomputeLooseBound(side)
 
         self.recomputeSuggestedBounds(recompute_property=recompute_property)
 
-
-    def recomputeInterpolantProperty(self,side):
+    def recomputeInterpolantProperty(self, side):
 
         self.interpolant_property[side], self.dual_interpolant_property[side] = self.computeBoundProperty(side)
 
-
     def recomputeInterpolantProperties(self):
-        for side in types_of_bounds:
+        for side in TYPES_OF_BOUNDS:
             self.recomputeInterpolantProperty(side)
 
-    def recomputeRealBound(self,side: types_of_bounds):
-
+    def recomputeRealBound(self, side: TYPES_OF_BOUNDS):
         epsilon = self.epsilon_twosided[side]
         if side == 'l':
             bound = self.observed_minimum - epsilon
@@ -331,13 +312,10 @@ class invariantOnNeuron:
         elif side == 'r':
             bound = self.observed_maximum + epsilon
             self.real_bounds_for_invariant[side] = -1 if bound < -1 else max(bound, 0.01)
-        else: # side not in types_of_bounds!
+        else:  # side not in TYPES_OF_BOUNDS!
             assert False
 
-
-
-    def recomputeLooseBound(self, side: types_of_bounds):
-
+    def recomputeLooseBound(self, side: TYPES_OF_BOUNDS):
         delta = self.deltas[side]
 
         if side == 'l':
@@ -346,27 +324,21 @@ class invariantOnNeuron:
         elif side == 'r':
             bound = self.observed_maximum + delta
             self.loose_bounds_for_invariant[side] = -1 if bound < -1 else max(bound, 1)
-        else: # side not in types_of_bounds!
+        else:  # side not in TYPES_OF_BOUNDS!
             assert False
 
-
-
-
-    def recomputeSuggestedBound(self,side: types_of_bounds, recompute_property = True):
+    def recomputeSuggestedBound(self, side: TYPES_OF_BOUNDS, recompute_property=True):
         self.suggested_bounds[side] = self.getSuggestedBound(side)
 
         if recompute_property:
             self.recomputeInterpolantProperty(side)
 
-
-
-    def recomputeSuggestedBounds(self, recompute_property = True):
-        for side in types_of_bounds:
+    def recomputeSuggestedBounds(self, recompute_property=True):
+        for side in TYPES_OF_BOUNDS:
             self.recomputeSuggestedBound(side, recompute_property=recompute_property)
 
-
-    def getSuggestedBound(self, side: types_of_bounds):
-        assert side in types_of_bounds
+    def getSuggestedBound(self, side: TYPES_OF_BOUNDS):
+        assert side in TYPES_OF_BOUNDS
         if self.tight_bounds:
             return self.real_bounds_for_invariant[side]
         else:
@@ -374,7 +346,7 @@ class invariantOnNeuron:
 
     def getSuggestedUpperBound(self):
         if not self.participates_in_invariant['r']:
-            return self.loose_bounds_for_invariant['r']+infinity
+            return self.loose_bounds_for_invariant['r'] + INFINITY
         # TODO: make this more systematic!
 
         if self.tight_bounds:
@@ -384,7 +356,7 @@ class invariantOnNeuron:
 
     def getSuggestedLowerBound(self):
         if not self.participates_in_invariant['l']:
-            return max(self.loose_bounds_for_invariant['l']-infinity,-1)
+            return max(self.loose_bounds_for_invariant['l'] - INFINITY, -1)
         # TODO: make this more systematic!
 
         if self.tight_bounds:
@@ -392,8 +364,7 @@ class invariantOnNeuron:
         else:
             return self.loose_bounds_for_invariant['l']
 
-    def strengthenOffset(self,side: types_of_bounds, adjust_epsilons: str, difference: float):
-
+    def strengthenOffset(self, side: TYPES_OF_BOUNDS, adjust_epsilons: str, difference: float):
         offset_dict = self.epsilon_twosided if self.tight_bounds else self.deltas
         old_offset = offset_dict[side]
 
@@ -406,8 +377,6 @@ class invariantOnNeuron:
         else:
             print('Unsupported argument for strengthenEpsilons')
             sys.exit(1)
-
-
 
         if self.tight_bounds:
             self.setEpsilon(side, new_epsilon=new_offset)
@@ -426,24 +395,20 @@ class invariantOnNeuron:
 
     def computeUpperBoundProperty(self):
         var = self.var
-        p =  'x' + str(var) + ' <= ' + str(self.suggested_bounds['r'])
+        p = 'x' + str(var) + ' <= ' + str(self.suggested_bounds['r'])
         dual_p = 'y' + str(var) + ' >= ' + str(self.suggested_bounds['r'])
         return p, dual_p
 
     def computeBoundProperty(self, side: str):
-        assert side in types_of_bounds
+        assert side in TYPES_OF_BOUNDS
 
         if side == 'l':
             return self.computeLowerBoundProperty()
         return self.computeUpperBoundProperty()
 
-
-    def getObservedExtremeValue(self,side: types_of_bounds):
-        assert side in types_of_bounds
-
+    def getObservedExtremeValue(self, side: TYPES_OF_BOUNDS):
+        assert side in TYPES_OF_BOUNDS
         return self.observed_minimum if side == 'l' else self.observed_maximum
-
-
 
 
 # Currently not used or supported
@@ -454,30 +419,27 @@ class generalInterpolantCandidate:
         self.inactive_neurons = {}
         self.relevant_neurons = {}
 
-    def addNeuron(self,neuron_invariant: invariantOnNeuron):
+    def addNeuron(self, neuron_invariant: invariantOnNeuron):
         self.dict_of_neurons[(neuron_invariant.layer, neuron_invariant.var)] = neuron_invariant
         # index = len(self.dict_of_neurons)
 
         if neuron_invariant.isActive():
-            self.active_neurons[(neuron_invariant.layer,neuron_invariant.var)] = neuron_invariant
+            self.active_neurons[(neuron_invariant.layer, neuron_invariant.var)] = neuron_invariant
         else:
-            self.inactive_neurons[(neuron_invariant.layer,neuron_invariant.var)] = neuron_invariant
+            self.inactive_neurons[(neuron_invariant.layer, neuron_invariant.var)] = neuron_invariant
 
         if neuron_invariant.tight_bounds:
-            self.relevant_neurons[(neuron_invariant.layer,neuron_invariant.var)] = neuron_invariant
+            self.relevant_neurons[(neuron_invariant.layer, neuron_invariant.var)] = neuron_invariant
 
-    def makeRelevant(self,layer,var):
-        self.relevant_neurons[(layer,var)] = self.dict_of_neurons[(layer,var)]
+    def makeRelevant(self, layer, var):
+        self.relevant_neurons[(layer, var)] = self.dict_of_neurons[(layer, var)]
 
-    def makeIrrelevant(self,layer,var):
-        self.relevant_neurons.pop((layer,var))
-
-
-
+    def makeIrrelevant(self, layer, var):
+        self.relevant_neurons.pop((layer, var))
 
 
 class layerInterpolateCandidate:
-    def __init__(self, layer=-1, layer_size=0, compute_loose_offsets = 'range', loose_offset_const = 1):
+    def __init__(self, layer=-1, layer_size=0, compute_loose_offsets='range', loose_offset_const=1):
         self.layer = layer
         self.layer_size = layer_size
 
@@ -486,14 +448,14 @@ class layerInterpolateCandidate:
         self.loose_offset_const = loose_offset_const
 
         self.list_of_neurons = []
-        self.list_of_neurons = [invariantOnNeuron()]*layer_size
+        self.list_of_neurons = [invariantOnNeuron()] * layer_size
 
         self.active_neurons = {}
         self.inactive_neurons = {}
         self.relevant_neurons = {}
 
-        self.layer_minimums = [-np.infty]*layer_size
-        self.layer_maximums = [np.infty]*layer_size
+        self.layer_minimums = [-np.infty] * layer_size
+        self.layer_maximums = [np.infty] * layer_size
 
         self.suggested_bounds = {'l': [], 'r': []}
 
@@ -506,22 +468,20 @@ class layerInterpolateCandidate:
         # (and all occurrences of 'x' is replaced with 'y')
         self.output_interpolant_candidate = []
 
-    def setLayer(self,layer: int,layer_size: int):
+    def setLayer(self, layer: int, layer_size: int):
         self.layer = layer
         self.layer_size = layer_size
-        self.list_of_neurons = [invariantOnNeuron()]*layer_size
+        self.list_of_neurons = [invariantOnNeuron()] * layer_size
 
-
-    def addNeuron(self,neuron_invariant: invariantOnNeuron):
+    def addNeuron(self, neuron_invariant: invariantOnNeuron):
         assert neuron_invariant.layer == self.layer
 
         var = neuron_invariant.var
-        assert var in range (self.layer_size)
+        assert var in range(self.layer_size)
 
         self.list_of_neurons[var] = neuron_invariant
 
         self.adjustActivity(var)
-
 
         # if neuron_invariant.isActive():
         #     self.active_neurons[var] = neuron_invariant
@@ -534,7 +494,7 @@ class layerInterpolateCandidate:
         # self.layer_minimums[var] = neuron_invariant.observed_minimum
         # self.layer_maximums[var] = neuron_invariant.observed_maximum
 
-    def adjustActivity(self,var: int):
+    def adjustActivity(self, var: int):
 
         assert var in range(self.layer_size)
         neuron_invariant = self.list_of_neurons[var]
@@ -553,21 +513,18 @@ class layerInterpolateCandidate:
         elif var in self.relevant_neurons.keys():
             self.relevant_neurons.pop(var)
 
-
-
-    def loadFromBasicStatiatics(self,basic_statistics: basic_mcmh_statistics, layer = -1,
+    def loadFromBasicStatiatics(self, basic_statistics: basic_mcmh_statistics, layer=-1,
                                 compute_loose_offsets='range', loose_offset_const=1):
-        assert self.layer>-1 or layer>-1
+        assert self.layer > -1 or layer > -1
 
-        if layer>-1:
-            self.setLayer(layer,basic_statistics.layer_size)
+        if layer > -1:
+            self.setLayer(layer, basic_statistics.layer_size)
         else:
             assert self.layer_size == basic_statistics.layer_size
 
         assert compute_loose_offsets in ['range', 'double', 'const']
         self.compute_loose_offsets = compute_loose_offsets
         self.loose_offset_const = loose_offset_const
-
 
         for var in range(self.layer_size):
             neuron_invariant = invariantOnNeuron(self.layer, var,
@@ -581,66 +538,65 @@ class layerInterpolateCandidate:
         self.layer_minimums = basic_statistics.minimums
         self.layer_maximums = basic_statistics.maximums
 
-        for side in types_of_bounds:
+        for side in TYPES_OF_BOUNDS:
             self.suggested_bounds[side] = \
                 [self.list_of_neurons[var].suggested_bounds[side] for var in range(self.layer_size)]
 
-    def includeInInvariant(self,var: int, side: types_of_bounds):
-        self.relevant_neurons[(var,side)] = (self.list_of_neurons[var],side)
+    def includeInInvariant(self, var: int, side: TYPES_OF_BOUNDS):
+        self.relevant_neurons[(var, side)] = (self.list_of_neurons[var], side)
         self.list_of_neurons[var].includeInInvariant(side)
 
-        # for side in types_of_bounds:
+        # for side in TYPES_OF_BOUNDS:
         #     self.updateSuggestedBound(var, side)
 
-    def excludeFromInvariant(self,var: int, side: types_of_bounds):
-        self.relevant_neurons.pop((var,side))
+    def excludeFromInvariant(self, var: int, side: TYPES_OF_BOUNDS):
+        self.relevant_neurons.pop((var, side))
         self.list_of_neurons[var].excludeFromInvariant(side)
 
-        # for side in types_of_bounds:
+        # for side in TYPES_OF_BOUNDS:
         #     self.updateSuggestedBound(var, side)
 
-    def makeBoundsTight(self,var):
+    def makeBoundsTight(self, var):
         # self.relevant_neurons[var] = self.list_of_neurons[var]
         self.list_of_neurons[var].makeBoundsTight()
 
-        for side in types_of_bounds:
+        for side in TYPES_OF_BOUNDS:
             self.updateSuggestedBound(var, side)
 
-    def makeBoundsLoose(self,var):
+    def makeBoundsLoose(self, var):
         # self.relevant_neurons.pop(var)
         self.list_of_neurons[var].makeBoundsLoose()
 
-        for side in types_of_bounds:
+        for side in TYPES_OF_BOUNDS:
             self.updateSuggestedBound(var, side)
 
-
-    def setEpsilon(self,var: int, side: types_of_bounds, new_epsilon: float):
+    def setEpsilon(self, var: int, side: TYPES_OF_BOUNDS, new_epsilon: float):
         assert var in range(self.layer_size)
-        self.list_of_neurons[var].setEpsilon(side,new_epsilon)
+        self.list_of_neurons[var].setEpsilon(side, new_epsilon)
 
         self.updateSuggestedBound(var, side)
 
-    def setDelta(self,var: int, side: types_of_bounds, new_delta: float):
+    def setDelta(self, var: int, side: TYPES_OF_BOUNDS, new_delta: float):
         assert var in range(self.layer_size)
         neuron = self.list_of_neurons[var]
 
-        neuron.setDelta(side,new_delta)
+        neuron.setDelta(side, new_delta)
 
         # if new_delta < neuron.epsilon_twosided[side]:
         #     neuron.setEpsilon(side,new_delta)
         #     # TODO: potentially tighten bound? Already done!
 
-        self.updateSuggestedBound(var,side)
+        self.updateSuggestedBound(var, side)
 
-    def updateSuggestedBound(self,var,side):
-        assert side in types_of_bounds
+    def updateSuggestedBound(self, var, side):
+        assert side in TYPES_OF_BOUNDS
 
         self.suggested_bounds[side][var] = self.list_of_neurons[var].suggested_bounds[side]
 
-    def adjustObservedBounds(self,layer_input: list):
+    def adjustObservedBounds(self, layer_input: list):
         assert len(layer_input) == self.layer_size
         for var in range(self.layer_size):
-            self.adjustObservedBoundForVariable(var,layer_input[var])
+            self.adjustObservedBoundForVariable(var, layer_input[var])
 
     def adjustObservedBoundForVariable(self, var: int, new_input: float):
         assert var in range(self.layer_size)
@@ -649,7 +605,7 @@ class layerInterpolateCandidate:
             self.layer_minimums[var] = new_input
             self.list_of_neurons[var].observed_minimum = new_input
             self.list_of_neurons[var].recomputeBounds('l')
-            self.updateSuggestedBound(var,'l')
+            self.updateSuggestedBound(var, 'l')
 
         if new_input > self.layer_maximums[var]:
             self.layer_maximums[var] = new_input
@@ -662,29 +618,29 @@ class layerInterpolateCandidate:
 
     # Currently the initial criteria are very simplistic: inactive and half-active participate, the rest do not.
     # TODO: make more interesting/randomized initial conditions
-    def setInitialParticipatingNeurons(self, zero_bottoms = False):
+    def setInitialParticipatingNeurons(self, zero_bottoms=False):
         for var in range(self.layer_size):
             if not self.list_of_neurons[var].isActive():
                 self.makeBoundsLoose(var)
-                for side in types_of_bounds:
-                    self.includeInInvariant(var,side)
+                for side in TYPES_OF_BOUNDS:
+                    self.includeInInvariant(var, side)
             elif self.list_of_neurons[var].isHalfActive():
                 self.makeBoundsLoose(var)
-                for side in types_of_bounds:
-                    self.includeInInvariant(var,side)
+                for side in TYPES_OF_BOUNDS:
+                    self.includeInInvariant(var, side)
             else:
                 self.makeBoundsLoose(var)
-                self.includeInInvariant(var,side='r')    # TODO: exclude with some probability
+                self.includeInInvariant(var, side='r')  # TODO: exclude with some probability
                 if zero_bottoms:
                     self.list_of_neurons[var].zeroLowerBound()  # TODO: with some probability?
-                self.includeInInvariant(var, side = 'l')
+                self.includeInInvariant(var, side='l')
 
     # Currently unused
     def getUnverifiedDisjuncts(self):
         unverified_disjuncts_list = []
 
         for var in range(self.layer_size):
-            for side in types_of_bounds:
+            for side in TYPES_OF_BOUNDS:
                 if (self.list_of_neurons[var].participates_in_invariant[side]) and \
                         (not self.list_of_neurons[var].isDisjunctVerified(side)):
                     unverified_disjuncts_list.append(self.list_of_neurons[var].dual_interpolant_property[side])
@@ -694,17 +650,14 @@ class layerInterpolateCandidate:
     def getConjunction(self):
         conjuncts = []
         for var in range(self.layer_size):
-            for side in types_of_bounds:
+            for side in TYPES_OF_BOUNDS:
                 # if self.list_of_neurons[var].participates_in_invariant[side]:
                 conjuncts.append(self.list_of_neurons[var].interpolant_property[side])
 
         return conjuncts
 
-
     def reportVerifiedDisjunct(self, var, side):
         self.list_of_neurons[var].SetDisjunctAsVerified(side)
-
-
 
     def createRandomStrictInputForLayer(self):
         # input = []
@@ -715,7 +668,6 @@ class layerInterpolateCandidate:
         # return input
         return [np.random.uniform(low=self.layer_minimums[var], high=self.layer_maximums[var])
                 for var in range(self.layer_size)]
-
 
     def createRandomSuggestedInputForLayer(self):
         # input = []
@@ -737,13 +689,9 @@ class layerInterpolateCandidate:
         return [self.list_of_neurons[var].getObservedExtremeValue(choice(['l', 'r']))
                 for var in range(self.layer_size)]
 
-
-
-    def analyzeBadLayerInput(self, layer_input, use_multiplicity = False):
+    def analyzeBadLayerInput(self, layer_input, use_multiplicity=False):
         bad_layer_inputs = []
         bad_layer_inputs_dict = {}
-
-
 
         for var in range(self.layer_size):
             neuron: invariantOnNeuron = self.list_of_neurons[var]
@@ -759,15 +707,15 @@ class layerInterpolateCandidate:
 
             if layer_input[var] < neuron_minimum:  # lb - delta[i,'l'] <= xi <= lmim (lmim = layer minimum)
                 side = 'l'
-                difference = (neuron_minimum - layer_input[var])/(neuron_minimum - neuron_lb)
+                difference = (neuron_minimum - layer_input[var]) / (neuron_minimum - neuron_lb)
             elif layer_input[var] > neuron_maximum and neuron_ub > 0:
                 # lmax <= xi <= lmax + delta[i,'r']
                 side = 'r'
-                difference = (layer_input[var] - neuron_maximum)/(neuron_ub - neuron_maximum)
+                difference = (layer_input[var] - neuron_maximum) / (neuron_ub - neuron_maximum)
             elif layer_input[var] > 0 and 0 > neuron_maximum:
                 # lmax < 0  <= xi <= lmax + delta[i,'r']
                 side = 'r'
-                difference = layer_input[var]/neuron_ub
+                difference = layer_input[var] / neuron_ub
             else:
                 continue
 
@@ -778,52 +726,44 @@ class layerInterpolateCandidate:
             else:
                 bad_layer_inputs += [(var, side, difference)]
 
-            if (var,side) not in bad_layer_inputs_dict.keys() or bad_layer_inputs_dict[(var,side)]<difference:
-                bad_layer_inputs_dict[(var,side)] = difference
+            if (var, side) not in bad_layer_inputs_dict.keys() or bad_layer_inputs_dict[(var, side)] < difference:
+                bad_layer_inputs_dict[(var, side)] = difference
 
         return bad_layer_inputs, bad_layer_inputs_dict
 
-
-
     def strengthenEpsilons(self, out_of_bounds_inputs, difference_dict, adjust_epsilons='', number_of_epsilons=1):
-        assert adjust_epsilons in ['', 'random', 'all', 'half_all','half_random']
-        assert number_of_epsilons>=0
+        assert adjust_epsilons in ['', 'random', 'all', 'half_all', 'half_random']
+        assert number_of_epsilons >= 0
 
         if not adjust_epsilons:
             return []
 
-        weights = [difference for (var,side,difference) in out_of_bounds_inputs]
+        weights = [difference for (var, side, difference) in out_of_bounds_inputs]
         if adjust_epsilons == 'random' or adjust_epsilons == 'half_random':
-            epsilons_to_adjust = choices(out_of_bounds_inputs,weights=weights,k=number_of_epsilons)
+            epsilons_to_adjust = choices(out_of_bounds_inputs, weights=weights, k=number_of_epsilons)
         else:
             epsilons_to_adjust = out_of_bounds_inputs
 
         offsets_adjusted = {}
-        for (var,side,_) in epsilons_to_adjust:
-            if (var,side) in offsets_adjusted.keys():  # avoid multiple changes of the same bound
+        for (var, side, _) in epsilons_to_adjust:
+            if (var, side) in offsets_adjusted.keys():  # avoid multiple changes of the same bound
                 continue
-            offsets_adjusted[(var,side)] = \
-                self.list_of_neurons[var].strengthenOffset(side,adjust_epsilons,difference_dict[(var,side)])
-            self.updateSuggestedBound(var,side)
-
+            offsets_adjusted[(var, side)] = \
+                self.list_of_neurons[var].strengthenOffset(side, adjust_epsilons, difference_dict[(var, side)])
+            self.updateSuggestedBound(var, side)
 
         return offsets_adjusted
 
         # TODO: complete the move from the MCMH class; make sure to change all relevant offsets
 
-
     def halfAllOffsets(self):
         for var in range(self.layer_size):
-            for side in types_of_bounds:
+            for side in TYPES_OF_BOUNDS:
                 self.list_of_neurons[var].halfOffset(side)
 
     # TODO: COMPLETE!
 
-
-
-
     # def createInterpolandList(self):
-
 
     # def computeInitialInterpolantCandidateForLayer(self,two_sided=True):
     #
@@ -853,7 +793,7 @@ class layerInterpolateCandidate:
 
     # def adjustInterpolantCandidate(self,var: int, side = '', two_sided = True):
     #     assert var in range(self.layer_size)
-    #     assert side in types_of_bounds
+    #     assert side in TYPES_OF_BOUNDS
     #
     #     self.suggested_layer_bounds[side][var] = self.getSoftBoundForLayer(var,side,two_sided)
     #
@@ -868,10 +808,9 @@ class layerInterpolateCandidate:
     #     self.output_interpolant_candidate[var][side] = y_bdd
     #
 
-
     # def adjustEpsilon(self, var: int, side: str, new_epsilon: float, two_sided = True, adjust_candidate = True):
     #     assert var in range(self.layer_size)
-    #     assert side in types_of_bounds
+    #     assert side in TYPES_OF_BOUNDS
     #
     #     if not two_sided:
     #         assert self.epsiloni
@@ -888,38 +827,37 @@ class layerInterpolateCandidate:
     #
 
 
-class MarabouNNetMCMH:
+class CompositionalVerifier:
 
     def __init__(self, network_filename: str, property_filename: str, layer=-1):
-        self.marabou_nnet = MarabouNetworkNNetExtended(filename=network_filename, property_filename=property_filename)
+        self.marabou_query = MarabouNetworkQuery(network_filename=network_filename, property_filename=property_filename)
 
         self.network_filename = network_filename
         self.property_filename = property_filename
 
         # The input query corresponding to the network+property, computed from the files by Marabou query parse.
         # Storing locally for convenience.
-        self.ipq = self.marabou_nnet.ipq2
+        self.ipq = self.marabou_query.ipq
+        self.marabou_nnet = self.marabou_query.nnet
 
         # Will be changed to True when initial network files have been created
         self.marabou_verification_initiated = False
 
         # Making sure that all the bounds on the input variables have been computed
-        self.marabou_nnet.tightenBounds()
+        self.marabou_query.tightenBounds()
         for input_var in self.marabou_nnet.inputVars.flatten():
             assert self.marabou_nnet.upperBoundExists(input_var)
             assert self.marabou_nnet.lowerBoundExists(input_var)
 
-        self.marabou_nnet.property.compute_executables(recompute=True)
+        self.marabou_query.property.compute_executables(recompute=True)
 
         # Lists of the original input (x) and output (y) properties to be verified
         # (exactly as they appear in the property files)
         self.x_properties = []
         self.y_properties = []
 
-
         self.layer_interpolant_candidate = layerInterpolateCandidate()
-        self.general_interpolant_candidate = generalInterpolantCandidate() # Currently not supported
-
+        self.general_interpolant_candidate = generalInterpolantCandidate()  # Currently not supported
 
         # Setting x_properties and y_properties to their correct values
         self.setOriginalPropertyLists()
@@ -927,37 +865,30 @@ class MarabouNNetMCMH:
         self.good_set = []
         self.bad_set = []
 
-
-        #Lists of the variables corresponding to the layer
+        # Lists of the variables corresponding to the layer
         self.layer_bVars = []
         self.layer_fVars = []
 
         self.epsilon = 0.01
 
-
         self.basic_statistics = basic_mcmh_statistics(epsilon=self.epsilon)
-
 
         # The hidden layer we will study an invariant for
         # Currently we only work with one hidden layer
-        if layer>-1:
+        if layer > -1:
             self.setLayer(layer)
         else:
             self.layer = -1
             self.layer_size = 0
 
-
-
         # we store executable versions of certain properties (that will be evaluated many times) locally
         # for the sake of efficiency
-        assert self.marabou_nnet.property.exec_equations_computed
-        assert self.marabou_nnet.property.exec_bounds_computed
+        assert self.marabou_query.property.exec_equations_computed
+        assert self.marabou_query.property.exec_bounds_computed
 
-        self.input_equations = self.marabou_nnet.property.get_exec_input_equations()
-        self.output_equations = self.marabou_nnet.property.get_exec_output_equations()
-        self.output_bounds = self.marabou_nnet.property.get_exec_output_bounds()
-
-
+        self.input_equations = self.marabou_query.property.get_exec_input_equations()
+        self.output_equations = self.marabou_query.property.get_exec_output_equations()
+        self.output_bounds = self.marabou_query.property.get_exec_output_bounds()
 
         # The number of inputs that have been considered: used for computation of statistics
         # Not clear we need this at all. Check.
@@ -975,7 +906,6 @@ class MarabouNNetMCMH:
         # Input queries reserved for verification of the interpolant candidate with Marabou
         self.ipq1 = MarabouCore.InputQuery()
         self.ipq2 = MarabouCore.InputQuery()
-
 
         # Attributes from an older version, probably not relevant now.
 
@@ -1011,14 +941,13 @@ class MarabouNNetMCMH:
         # self.epsiloni = []
         # self.epsiloni_twosided = {'l': [], 'r': []}
 
-
-    def verify(self, timeout = 0, layer = -1, N = 5000, network_filename1 = '', network_filename2 = '',
-               property_filename1 = '', property_filename2 = ''):
-        self.initiateVerificationProcess(layer,N)
+    def verify(self, timeout=0, layer=-1, N=5000, network_filename1='', network_filename2='',
+               property_filename1='', property_filename2=''):
+        self.initiateVerificationProcess(layer, N)
         # self.prepareForMarabouCandidateVerification()
         self.setFilenames(network_filename1, network_filename2, property_filename1, property_filename2)
 
-        status, argument_list = self.CandidateSearch(number_of_trials=100, individual_sample=20,timeout = timeout)
+        status, argument_list = self.CandidateSearch(number_of_trials=100, individual_sample=20, timeout=timeout)
         # TODO: a smarter choice of sample size and number of trials?
 
         if status == 'success':
@@ -1041,9 +970,8 @@ class MarabouNNetMCMH:
             print('Timeout after ', argument_list[0], 'seconds.')
             sys.exit(3)
 
-
-    def setLayer(self,layer):
-        assert ((layer>=0) and (layer<self.marabou_nnet.numLayers))
+    def setLayer(self, layer):
+        assert ((layer >= 0) and (layer < self.marabou_nnet.numLayers))
         self.layer = layer
         self.computeLayerVariables()
 
@@ -1065,13 +993,11 @@ class MarabouNNetMCMH:
         # self.epsiloni_left = {}
         # self.epsiloni_right = {}
 
-
     def setEpsilon(self, epsilon: float):
         self.epsilon = epsilon
 
-
-    def setFilenames(self, network_filename1 = '', network_filename2 = '', property_filename1='',property_filename2='',
-                     network_filename_disjunct = ''):
+    def setFilenames(self, network_filename1='', network_filename2='', property_filename1='', property_filename2='',
+                     network_filename_disjunct=''):
         assert property_filename1 or self.property_filename1
         assert property_filename2 or self.property_filename2
         assert network_filename1 or self.network_filename1
@@ -1079,9 +1005,9 @@ class MarabouNNetMCMH:
         assert network_filename_disjunct or self.network_filename_disjunct
 
         if property_filename1:
-            self.property_filename1=property_filename1
+            self.property_filename1 = property_filename1
         if property_filename2:
-            self.property_filename2=property_filename2
+            self.property_filename2 = property_filename2
         if network_filename1:
             self.network_filename1 = network_filename1
         if network_filename2:
@@ -1090,13 +1016,13 @@ class MarabouNNetMCMH:
             self.network_filename_disjunct = network_filename_disjunct
 
     def setOriginalPropertyLists(self):
-        if self.marabou_nnet.property.mixed_properties_present() or self.marabou_nnet.property.ws_properties_present():
+        if self.marabou_query.property.mixed_properties_present() or self.marabou_query.property.ws_properties_present():
             print('Currently only support pure input and output properties')
-            print(self.marabou_nnet.property.properties_list)
+            print(self.marabou_query.property.properties_list)
             sys.exit(1)
 
-        self.x_properties = self.marabou_nnet.property.get_original_x_properties()
-        self.y_properties = self.marabou_nnet.property.get_original_y_properties()
+        self.x_properties = self.marabou_query.property.get_original_x_properties()
+        self.y_properties = self.marabou_query.property.get_original_y_properties()
 
     def computeLayerVariables(self):
         self.layer_bVars = []
@@ -1109,10 +1035,8 @@ class MarabouNNetMCMH:
             self.layer_fVars.append(self.marabou_nnet.nodeTo_f(layer, node))
             self.layer_bVars.append(self.marabou_nnet.nodeTo_b(layer, node))
 
-
     def clearGoodSet(self):
         self.good_set = []
-
 
     def verifyInputEquations(self, x):
         for eq in self.input_equations:
@@ -1135,22 +1059,20 @@ class MarabouNNetMCMH:
     def verifyOutputProperty(self, y):
         return self.verifyOutputBounds(y) and self.verifyOutputEquations(y)
 
-
-    def outputVariableToIndex(self,output_variable):
-        return output_variable-self.marabou_nnet.numVars+self.marabou_nnet.outputSize
-
+    def outputVariableToIndex(self, output_variable):
+        return output_variable - self.marabou_nnet.numVars + self.marabou_nnet.outputSize
 
     # This is the firs method to run after creating an object
-    def initiateVerificationProcess(self, layer = -1, N=5000, compute_loose_offsets='range',
+    def initiateVerificationProcess(self, layer=-1, N=5000, compute_loose_offsets='range',
                                     loose_offset_const=1):
-        assert self.layer>-1 or layer>-1
-        if layer>-1:
+        assert self.layer > -1 or layer > -1
+        if layer > -1:
             self.setLayer(layer)
 
-        self.createInitialGoodSet(N,include_input_extremes=True,adjust_bounds=False)
+        self.createInitialGoodSet(N, include_input_extremes=True, adjust_bounds=False)
         assert self.good_set
 
-        self.basic_statistics.recompute_statistics(self.good_set,two_sided=True)
+        self.basic_statistics.recompute_statistics(self.good_set, two_sided=True)
         assert self.basic_statistics.statistics_computed
 
         self.layer_interpolant_candidate.loadFromBasicStatiatics(self.basic_statistics, self.layer,
@@ -1158,27 +1080,23 @@ class MarabouNNetMCMH:
                                                                  loose_offset_const=loose_offset_const)
         self.layer_interpolant_candidate.setInitialParticipatingNeurons()
 
-
         # self.epsiloni = self.basic_statistics.epsiloni
         # self.epsiloni_twosided = self.basic_statistics.epsiloni_twosided
         # self.layer_minimums = self.basic_statistics.minimums
         # self.layer_maximums = self.basic_statistics.maximums
 
-
         # self.computeInitialInterpolantCandidateForLayer()
 
-
-
     # Was more important in an older version. Perhaps redundant now?
-    def prepareForMarabouCandidateVerification(self, network_filename1 = '', network_filename2 = '',
-                                               property_filename1 = '', property_filename2 = '',
-                                               network_filename_disjunct = ''):
+    def prepareForMarabouCandidateVerification(self, network_filename1='', network_filename2='',
+                                               property_filename1='', property_filename2='',
+                                               network_filename_disjunct=''):
 
         if self.marabou_verification_initiated:
             print('Warning: repeated request to split the network and/or set filenames.')
 
-        self.setFilenames(network_filename1=network_filename1,network_filename2=network_filename2,
-                          property_filename1=property_filename1,property_filename2=property_filename2,
+        self.setFilenames(network_filename1=network_filename1, network_filename2=network_filename2,
+                          property_filename1=property_filename1, property_filename2=property_filename2,
                           network_filename_disjunct=network_filename_disjunct)
         self.split_network()
 
@@ -1189,14 +1107,14 @@ class MarabouNNetMCMH:
         # self.addLayerPropertiesToOutputPropertyFile()
 
     # returns [], True if timed out
-    def verifyConjunctionWithMarabou(self,add_to_badset=True, timeout = 0):
+    def verifyConjunctionWithMarabou(self, add_to_badset=True, timeout=0):
 
         self.createOriginalOutputPropertyFile()
         self.addLayerPropertiesToOutputPropertyFile()
 
         createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
         options = createOptions(verbosity=0, timeoutInSeconds=timeout)
-        [vals,stats] = solve_query(ipq=self.ipq2,verbose=True, options=options)
+        [vals, stats] = solve_query(ipq=self.ipq2, verbose=True, options=options)
         bad_input = self.convertVectorFromDictToList(vals)
 
         if stats.hasTimedOut():
@@ -1207,12 +1125,11 @@ class MarabouNNetMCMH:
                 self.bad_set.append(bad_input)
         return bad_input, False
 
-
     # returns [], True if timed out
-    def verifyDisjunctWithMarabou(self,var: int, side: str, add_to_goodset=True, timeout = 0,
+    def verifyDisjunctWithMarabou(self, var: int, side: str, add_to_goodset=True, timeout=0,
                                   truncated_output_layer=True):
         assert var in range(self.layer_size)
-        assert side in types_of_bounds
+        assert side in TYPES_OF_BOUNDS
 
         self.createOriginalInputPropertyFile()
         self.addOutputLayerPropertyByIndexToInputPropertyFile(var=var, side=side,
@@ -1235,14 +1152,11 @@ class MarabouNNetMCMH:
             if add_to_goodset:
                 self.good_set.append(bad_input)
         else:
-            self.layer_interpolant_candidate.reportVerifiedDisjunct(var,side)
+            self.layer_interpolant_candidate.reportVerifiedDisjunct(var, side)
         return bad_input, False
 
-
-
-
-    def verifyUnverifiedDisjunctsWithMarabou(self, add_to_goodset=True, timeout = 0, individual_timeout = 0,
-                                             verbosity = 0, truncated_output_layer=True):
+    def verifyUnverifiedDisjunctsWithMarabou(self, add_to_goodset=True, timeout=0, individual_timeout=0,
+                                             verbosity=0, truncated_output_layer=True):
 
         if not individual_timeout:
             individual_timeout = timeout
@@ -1252,16 +1166,16 @@ class MarabouNNetMCMH:
         exit_due_to_timeout = False
 
         for var in range(self.layer_size):
-            if verbosity>0:
+            if verbosity > 0:
                 print('verifying disjuncts for variable: ', var)
             current_time = time.time()
             if current_time - starting_time > timeout:
                 exit_due_to_timeout = True
                 break
 
-            for side in types_of_bounds:
+            for side in TYPES_OF_BOUNDS:
 
-                if verbosity>0:
+                if verbosity > 0:
                     print('verifying disjunct for side: ', side)
 
                 if not self.layer_interpolant_candidate.list_of_neurons[var].participates_in_invariant[side]:
@@ -1269,9 +1183,9 @@ class MarabouNNetMCMH:
                 if self.layer_interpolant_candidate.list_of_neurons[var].isDisjunctVerified(side):
                     continue
 
-                if verbosity>0:
+                if verbosity > 0:
                     print('Requires verification')
-                if verbosity>1:
+                if verbosity > 1:
                     print('Dual property to verify:')
                     print(self.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side])
 
@@ -1283,29 +1197,26 @@ class MarabouNNetMCMH:
                 if exit_due_to_timeout:
                     break
 
-                if not bad_input: #UNSAT
+                if not bad_input:  # UNSAT
                     continue
-                failed_disjuncts.append((var,side,bad_input))
+                failed_disjuncts.append((var, side, bad_input))
 
         return failed_disjuncts, exit_due_to_timeout
 
-
-
-    def verifyAllDisjunctsWithMarabou(self,add_to_goodset=True, truncated_output_layer=True):
+    def verifyAllDisjunctsWithMarabou(self, add_to_goodset=True, truncated_output_layer=True):
         failed_disjuncts = []
         for var in range(self.layer_size):
-            for side in types_of_bounds:
+            for side in TYPES_OF_BOUNDS:
                 bad_input, _ = \
-                    self.verifyDisjunctWithMarabou(var,side,add_to_goodset=add_to_goodset,
+                    self.verifyDisjunctWithMarabou(var, side, add_to_goodset=add_to_goodset,
                                                    truncated_output_layer=truncated_output_layer)
-                if not bad_input: #UNSAT
+                if not bad_input:  # UNSAT
                     continue
-                failed_disjuncts.append((var,side,bad_input))
+                failed_disjuncts.append((var, side, bad_input))
 
         return failed_disjuncts
 
-
-    def adjustConjunctionOnBadInput(self, layer_input,adjust_epsilons = 'random',  number_of_epsilons_to_adjust = 1):
+    def adjustConjunctionOnBadInput(self, layer_input, adjust_epsilons='random', number_of_epsilons_to_adjust=1):
         out_of_bounds_inputs, differene_dict = \
             self.layer_interpolant_candidate.analyzeBadLayerInput(layer_input)
 
@@ -1315,21 +1226,17 @@ class MarabouNNetMCMH:
                                                                 number_of_epsilons=number_of_epsilons_to_adjust)
         return epsilon_adjusted
 
-
     def adjustDisjunctsOnBadInputs(self, failed_disjuncts: list):
         '''
 
         :param failed_disjuncts: list of tuples of the form (var,side,bad_input) created by verifyDisjuncts methods
         :return:
         '''
-        for (var,side,bad_input) in failed_disjuncts:
-            self.layer_interpolant_candidate.adjustObservedBoundForVariable(var,bad_input[var])
+        for (var, side, bad_input) in failed_disjuncts:
+            self.layer_interpolant_candidate.adjustObservedBoundForVariable(var, bad_input[var])
 
-
-
-
-    def CandidateSearch(self, number_of_trials: int, individual_sample: int, timeout = 0, verbosity = 0,
-                        extremes = False):
+    def CandidateSearch(self, number_of_trials: int, individual_sample: int, timeout=0, verbosity=0,
+                        extremes=False):
 
         starting_time = time.time()
         counter = 0
@@ -1338,10 +1245,11 @@ class MarabouNNetMCMH:
             # Continue until success, failure, or time out
 
             status, result, argument_list, time_elapsed = self.oneRoundCandidateSearch(total_trials=number_of_trials,
-                                                                                   individual_sample = individual_sample,
-                                                                                   timeout = timeout, extremes=extremes)
+                                                                                       individual_sample=individual_sample,
+                                                                                       timeout=timeout,
+                                                                                       extremes=extremes)
             counter += 1
-            if verbosity>0:
+            if verbosity > 0:
                 print('Round number: ', counter)
                 print('time elapsed: ', time.time() - starting_time)
 
@@ -1351,22 +1259,22 @@ class MarabouNNetMCMH:
             if status == 'raw_conjunction_too_weak':
                 return status, argument_list
 
-            if (timeout>0) and (time.time() - starting_time > timeout):
+            if (timeout > 0) and (time.time() - starting_time > timeout):
                 return 'timeout', [time.time() - starting_time]
 
             if status == 'candidate_too_weak':
                 if argument_list:
-                # local candidate search returned a list of bad inputs
-                    if verbosity>0:
+                    # local candidate search returned a list of bad inputs
+                    if verbosity > 0:
                         print('One round of candidate search has found a list of bad inputs, adjusting offsets.')
                     bad_input = argument_list
-                    epsilon_adjusted = self.adjustConjunctionOnBadInput(bad_input,adjust_epsilons='all')
-                    if verbosity>0:
+                    epsilon_adjusted = self.adjustConjunctionOnBadInput(bad_input, adjust_epsilons='all')
+                    if verbosity > 0:
                         print('offsets adjusted: ', epsilon_adjusted)
                 else:
                     # no concrete bad inputs; making a radical adjustment
                     self.layer_interpolant_candidate.halfAllOffsets()
-                    if verbosity>0:
+                    if verbosity > 0:
                         print('Conjunction too weak, no concrete bad input, halving all offsets.')
 
                 # TODO: improve.
@@ -1374,26 +1282,24 @@ class MarabouNNetMCMH:
                 #  Include more (or less) neurons in invariant. etc.
 
             if status == 'candidate_not_too_weak':
-            #local candidate search timed out, but global search has not
+                # local candidate search timed out, but global search has not
                 continue
 
             if status == 'failed_disjuncts':
                 self.adjustDisjunctsOnBadInputs(argument_list)
-                if verbosity>0:
+                if verbosity > 0:
                     print('failed disjuncts, observed bounds adjusted: ', argument_list)
                 continue
 
             # TODO: change number of trials and the size of individual sample depending on progress?
 
-
-
-    def oneRoundCandidateSearch(self, total_trials=100, individual_sample = 20, timeout = 0, verbosity = 0,
-                                extremes = False):
+    def oneRoundCandidateSearch(self, total_trials=100, individual_sample=20, timeout=0, verbosity=0,
+                                extremes=False):
 
         starting_time = time.time()
 
         result, out_of_bounds_inputs, differences_dict, time_elapsed = \
-            self.checkConjunction(total_trials=total_trials, individual_sample=individual_sample,timeout=timeout,
+            self.checkConjunction(total_trials=total_trials, individual_sample=individual_sample, timeout=timeout,
                                   verbosity=verbosity, extremes=extremes)
 
         # if result == 'success':
@@ -1402,16 +1308,16 @@ class MarabouNNetMCMH:
 
         if result == 'timeout':
             status = 'candidate_too_weak'
-            return status, result, [], time.time()-starting_time
+            return status, result, [], time.time() - starting_time
 
         if result == 'failed':
-            bad_input = self.verifyRawConjunction() # Verifying whether the observed bounds are strong enough
+            bad_input = self.verifyRawConjunction()  # Verifying whether the observed bounds are strong enough
             if bad_input:
                 status = 'raw_conjunction_too_weak'
-                return status, result, bad_input, time.time()-starting_time
+                return status, result, bad_input, time.time() - starting_time
             status = 'candidate_too_weak'
             result = 'checking_conjunction_failed'
-            return status, result, [], time.time()-starting_time
+            return status, result, [], time.time() - starting_time
 
         # if time.time()-starting_time>timeout:
         #     status = 'candidate_too_weak'
@@ -1426,24 +1332,24 @@ class MarabouNNetMCMH:
         if exit_due_to_timeout:
             status = 'candidate_too_weak'
             result = 'verification_conjunction_timed_out'
-            return status, result, bad_input, time.time()-starting_time
+            return status, result, bad_input, time.time() - starting_time
 
         if bad_input:
             print('Bad input found by Marabou: ', bad_input)
             status = 'candidate_too_weak'
             result = 'verification_conjunction_failed'
-            return status, result, bad_input, time.time()-starting_time
+            return status, result, bad_input, time.time() - starting_time
 
-        if timeout and time.time()-starting_time>timeout:
+        if timeout and time.time() - starting_time > timeout:
             status = 'candidate_not_too_weak'
             result = 'timeout'
-            return status, result, [], time.time()-starting_time
+            return status, result, [], time.time() - starting_time
 
         # So for now we assume that we have a candidate which is not too weak
         # Next step is verifying the disjunction
 
         failed_disjuncts, exit_due_to_timeout = \
-            self.verifyUnverifiedDisjunctsWithMarabou(timeout=timeout, individual_timeout=int(timeout/10))
+            self.verifyUnverifiedDisjunctsWithMarabou(timeout=timeout, individual_timeout=int(timeout / 10))
 
         if failed_disjuncts:
             status = 'failed_disjuncts'
@@ -1458,13 +1364,13 @@ class MarabouNNetMCMH:
         if not failed_disjuncts:
             status = 'success'
             result = 'disjuncts_verified'
-            return status, result, [], time.time()-starting_time
+            return status, result, [], time.time() - starting_time
 
         print('Should not reach this point.')
         sys.exit(1)
 
-    def checkConjunction(self,total_trials = 100, individual_sample = 20, number_of_epsilons_to_adjust = 1,
-                               timeout=0, verbosity = 0, extremes = False):
+    def checkConjunction(self, total_trials=100, individual_sample=20, number_of_epsilons_to_adjust=1,
+                         timeout=0, verbosity=0, extremes=False):
 
         # assert self.interpolant_candidate
 
@@ -1479,7 +1385,7 @@ class MarabouNNetMCMH:
                 if time_elapsed > timeout:
                     return 'timeout', out_of_bound_inputs, difference_dict, time_elapsed
 
-            result,  epsilon_adjusted, out_of_bounds_inputs, difference_dict =  \
+            result, epsilon_adjusted, out_of_bounds_inputs, difference_dict = \
                 self.adjustConjunctionOnRandomInputs(sample_size=individual_sample,
                                                      adjust_epsilons=True, add_to_bad_set=True,
                                                      number_of_epsilons_to_adjust=number_of_epsilons_to_adjust,
@@ -1490,14 +1396,11 @@ class MarabouNNetMCMH:
 
         return 'failed', out_of_bound_inputs, difference_dict, 0
 
-
-
-
-    def adjustConjunctionOnRandomInputs(self, sample_size=100, adjust_epsilons = True, add_to_bad_set=True,
-                         number_of_epsilons_to_adjust = 1, verbosity = 0, extremes = False):
+    def adjustConjunctionOnRandomInputs(self, sample_size=100, adjust_epsilons=True, add_to_bad_set=True,
+                                        number_of_epsilons_to_adjust=1, verbosity=0, extremes=False):
         # assert self.interpolant_candidate
 
-        status = True # No counterexample found yet
+        status = True  # No counterexample found yet
 
         out_of_bounds_inputs = []
         difference_dict = {}
@@ -1515,10 +1418,9 @@ class MarabouNNetMCMH:
             # rather, we will later choose an epsilon (or epsilons) to adjust at random
             # from the whole bad set of inputs after the loop is finished
 
-
-            if result == 'within_bounds': # The counterexample is between the actual observed bounds
+            if result == 'within_bounds':  # The counterexample is between the actual observed bounds
                 print("Candidate search has failed. Found a counterexample between observed lower and "
-                      "upper bounds: \n layer input = ",layer_input, '\n output = ', output,   "\n Check if SAT?")
+                      "upper bounds: \n layer input = ", layer_input, '\n output = ', output, "\n Check if SAT?")
                 if verbosity > 2:
                     self.detailedDumpLayerInput(layer_input)
                 self.verifyRawConjunction()
@@ -1529,12 +1431,12 @@ class MarabouNNetMCMH:
                 out_of_bounds_inputs += one_out_of_bounds_inputs
 
                 # adjusting the maximal difference dictionary
-                for (var,side) in one_differene_dict.keys():
-                    if (var,side) not in difference_dict.keys() \
-                            or difference_dict[(var,side)]<one_differene_dict[(var,side)]:
-                        difference_dict[(var,side)] = one_differene_dict[(var,side)]
+                for (var, side) in one_differene_dict.keys():
+                    if (var, side) not in difference_dict.keys() \
+                            or difference_dict[(var, side)] < one_differene_dict[(var, side)]:
+                        difference_dict[(var, side)] = one_differene_dict[(var, side)]
 
-        if (not status) and (verbosity>0):
+        if (not status) and (verbosity > 0):
             print('Counterexamples to the conjunction found by random input search.')
             print('Number of random inputs considered: ', sample_size)
             print('Number of counterexamples discovered: ', len(out_of_bounds_inputs))
@@ -1544,28 +1446,25 @@ class MarabouNNetMCMH:
                 self.layer_interpolant_candidate.strengthenEpsilons(out_of_bounds_inputs, difference_dict,
                                                                     adjust_epsilons='random',
                                                                     number_of_epsilons=number_of_epsilons_to_adjust)
-            if verbosity>1:
-                print ('all out of bound inputs: ', out_of_bounds_inputs)
+            if verbosity > 1:
+                print('all out of bound inputs: ', out_of_bounds_inputs)
                 print('difference dict = ', difference_dict)
-            if verbosity>0:
+            if verbosity > 0:
                 print('The following epsilons have been adjusted: ', epsilon_adjusted)
-
-
 
         # if (not status) and adjust_epsilons:
         #     self.adjustEpsilonAtRandom(out_of_bounds_inputs, adjust_candidate=True)
 
         return status, epsilon_adjusted, out_of_bounds_inputs, difference_dict
 
-
-    def checkCandidateOnInput(self, layer_input,  add_to_bad_set = True):
+    def checkCandidateOnInput(self, layer_input, add_to_bad_set=True):
         # assert adjust_epsilons in ['','random','all']
 
         output = self.marabou_nnet.evaluateNetworkFromLayer(layer_input, first_layer=self.layer)
         one_out_of_bounds_inputs = []
         one_differene_dict = {}
 
-        result = 'success' # No counterexamples to the candidate found
+        result = 'success'  # No counterexamples to the candidate found
 
         if self.verifyOutputProperty(y=output):
             if add_to_bad_set:
@@ -1574,26 +1473,24 @@ class MarabouNNetMCMH:
             one_out_of_bounds_inputs, one_differene_dict = \
                 self.layer_interpolant_candidate.analyzeBadLayerInput(layer_input)
 
-            if not one_out_of_bounds_inputs: # Bad input within observed bounds!
+            if not one_out_of_bounds_inputs:  # Bad input within observed bounds!
                 result = 'within_bounds'
             else:
-                result  = 'out_of_bounds'
+                result = 'out_of_bounds'
 
         return result, one_out_of_bounds_inputs, one_differene_dict, output
-
 
     def createOriginalInputPropertyFile(self):
         property_filename1 = self.property_filename1
         # assert property_filename1
 
         try:
-            with open(property_filename1,'w') as f2:
+            with open(property_filename1, 'w') as f2:
                 for l in self.x_properties:
                     f2.write(l)
         except:
             print('Something went wrong with creating the initial property files or writing to them')
             sys.exit(1)
-
 
     def createOriginalOutputPropertyFile(self):
         property_filename2 = self.property_filename2
@@ -1607,7 +1504,6 @@ class MarabouNNetMCMH:
             print('Something went wrong with creating the initial property files or writing to them')
             sys.exit(1)
 
-
     def addLayerPropertiesToOutputPropertyFile(self):
         '''
         adds self.interpolant_candidate to self.property_filename2
@@ -1617,7 +1513,7 @@ class MarabouNNetMCMH:
         # assert self.property_filename2
 
         try:
-            with open(self.property_filename2,'a') as f2:
+            with open(self.property_filename2, 'a') as f2:
                 for p in self.layer_interpolant_candidate.getConjunction():
                     f2.write(p)
                     f2.write('\n')
@@ -1635,7 +1531,7 @@ class MarabouNNetMCMH:
         '''
 
         assert var in range(self.layer_size)
-        assert side in types_of_bounds
+        assert side in TYPES_OF_BOUNDS
 
         p = self.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side]
         if truncated_output_layer:
@@ -1643,7 +1539,7 @@ class MarabouNNetMCMH:
 
         self.addOutputLayerPropertyToInputPropertyFile(p=p)
 
-    def addOutputLayerPropertyToInputPropertyFile(self,p=''):
+    def addOutputLayerPropertyToInputPropertyFile(self, p=''):
         '''
         adds one property (string) to self.property_filename1
             which is the property file for the network whose output layer is self.layer
@@ -1662,7 +1558,6 @@ class MarabouNNetMCMH:
             print('Something went wrong with writing to property_file1')
             sys.exit(1)
 
-
     def split_network(self):
         '''
         Splits the network into two
@@ -1675,7 +1570,7 @@ class MarabouNNetMCMH:
         :return:
         '''
 
-        assert self.layer >=0
+        assert self.layer >= 0
 
         network_filename1 = self.network_filename1
         network_filename2 = self.network_filename2
@@ -1683,10 +1578,8 @@ class MarabouNNetMCMH:
         assert network_filename1
         assert network_filename2
 
-
-
         try:
-        # if True:
+            # if True:
             nnet_object1, nnet_object2 = splitNNet(marabou_nnet=self.marabou_nnet, layer=self.layer)
 
             nnet_object1.writeNNet(network_filename1)
@@ -1699,8 +1592,7 @@ class MarabouNNetMCMH:
         self.network_filename1 = network_filename1
         self.network_filename2 = network_filename2
 
-
-    def createTruncatedInputNetworkByNeuron(self,var: int):
+    def createTruncatedInputNetworkByNeuron(self, var: int):
         assert var in range(self.layer_size)
         assert self.network_filename_disjunct
 
@@ -1720,10 +1612,6 @@ class MarabouNNetMCMH:
             print('Something went wrong writing to the single disjunct file')
             sys.exit(1)
 
-
-
-
-
     def createRandomInputForNetwork(self):
         input = []
         for input_var in self.marabou_nnet.inputVars.flatten():
@@ -1738,12 +1626,12 @@ class MarabouNNetMCMH:
         self.createOriginalOutputPropertyFile()
 
         try:
-            with open(self.property_filename2,'a') as f2:
+            with open(self.property_filename2, 'a') as f2:
                 for var in range(self.layer_size):
-                    p = 'x' + str(var) + ' <= '+str(max(0,self.layer_interpolant_candidate.layer_maximums[var]))
+                    p = 'x' + str(var) + ' <= ' + str(max(0, self.layer_interpolant_candidate.layer_maximums[var]))
                     f2.write(p)
                     f2.write('\n')
-                    p = 'x' + str(var) + ' >= '+str(max(0,self.layer_interpolant_candidate.layer_minimums[var]))
+                    p = 'x' + str(var) + ' >= ' + str(max(0, self.layer_interpolant_candidate.layer_minimums[var]))
                     f2.write(p)
                     f2.write('\n')
         except:
@@ -1752,15 +1640,11 @@ class MarabouNNetMCMH:
 
         MarabouCore.createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
 
-        [vals,_] = solve_query(self.ipq2, verbose=True, verbosity=0)
+        [vals, _] = solve_query(self.ipq2, verbose=True, verbosity=0)
         return self.convertVectorFromDictToList(vals)
 
-
-
-
-    def convertVectorFromDictToList(self,dict_vector: dict):
+    def convertVectorFromDictToList(self, dict_vector: dict):
         return [dict_vector[i] for i in dict_vector.keys()]
-
 
     def detailedDumpLayerInput(self, layer_input):
         for var in range(self.layer_interpolant_candidate.layer_size):
@@ -1770,33 +1654,30 @@ class MarabouNNetMCMH:
                   ' ', self.layer_interpolant_candidate.list_of_neurons[var].interpolant_property['r'],
                   ' input = ', layer_input[var])
 
-
     def createInitialGoodSet(self, N, include_input_extremes=True, adjust_bounds=False, sanity_check=False):
         self.clearGoodSet()
         if include_input_extremes:
-            self.outputsOfInputExtremesForLayer(adjust_bounds=adjust_bounds,add_to_goodset=True,add_to_statistics=True,
-                                                verify_property=True,sanity_check=sanity_check)
-        self.addRandomValuesToGoodSet(N,adjust_bounds=adjust_bounds,check_bad_inputs=True,sanity_check=sanity_check)
-
-
-
+            self.outputsOfInputExtremesForLayer(adjust_bounds=adjust_bounds, add_to_goodset=True,
+                                                add_to_statistics=True,
+                                                verify_property=True, sanity_check=sanity_check)
+        self.addRandomValuesToGoodSet(N, adjust_bounds=adjust_bounds, check_bad_inputs=True, sanity_check=sanity_check)
 
     # Creates a list of outputs for self.layer for the "extreme" input values
-    def outputsOfInputExtremesForLayer(self, adjust_bounds = True, add_to_goodset = True, add_to_statistics = True,
-                                       verify_property = True, sanity_check = False):
+    def outputsOfInputExtremesForLayer(self, adjust_bounds=True, add_to_goodset=True, add_to_statistics=True,
+                                       verify_property=True, sanity_check=False):
         layer_outputs = []
         input_size = self.marabou_nnet.inputSize
 
-        assert self.layer>-1
+        assert self.layer > -1
 
-        #We don't want to deal with networks that have a large input layer
+        # We don't want to deal with networks that have a large input layer
         assert input_size < 20
 
         for i in range(2 ** input_size):
-            #turning the number i into a bit string of a specific length
-            bit_string =  '{:0{size}b}'.format(i,size=input_size)
+            # turning the number i into a bit string of a specific length
+            bit_string = '{:0{size}b}'.format(i, size=input_size)
 
-            #print bit_string #debugging
+            # print bit_string #debugging
 
             inputs = [0 for i in range(input_size)]
 
@@ -1809,11 +1690,11 @@ class MarabouNNetMCMH:
 
             # print ("Evaluating layer; input = ", inputs) # debug
 
-            #Evaluating the network up to the given layer on the input
-            #By not activating the last layer, we get values for the b variables, which give more information
+            # Evaluating the network up to the given layer on the input
+            # By not activating the last layer, we get values for the b variables, which give more information
 
-            output = self.marabou_nnet.evaluateNetworkToLayer(inputs,last_layer=self.layer,normalize_inputs=False,
-                                                              normalize_outputs=False,activate_output_layer=False)
+            output = self.marabou_nnet.evaluateNetworkToLayer(inputs, last_layer=self.layer, normalize_inputs=False,
+                                                              normalize_outputs=False, activate_output_layer=False)
 
             # print("output = ", output) # debug
             layer_outputs.append(output)
@@ -1822,11 +1703,11 @@ class MarabouNNetMCMH:
                 if self.layer == self.marabou_nnet.numLayers - 1:
                     network_output = output
                 else:
-                    network_output = self.marabou_nnet.evaluateNetworkFromLayer(output,first_layer=self.layer)
+                    network_output = self.marabou_nnet.evaluateNetworkFromLayer(output, first_layer=self.layer)
 
-                if self.marabou_nnet.property.verify_io_property(x=inputs,y=network_output):
+                if self.marabou_query.property.verify_io_property(x=inputs, y=network_output):
                     print('A counterexample found! One of the extreme values. Bit string = ', bit_string,
-                          '; input = ',inputs, 'output = ', network_output)
+                          '; input = ', inputs, 'output = ', network_output)
                     sys.exit(0)
 
             if add_to_goodset:
@@ -1840,19 +1721,17 @@ class MarabouNNetMCMH:
             #                                                       normalize_outputs=False, activate_output_layer=True)
             #     self.adjustfLayerBounds(output)
 
-
         if add_to_statistics:
             self.numberOfInputs += 2 ** input_size
 
         return layer_outputs
 
-
-    def addRandomValuesToGoodSet(self,N,adjust_bounds=True, check_bad_inputs = True, sanity_check=False):
-        assert self.layer >=0
+    def addRandomValuesToGoodSet(self, N, adjust_bounds=True, check_bad_inputs=True, sanity_check=False):
+        assert self.layer >= 0
 
         layer = self.layer
 
-        good_set =[]
+        good_set = []
         for i in range(N):
             inputs = self.createRandomInputForNetwork()
 
@@ -1863,14 +1742,16 @@ class MarabouNNetMCMH:
 
             # Evaluating the network at the layer
             layer_output = self.marabou_nnet.evaluateNetworkToLayer(inputs, last_layer=layer, normalize_inputs=False,
-                                                                    normalize_outputs=False,activate_output_layer=False)
+                                                                    normalize_outputs=False,
+                                                                    activate_output_layer=False)
             # we know that the property holds on the inputs
             # Checking whether it also holds on the outputs; if it does , we have a counterexample!
             # Note that we currently assume that there are no constraints on the hidden layer!
 
             if check_bad_inputs:
-                network_output = self.marabou_nnet.evaluateNetworkFromLayer(layer_output,first_layer=layer,
-                                                                            normalize_inputs=False,normalize_outputs=False,
+                network_output = self.marabou_nnet.evaluateNetworkFromLayer(layer_output, first_layer=layer,
+                                                                            normalize_inputs=False,
+                                                                            normalize_outputs=False,
                                                                             activate_output_layer=False)
                 if self.verifyOutputProperty(network_output):
                     print('A counter example found! Randomly chosen input = ', inputs, 'output = ', network_output)
@@ -1894,11 +1775,9 @@ class MarabouNNetMCMH:
         self.good_set += good_set
         self.numberOfInputs += true_N
 
-        if (true_N<N):
+        if (true_N < N):
             print('Warning in adding random values to good set: equations failed on some of the random inputs, only ',
                   true_N, ' out of ', N, ' inputs were added')
-
-
 
     # def getSoftUpperBoundForLayer(self, var, two_sided = True):
     #     epsilon = self.epsiloni_twosided['r'][var] if two_sided else self.epsiloni[var]
@@ -1914,13 +1793,11 @@ class MarabouNNetMCMH:
     #     return max(0, self.layer_minimums[var] - epsilon)
     #
     # def getSoftBoundForLayer(self, var: int, side: str, two_sided = True):
-    #     assert side in types_of_bounds
+    #     assert side in TYPES_OF_BOUNDS
     #
     #     if side == 'l':
     #         return self.getSoftLowerBoundForLayer(var,two_sided)
     #     return self.getSoftUpperBoundForLayer(var,two_sided)
-
-
 
     #
     # def strengthenEpsilons(self, out_of_bounds_inputs, differene_dict, adjust_epsilons='', number_of_epsilons=1):
@@ -1950,8 +1827,6 @@ class MarabouNNetMCMH:
     #     return epsilons_to_adjust
     #
 
-
-
     # def analyzeBadLayerInput(self, layer_input, use_multiplicity = False):
     #     bad_layer_inputs = []
     #     bad_layer_inputs_dict = {}
@@ -1979,24 +1854,18 @@ class MarabouNNetMCMH:
     #     return bad_layer_inputs, bad_layer_inputs_dict
     #
 
-
     # def recompute_xPropertyFile(self):
     #     property_filename2 = self.property_filename2
     #     assert property_filename2
-
 
     # def recomputePropertyFiles(self):
     #     property_filename1 = self.property_filename1
     #     property_filename2 = self.property_filename2
 
-
     # Currently there is no use for this, and the dictionary is empty
     # def getPropertyIndex(self,var,side):
     #     assert (var,side) in self.dict_sidevar_to_interpolant_index
     #     return self.dict_sidevar_to_interpolant_index[(var,side)]
-
-
-
 
     # Older version
 
@@ -2045,11 +1914,6 @@ class MarabouNNetMCMH:
     #             self.layer_fmaximums_dict[i] = layer_output[i]
     #
 
-
-
-
-
-
     # Older version
 
     # def computeInitialInterpolantCandidateForLayer(self,two_sided=True):
@@ -2089,7 +1953,7 @@ class MarabouNNetMCMH:
     #
     # def adjustInterpolantCandidate(self,var: int, side = '', two_sided = True):
     #     assert var in range(self.layer_size)
-    #     assert side in types_of_bounds
+    #     assert side in TYPES_OF_BOUNDS
     #
     #     self.suggested_layer_bounds[side][var] = self.getSoftBoundForLayer(var,side,two_sided)
     #
@@ -2107,7 +1971,7 @@ class MarabouNNetMCMH:
     #
     # def adjustEpsilon(self, var: int, side: str, new_epsilon: float, two_sided = True, adjust_candidate = True):
     #     assert var in range(self.layer_size)
-    #     assert side in types_of_bounds
+    #     assert side in TYPES_OF_BOUNDS
     #
     #     if not two_sided:
     #         assert self.epsiloni
@@ -2130,13 +1994,12 @@ class MarabouNNetMCMH:
     #     return 'x' + str(var) + ' >= ' + str(self.suggested_layer_bounds['r'][var])
     #
     # def computeBoundProperty(self,var: int, side: str):
-    #     assert side in types_of_bounds
+    #     assert side in TYPES_OF_BOUNDS
     #
     #     if side == 'l':
     #         return self.computeLowerBoundProperty(var)
     #     return self.computeUpperBoundProperty(var)
     #
-
 
     # Older version, probably redundant?
     # def createAdjustEpsilonDict(self, out_of_bound_inputs):
@@ -2223,8 +2086,6 @@ class MarabouNNetMCMH:
     #     return one_out_of_bounds_inputs
     #
 
-
-
     # Old version, redundant now
     # def createInitialPropertyFiles(self,property_filename1,property_filename2):
     #     '''
@@ -2246,7 +2107,7 @@ class MarabouNNetMCMH:
     #     x_properties = []
     #     y_properties = []
     #
-    #     for p in self.marabou_nnet.property.properties_list:
+    #     for p in self.marabou_query.property.properties_list:
     #         if p['type2'] == 'x':
     #             x_properties.append(p['line'])
     #         elif p['type2'] == 'y':
@@ -2274,55 +2135,45 @@ class MarabouNNetMCMH:
     #
     #
 
+    # returns TRUE if variable is within bounds
+    # asserts that the variable is legal
+    # NOTE: we are assuming that the bounds have been tightened after the property has been incorporated.
 
-
-
-
-    #returns TRUE if variable is within bounds
-    #asserts that the variable is legal
-    #NOTE: we are assuming that the bounds have been tightened after the property has been incorporated.
-
-    def variableWithinBounds(self,variable,value):
+    def variableWithinBounds(self, variable, value):
         assert variable >= 0
         assert variable < self.marabou_nnet.numVars
 
-        return  not ((self.marabou_nnet.lowerBoundExists(variable) and \
-                value<self.marabou_nnet.lowerBounds[variable]) or \
-                (self.marabou_nnet.upperBoundExists(variable) and \
-                value>self.marabou_nnet.upperBounds[variable]))
-
+        return not ((self.marabou_nnet.lowerBoundExists(variable) and \
+                     value < self.marabou_nnet.lowerBounds[variable]) or \
+                    (self.marabou_nnet.upperBoundExists(variable) and \
+                     value > self.marabou_nnet.upperBounds[variable]))
 
     # If one of the variables in the list  of outputs is out of bounds, returns a list of True and the first such variable
-    def outputOutOfBounds(self,output):
+    def outputOutOfBounds(self, output):
         output_variable_index = 0
         for output_variable in self.marabou_nnet.outputVars.flatten():
-            if not self.variableWithinBounds(output_variable,output[output_variable_index]):
-                    return [True,output_variable]
-            output_variable_index+=1
+            if not self.variableWithinBounds(output_variable, output[output_variable_index]):
+                return [True, output_variable]
+            output_variable_index += 1
         return [False]
 
-
     # def inputEquationsHold(self,x):
-
-
-
 
     # Asserts that a legal input is given (all input variables are within bounds)
     # returns TRUE if the input satisfies all the bounds and equations
     # This method is not used in the current version
-    def badInput(self,inputs):
+    def badInput(self, inputs):
         assert len(inputs) == self.marabou_nnet.inputSize
         for input_variable in self.marabou_nnet.inputVars.flatten():
             value = inputs[input_variable]
             assert value >= self.marabou_nnet.lowerBounds[input_variable]
             assert value <= self.marabou_nnet.upperBounds[input_variable]
-        output = self.marabou_nnet.evaluateNetworkToLayer(inputs,last_layer=-1,normalize_inputs=False,normalize_outputs=False)
+        output = self.marabou_nnet.evaluateNetworkToLayer(inputs, last_layer=-1, normalize_inputs=False,
+                                                          normalize_outputs=False)
 
-        equations_hold = self.marabou_nnet.property.verify_equations_exec(inputs,output)
+        equations_hold = self.marabou_query.property.verify_equations_exec(inputs, output)
 
         return (not self.outputOutOfBounds(output)[0]) and equations_hold
-
-
 
     # Old version, probablly redundant
     # def create_new_xPropertyFile(self,property_filename1):
@@ -2331,7 +2182,7 @@ class MarabouNNetMCMH:
     #
     #     print('Warning: replacing property_filename1, from ', self.property_filename1, " to ", property_filename1)
     #
-    #     x_properties = [p in self.marabou_nnet.property.properties_list for p['type2'] == 'x']
+    #     x_properties = [p in self.marabou_query.property.properties_list for p['type2'] == 'x']
     #
     #     try:
     #         with open(property_filename1,'w') as f2:
@@ -2343,7 +2194,6 @@ class MarabouNNetMCMH:
     #
     #     self.property_filename1 = property_filename1
 
-
     # Old version, probably redundant
     # def create_new_yPropertyFile(self, property_filename2):
     #
@@ -2351,7 +2201,7 @@ class MarabouNNetMCMH:
     #
     #     print('Warning: replacing property_filename2, from ', self.property_filename2, " to ", property_filename2)
     #
-    #     y_properties = [p in self.marabou_nnet.property.properties_list for p['type2'] == 'y']
+    #     y_properties = [p in self.marabou_query.property.properties_list for p['type2'] == 'y']
     #
     #     try:
     #         with open(property_filename2, 'w') as f2:
@@ -2363,18 +2213,17 @@ class MarabouNNetMCMH:
     #
     #     self.property_filename2 = property_filename2
 
-
     # I think this method is redundant
     # def createPropertyFiles(self,property_filename1,property_filename2):
-    #     # if self.marabou_nnet.property.bounds['ws'] or self.marabou_nnet.property.equations['m'] or
-    #     #     self.marabou_nnet.property.equations['ws']:
+    #     # if self.marabou_query.property.bounds['ws'] or self.marabou_query.property.equations['m'] or
+    #     #     self.marabou_query.property.equations['ws']:
     #     #     print('Mixed equations and bounds on hidden variables currently not supported')
     #     #     sys.exit(1)
     #
     #     x_properties = []
     #     y_properties = []
     #
-    #     for p in self.marabou_nnet.property.properties_list:
+    #     for p in self.marabou_query.property.properties_list:
     #         if p['type2'] == 'x':
     #             x_properties.append(p['line'])
     #         elif p['type2'] == 'y':
@@ -2383,8 +2232,8 @@ class MarabouNNetMCMH:
     #             print('Only pure input and output properties are currently supported')
     #             sys.exit(1)
     #
-    #     # input_properties = [p in self.marabou_nnet.property.properties_list for p['type2'] == 'x']
-    #     # output_properties = [p in self.marabou_nnet.property.properties_list for p['type2'] == 'y']
+    #     # input_properties = [p in self.marabou_query.property.properties_list for p['type2'] == 'x']
+    #     # output_properties = [p in self.marabou_query.property.properties_list for p['type2'] == 'y']
     #
     #     try:
     #         with open(property_filename1,'w') as f2:
@@ -2400,9 +2249,6 @@ class MarabouNNetMCMH:
     #     self.property_filename1 = property_filename1
     #     self.property_filename2 = property_filename2
     #
-
-
-
 
     # REDUNDANT?
     # def computeInitialInterpolantCandidateForLayer(self,sanity_check = False):
@@ -2426,7 +2272,7 @@ class MarabouNNetMCMH:
     #     interpolant_list = []
     #     output_interpolant_list = []
     #
-    #     for i in range(self.marabou_nnet.layerSizes[self.layer]):
+    #     for i in range(self.marabou_query.layerSizes[self.layer]):
     #         if i in layerMinimums:
     #             individual_property = []
     #             individual_property.append('x')
@@ -2471,7 +2317,6 @@ class MarabouNNetMCMH:
     #     self.interpolant_candidate = interpolant_list
     #     self.output_interpolant_candidate = output_interpolant_list
     #
-
 
     # This method is from an older version, and is now redundant
     # def createRandomOutputPropertyFileForLayer(self,output_property_filename: str):
@@ -2767,16 +2612,12 @@ class MarabouNNetMCMH:
     #
     #
 
-
-
-
-
     # NOT USED, and currently wrong (checks the negation of the property on the outputs)
     # See the method outputsOfInputExtremesForLayer, implemented correctly
 
-    #Creates a list of outputs of the "extreme" input values
-    #Checks whether all these outputs are legal (within bounds and satisfy the equations)
-    #Creates a list of "empiric bounds" for the output variables based on the results
+    # Creates a list of outputs of the "extreme" input values
+    # Checks whether all these outputs are legal (within bounds and satisfy the equations)
+    # Creates a list of "empiric bounds" for the output variables based on the results
     # def outputsOfInputExtremes(self):
     #     outputs = []
     #     input_size = self.marabou_nnet.inputSize
@@ -2821,7 +2662,7 @@ class MarabouNNetMCMH:
     #         #     sys.exit()
     #         #
     #         #
-    #         # if not self.marabou_nnet.property.verify_equations_exec(inputs,output): #NOT Normalizing outputs!
+    #         # if not self.marabou_query.property.verify_equations_exec(inputs,output): #NOT Normalizing outputs!
     #         #     print('A counterexample found! One of the extreme values. Vector = ',bit_string, '; input = ', inputs)
     #         #
     #         #     sys.exit()
@@ -2842,8 +2683,6 @@ class MarabouNNetMCMH:
     #     print ("upper bounds = ", output_upper_bounds)
     #
     #     #print(outputs)
-
-
 
     # def createOutputPropertyFileForLayer(self,output_property_filename: str):
     #     """
@@ -3026,25 +2865,21 @@ class advanced_mcmh_statistics:
 
 '''
 
+# network_filename = "../maraboupy/regress_acas_nnet/ACASXU_run2a_1_7_batch_2000.nnet"
 
 
-
-#network_filename = "../maraboupy/regress_acas_nnet/ACASXU_run2a_1_7_batch_2000.nnet"
-
-
-# mcmh_object = MarabouNNetMCMH(network_filename=network_filename, property_filename=property_filename)
-
+# mcmh_object = CompositionalVerifier(network_filename=network_filename, property_filename=property_filename)
 
 
 # mcmh_object.setLayer(layer=5)
 
 
-# mcmh_object.marabou_nnet.property.compute_executables()
+# mcmh_object.marabou_query.property.compute_executables()
 
-# solve_query(mcmh_object.marabou_nnet.ipq2,property_filename)
+# solve_query(mcmh_object.marabou_query.ipq2,property_filename)
 
-#print(nnet_object.marabou_nnet.property.exec_bounds)
-#print(nnet_object.marabou_nnet.property.exec_equations)
+# print(nnet_object.marabou_query.property.exec_bounds)
+# print(nnet_object.marabou_query.property.exec_equations)
 
 # nnet_object.outputsOfInputExtremes()
 
@@ -3065,7 +2900,6 @@ class advanced_mcmh_statistics:
 
 # mcmh_object.createInputPropertyFileForLayer(input_property_file_sanity, sanity_check=True)
 # mcmh_object.createRandomOutputPropertyFileForLayer(output_property_file1)
-
 
 
 # mcmh_object.createPropertyFilesForLayer(output_property_file,input_property_file)
@@ -3092,7 +2926,6 @@ class advanced_mcmh_statistics:
 # nnet_object2 = MarabouNetworkNNetExtended(output_filename2,input_property_file)
 
 
-
 # Counting wrong answers for the different disjuncts
 # num_sats = 0
 # sats = []
@@ -3112,7 +2945,6 @@ class advanced_mcmh_statistics:
 #                 string = "lower bound" if lb else "upper bound"
 #                 sats.append((var,lb,string))
 #
-
 
 
 #
@@ -3153,7 +2985,6 @@ class advanced_mcmh_statistics:
 # print(mcmh_object.layerMaximums)
 
 
-
 # mcmh_object.graphGoodSetDist(0)
 # mcmh_object.graphGoodSetDist(32)
 # mcmh_object.graphGoodSetDist(33)
@@ -3176,10 +3007,6 @@ class advanced_mcmh_statistics:
 # print(good_set_array[: , 17])
 
 # kde_scipy(good_set_array[: , 17], x_grid)
-
-
-
-
 
 
 # for i in range(mcmh_object.marabou_nnet.layerSizes[mcmh_object.layer]):
@@ -3241,26 +3068,13 @@ class advanced_mcmh_statistics:
 #
 
 
-
-
-
-
-
-
-
-
 # PROBABLY  GOOD IDEA TO RECOMPUTE THE IPQs from files!!!! :
 
 # HAVE TO CONSOLIDATE THE OUTPUT PROPERTY FILE WITH THE "x" part of the original property file!
 # nnet_object1.getInputQuery(output_filename1,)
 
 
-
 # solve_query(ipq, filename="", verbose=True, timeout=0, verbosity=2)
-
-
-
-
 
 
 if False:
@@ -3270,27 +3084,22 @@ if False:
     property_filename = "../resources/properties/acas_property_4.txt"
     property_filename1 = "../resources/properties/acas_property_1.txt"
 
-
-
     output_filename = "test/ACASXU_experimental_v2a_1_9_output.nnet"
 
     network_filename1 = "test/ACASXU_experimental_v2a_1_9_output1.nnet"
     network_filename2 = "test/ACASXU_experimental_v2a_1_9_output2.nnet"
 
-
     output_property_file = "output_property_test1.txt"
     input_property_file = "input_property_test1.txt"
 
-    mcmh_object = MarabouNNetMCMH(network_filename,property_filename,layer=5)
+    mcmh_object = MarabouNNetMCMH(network_filename, property_filename, layer=5)
 
     mcmh_object.initiateVerificationProcess(N=5000)
-
 
     #
     # input_property_file_sanity = "input_property_test2.txt"
     # output_property_file1 = "output_property_test2.txt"
     #
-
 
     print(mcmh_object.marabou_nnet.property.equations, '\n', mcmh_object.marabou_nnet.property.bounds)
     print(mcmh_object.marabou_nnet.property.properties_list)
@@ -3312,21 +3121,19 @@ if False:
         print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].range)
         print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].suggested_bounds)
 
-
     print(mcmh_object.layer_interpolant_candidate.interpolant_candidate)
     print(mcmh_object.layer_interpolant_candidate.output_interpolant_candidate)
     print(mcmh_object.layer_interpolant_candidate.getConjunction())
     print(mcmh_object.layer_interpolant_candidate.getUnverifiedDisjuncts())
 
-    mcmh_object.prepareForMarabouCandidateVerification(network_filename1,network_filename2,output_property_file,
+    mcmh_object.prepareForMarabouCandidateVerification(network_filename1, network_filename2, output_property_file,
                                                        input_property_file)
 
     for var in range(mcmh_object.layer_size):
-        for side in types_of_bounds:
+        for side in TYPES_OF_BOUNDS:
             print(var, side, mcmh_object.layer_interpolant_candidate.list_of_neurons[var].tight_bounds,
                   mcmh_object.layer_interpolant_candidate.list_of_neurons[var].isDisjunctVerified(side))
             print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side])
-
 
     current_time = time.time()
 
@@ -3335,10 +3142,9 @@ if False:
 
     # print('time raw verification took: ', time.time() - current_time)
 
-
     current_time = time.time()
 
-    mcmh_object.checkConjunction(total_trials=1000,individual_sample=100,number_of_epsilons_to_adjust=5,verbosity=2)
+    mcmh_object.checkConjunction(total_trials=1000, individual_sample=100, number_of_epsilons_to_adjust=5, verbosity=2)
 
     print('time check conjunction took: ', time.time() - current_time)
 
@@ -3349,36 +3155,33 @@ if False:
 
     sys.exit(0)
 
-
     for var in range(mcmh_object.layer_size):
         list_of_times_before = []
         list_of_times_after = []
         if not mcmh_object.layer_interpolant_candidate.list_of_neurons[var].participates_in_invariant:
 
             print(var, mcmh_object.layer_interpolant_candidate.list_of_neurons[var].participates_in_invariant)
-            for side in types_of_bounds:
+            for side in TYPES_OF_BOUNDS:
                 if not mcmh_object.layer_interpolant_candidate.list_of_neurons[var].isDisjunctVerified(side):
                     print(side)
                     print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side])
                     start_time = time.time()
-                    mcmh_object.verifyDisjunctWithMarabou(var,side,add_to_goodset=False)
+                    mcmh_object.verifyDisjunctWithMarabou(var, side, add_to_goodset=False)
                     current_time = time.time()
                     time_took = current_time - start_time
                     print('time before including = ', time_took)
                     list_of_times_before.append(time_took)
 
-
             mcmh_object.layer_interpolant_candidate.includeInInvariant(var)
 
-            for side in types_of_bounds:
+            for side in TYPES_OF_BOUNDS:
                 if not mcmh_object.layer_interpolant_candidate.list_of_neurons[var].isDisjunctVerified(side):
                     print('INCLUDED IN INVARIANT')
                     print(side)
                     print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side])
                     start_time = time.time()
-                    mcmh_object.verifyDisjunctWithMarabou(var,side,add_to_goodset=False)
+                    mcmh_object.verifyDisjunctWithMarabou(var, side, add_to_goodset=False)
                     current_time = time.time()
                     time_took = current_time - start_time
                     print('time after including = ', time_took)
                     list_of_times_after.append(time_took)
-

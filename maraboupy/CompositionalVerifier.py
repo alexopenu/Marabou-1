@@ -1,9 +1,11 @@
-from MarabouNetworkQuery import *
-from MarabouNetworkNNet import *
+from maraboupy.MarabouNetworkQuery import *
+# from MarabouNetworkNNet import *
+# import MarabouCore
 
-from Marabou import *
-from MarabouCore import *
-from MarabouNetworkNNetExtentions import *
+
+# from Marabou import *
+
+from maraboupy.MarabouNetworkNNetExtensions import *
 
 import sys
 import time
@@ -297,7 +299,6 @@ class invariantOnNeuron:
         self.recomputeSuggestedBounds(recompute_property=recompute_property)
 
     def recomputeInterpolantProperty(self, side):
-
         self.interpolant_property[side], self.dual_interpolant_property[side] = self.computeBoundProperty(side)
 
     def recomputeInterpolantProperties(self):
@@ -311,7 +312,8 @@ class invariantOnNeuron:
             self.real_bounds_for_invariant[side] = max(bound, 0)
         elif side == 'r':
             bound = self.observed_maximum + epsilon
-            self.real_bounds_for_invariant[side] = -1 if bound < -1 else max(bound, 0.01)
+            self.real_bounds_for_invariant[side] = max(bound, 0)
+            # self.real_bounds_for_invariant[side] = -1 if bound < -1 else max(bound, 0.01)
         else:  # side not in TYPES_OF_BOUNDS!
             assert False
 
@@ -323,7 +325,8 @@ class invariantOnNeuron:
             self.loose_bounds_for_invariant[side] = max(bound, 0)
         elif side == 'r':
             bound = self.observed_maximum + delta
-            self.loose_bounds_for_invariant[side] = -1 if bound < -1 else max(bound, 1)
+            self.loose_bounds_for_invariant[side] = max(bound, 0)
+            # self.loose_bounds_for_invariant[side] = -1 if bound < -1 else max(bound, 1)
         else:  # side not in TYPES_OF_BOUNDS!
             assert False
 
@@ -651,8 +654,8 @@ class layerInterpolateCandidate:
         conjuncts = []
         for var in range(self.layer_size):
             for side in TYPES_OF_BOUNDS:
-                # if self.list_of_neurons[var].participates_in_invariant[side]:
-                conjuncts.append(self.list_of_neurons[var].interpolant_property[side])
+                if self.list_of_neurons[var].participates_in_invariant[side]:
+                    conjuncts.append(self.list_of_neurons[var].interpolant_property[side])
 
         return conjuncts
 
@@ -721,7 +724,7 @@ class layerInterpolateCandidate:
 
             # difference = difference / neuron.epsilon_twosided[side]
             if use_multiplicity:
-                multiplicity = round(difference * 5)  # A PARAMETER THAT CAN BE ADJUSTED!
+                multiplicity = round(difference * 5)  # TODO: REPLACE BY A PARAMETER THAT CAN BE ADJUSTED?
                 bad_layer_inputs += [(var, side, difference)] * multiplicity
             else:
                 bad_layer_inputs += [(var, side, difference)]
@@ -829,8 +832,10 @@ class layerInterpolateCandidate:
 
 class CompositionalVerifier:
 
-    def __init__(self, network_filename: str, property_filename: str, layer=-1):
-        self.marabou_query = MarabouNetworkQuery(network_filename=network_filename, property_filename=property_filename)
+    def __init__(self, network_filename: str, property_filename: str, layer=-1, verbosity=0):
+        self.marabou_query = MarabouNetworkQuery(network_filename=network_filename, property_filename=property_filename,
+                                                 compute_ipq=False,
+                                                 compute_ipq_directly=True, tighten_bounds=True, verbosity=verbosity)
 
         self.network_filename = network_filename
         self.property_filename = property_filename
@@ -844,7 +849,8 @@ class CompositionalVerifier:
         self.marabou_verification_initiated = False
 
         # Making sure that all the bounds on the input variables have been computed
-        self.marabou_query.tightenBounds()
+        # self.marabou_query.tightenBounds()
+        # TODO: need to tighten the bounds here? Better: make sure that this is unnecessary!
         for input_var in self.marabou_nnet.inputVars.flatten():
             assert self.marabou_nnet.upperBoundExists(input_var)
             assert self.marabou_nnet.lowerBoundExists(input_var)
@@ -907,39 +913,8 @@ class CompositionalVerifier:
         self.ipq1 = MarabouCore.InputQuery()
         self.ipq2 = MarabouCore.InputQuery()
 
-        # Attributes from an older version, probably not relevant now.
-
-        # Attributes representing minimal and maximal values seen for the variables of the layer
-        # The default ones are for the b-variables
-        # Will be reset in setLayer
-        #
-        # self.layer_minimums = []
-        # self.layer_maximums= []
-        # self.layer_fminimums_dict = dict() #For sanity check
-        # self.layer_fmaximums_dict = dict() #For sanity check
-
-        # List of properties (interpolant candidate) for the chosen layer
-        # The properties are recorded as equations/bounds on input variables and stored as strings
-        # self.interpolant_candidate = []
-
-        # List that contains the interpolant properties recorded as equations/bounds on output variables
-        # is supposed to be identical to interpolant_candidate except that the inequalities are flipped
-        # (and all occurrences of 'x' is replaced with 'y')
-        # self.output_interpolant_candidate = []
-
-        # self.dict_sidevar_to_interpolant_index = dict()
-
-        # self.suggested_layer_bounds = {'l': [], 'r': []}
-        # self.suggested_lower_bounds = []
-        # self.suggested_upper_bounds = []
-
-        # various statistics and empiric bounds on layer variables for guessing the invariant
-        # will be reset in seLayer, but we include all the attributes in the constructor
-
-        # self.good_matrix = np.array([])
-
-        # self.epsiloni = []
-        # self.epsiloni_twosided = {'l': [], 'r': []}
+        self.nnet_object1 = MarabouNetworkNNet()
+        self.nnet_object2 = MarabouNetworkNNet()
 
     def verify(self, timeout=0, layer=-1, N=5000, network_filename1='', network_filename2='',
                property_filename1='', property_filename2=''):
@@ -964,7 +939,7 @@ class CompositionalVerifier:
             #  Currently this means that Marabou has found a counterexample to the raw conjunction.
             #  Generally we don't expect this to happen.
             #  There is another place where a similar message can be printed out,
-            #  adjustConjunctionOnRandomInput. Propagate it here as well!
+            #  adjustConjunctionOnRandomInput. Propagate it here as well?
 
         if status == 'timeout':
             print('Timeout after ', argument_list[0], 'seconds.')
@@ -1016,7 +991,7 @@ class CompositionalVerifier:
             self.network_filename_disjunct = network_filename_disjunct
 
     def setOriginalPropertyLists(self):
-        if self.marabou_query.property.mixed_properties_present() or self.marabou_query.property.ws_properties_present():
+        if self.marabou_query.property.mixed_properties_present() or self.marabou_query.property.h_properties_present():
             print('Currently only support pure input and output properties')
             print(self.marabou_query.property.properties_list)
             sys.exit(1)
@@ -1065,9 +1040,9 @@ class CompositionalVerifier:
     # This is the firs method to run after creating an object
     def initiateVerificationProcess(self, layer=-1, N=5000, compute_loose_offsets='range',
                                     loose_offset_const=1):
-        assert self.layer > -1 or layer > -1
         if layer > -1:
             self.setLayer(layer)
+        assert self.layer > -1
 
         self.createInitialGoodSet(N, include_input_extremes=True, adjust_bounds=False)
         assert self.good_set
@@ -1098,7 +1073,7 @@ class CompositionalVerifier:
         self.setFilenames(network_filename1=network_filename1, network_filename2=network_filename2,
                           property_filename1=property_filename1, property_filename2=property_filename2,
                           network_filename_disjunct=network_filename_disjunct)
-        self.split_network()
+        self.splitNetwork()
 
         self.marabou_verification_initiated = True
 
@@ -1112,9 +1087,9 @@ class CompositionalVerifier:
         self.createOriginalOutputPropertyFile()
         self.addLayerPropertiesToOutputPropertyFile()
 
-        createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
-        options = createOptions(verbosity=0, timeoutInSeconds=timeout)
-        [vals, stats] = solve_query(ipq=self.ipq2, verbose=True, options=options)
+        MarabouCore.createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
+        options = Marabou.createOptions(verbosity=2, timeoutInSeconds=timeout)
+        [vals, stats] = Marabou.solve_query(ipq=self.ipq2, verbose=True, options=options)
         bad_input = self.convertVectorFromDictToList(vals)
 
         if stats.hasTimedOut():
@@ -1141,9 +1116,12 @@ class CompositionalVerifier:
         else:
             network_filename1 = self.network_filename1
 
+        self.ipq1 = MarabouCore.InputQuery()
         MarabouCore.createInputQuery(self.ipq1, network_filename1, self.property_filename1)
 
-        [vals, stats] = solve_query(self.ipq1, verbose=True, verbosity=0, timeout=timeout)
+        options = Marabou.createOptions(initialTimeout=timeout,verbosity=2)
+
+        [vals, stats] = Marabou.solve_query(self.ipq1, verbose=True, options=options)
         bad_input = self.convertVectorFromDictToList(vals)
         if stats.hasTimedOut():
             return bad_input, True
@@ -1189,10 +1167,10 @@ class CompositionalVerifier:
                     print('Dual property to verify:')
                     print(self.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side])
 
-                bad_input, exit_due_to_timeout = self.verifyDisjunctWithMarabou(var, side,
-                                                                                add_to_goodset=add_to_goodset,
-                                                                                timeout=individual_timeout,
-                                                                                truncated_output_layer=truncated_output_layer)
+                bad_input, exit_due_to_timeout = \
+                    self.verifyDisjunctWithMarabou(var, side, add_to_goodset=add_to_goodset,
+                                                   timeout=individual_timeout,
+                                                   truncated_output_layer=truncated_output_layer)
 
                 if exit_due_to_timeout:
                     break
@@ -1227,11 +1205,14 @@ class CompositionalVerifier:
         return epsilon_adjusted
 
     def adjustDisjunctsOnBadInputs(self, failed_disjuncts: list):
-        '''
+        """
 
-        :param failed_disjuncts: list of tuples of the form (var,side,bad_input) created by verifyDisjuncts methods
-        :return:
-        '''
+        Args:
+            failed_disjuncts:
+
+        Returns:
+
+        """
         for (var, side, bad_input) in failed_disjuncts:
             self.layer_interpolant_candidate.adjustObservedBoundForVariable(var, bad_input[var])
 
@@ -1423,6 +1404,15 @@ class CompositionalVerifier:
                       "upper bounds: \n layer input = ", layer_input, '\n output = ', output, "\n Check if SAT?")
                 if verbosity > 2:
                     self.detailedDumpLayerInput(layer_input)
+
+                # Debugging
+                # TODO: remove!
+                nnet_object2 = Marabou.read_nnet(self.network_filename2, normalize=False)
+                with_marabou_output = nnet_object2.evaluate(np.array([layer_input]), useMarabou=True).flatten()
+                print(with_marabou_output)
+                with_marabou_output_rounded = np.array([float(round(y, 8)) for y in with_marabou_output])
+                print(with_marabou_output_rounded)
+
                 self.verifyRawConjunction()
                 sys.exit(2)
 
@@ -1460,7 +1450,7 @@ class CompositionalVerifier:
     def checkCandidateOnInput(self, layer_input, add_to_bad_set=True):
         # assert adjust_epsilons in ['','random','all']
 
-        output = self.marabou_nnet.evaluateNetworkFromLayer(layer_input, first_layer=self.layer)
+        output = self.marabou_nnet.evaluateNNet(layer_input, first_layer=self.layer)
         one_out_of_bounds_inputs = []
         one_differene_dict = {}
 
@@ -1558,7 +1548,7 @@ class CompositionalVerifier:
             print('Something went wrong with writing to property_file1')
             sys.exit(1)
 
-    def split_network(self):
+    def splitNetwork(self):
         '''
         Splits the network into two
         The split is done after after self.layer
@@ -1580,13 +1570,13 @@ class CompositionalVerifier:
 
         try:
             # if True:
-            nnet_object1, nnet_object2 = splitNNet(marabou_nnet=self.marabou_nnet, layer=self.layer)
+            self.nnet_object1, self.nnet_object2 = splitNNet(marabou_nnet=self.marabou_nnet, layer=self.layer)
 
-            nnet_object1.writeNNet(network_filename1)
-            nnet_object2.writeNNet(network_filename2)
-
+            self.nnet_object1.writeNNet(network_filename1, ignore_normalization=False)
+            self.nnet_object2.writeNNet(network_filename2, ignore_normalization=False)
         except:
-            print("Something went wrong with spltting the network and writing the output networks to files.")
+            # else:
+            print("Something went wrong with splitting the network and writing the output networks to files.")
             sys.exit(1)
 
         self.network_filename1 = network_filename1
@@ -1607,7 +1597,7 @@ class CompositionalVerifier:
         # nnet_object_disjunct.biases[-1].append(new_output_layer_biases)
 
         try:
-            nnet_object_disjunct.writeNNet(fileName=self.network_filename_disjunct)
+            nnet_object_disjunct.writeNNet(file_name=self.network_filename_disjunct)
         except:
             print('Something went wrong writing to the single disjunct file')
             sys.exit(1)
@@ -1620,6 +1610,12 @@ class CompositionalVerifier:
                                              high=self.marabou_nnet.upperBounds[input_var])
             input.append(random_value)
         return input
+
+    def verifyOriginalQuery(self, verbosity=0):
+        MarabouCore.createInputQuery(self.ipq, self.network_filename, self.property_filename)
+        options = Marabou.createOptions(verbosity=verbosity)
+        [vals, _] = Marabou.solve_query(self.ipq, verbose=True, options=options)
+        return self.convertVectorFromDictToList(vals)
 
     def verifyRawConjunction(self):
 
@@ -1639,8 +1635,9 @@ class CompositionalVerifier:
             sys.exit(1)
 
         MarabouCore.createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
+        options = Marabou.createOptions(verbosity=0)
 
-        [vals, _] = solve_query(self.ipq2, verbose=True, verbosity=0)
+        [vals, _] = Marabou.solve_query(self.ipq2, verbose=True, options=options)
         return self.convertVectorFromDictToList(vals)
 
     def convertVectorFromDictToList(self, dict_vector: dict):
@@ -1654,7 +1651,7 @@ class CompositionalVerifier:
                   ' ', self.layer_interpolant_candidate.list_of_neurons[var].interpolant_property['r'],
                   ' input = ', layer_input[var])
 
-    def createInitialGoodSet(self, N, include_input_extremes=True, adjust_bounds=False, sanity_check=False):
+    def createInitialGoodSet(self, N, include_input_extremes=True, adjust_bounds=False, sanity_check=True):
         self.clearGoodSet()
         if include_input_extremes:
             self.outputsOfInputExtremesForLayer(adjust_bounds=adjust_bounds, add_to_goodset=True,
@@ -1664,7 +1661,7 @@ class CompositionalVerifier:
 
     # Creates a list of outputs for self.layer for the "extreme" input values
     def outputsOfInputExtremesForLayer(self, adjust_bounds=True, add_to_goodset=True, add_to_statistics=True,
-                                       verify_property=True, sanity_check=False):
+                                       verify_property=True, sanity_check=True):
         layer_outputs = []
         input_size = self.marabou_nnet.inputSize
 
@@ -1693,8 +1690,11 @@ class CompositionalVerifier:
             # Evaluating the network up to the given layer on the input
             # By not activating the last layer, we get values for the b variables, which give more information
 
-            output = self.marabou_nnet.evaluateNetworkToLayer(inputs, last_layer=self.layer, normalize_inputs=False,
-                                                              normalize_outputs=False, activate_output_layer=False)
+            # activate_output_layer = True if self.layer < self.marabou_nnet.numLayers - 1 else False
+
+            output = self.marabou_nnet.evaluateNNet(inputs, last_layer=self.layer, normalize_inputs=False,
+                                                    normalize_outputs=False,
+                                                    activate_output_layer=False)
 
             # print("output = ", output) # debug
             layer_outputs.append(output)
@@ -1703,11 +1703,24 @@ class CompositionalVerifier:
                 if self.layer == self.marabou_nnet.numLayers - 1:
                     network_output = output
                 else:
-                    network_output = self.marabou_nnet.evaluateNetworkFromLayer(output, first_layer=self.layer)
+                    network_output = self.marabou_nnet.evaluateNNet(activateReluOnVector(output),
+                                                                    first_layer=self.layer)
 
                 if self.marabou_query.property.verify_io_property(x=inputs, y=network_output):
                     print('A counterexample found! One of the extreme values. Bit string = ', bit_string,
                           '; input = ', inputs, 'output = ', network_output)
+                    if sanity_check:
+                        options = Marabou.createOptions(verbosity=0)
+                        marabou_output = self.marabou_nnet.evaluateWithMarabou(inputs, options=options)
+                        print(marabou_output)
+                        print(output)
+                        output1 = self.nnet_object1.evaluateWithMarabou(inputs, options=options)
+                        print(output1)
+                        output1 = activateReluOnVector(output1.flatten())
+                        output2 = self.nnet_object2.evaluateWithMarabou(output1, options=options)
+                        print(output2)
+
+                        self.verifyOriginalQuery(verbosity=0)
                     sys.exit(0)
 
             if add_to_goodset:
@@ -1741,20 +1754,34 @@ class CompositionalVerifier:
                 continue
 
             # Evaluating the network at the layer
-            layer_output = self.marabou_nnet.evaluateNetworkToLayer(inputs, last_layer=layer, normalize_inputs=False,
-                                                                    normalize_outputs=False,
-                                                                    activate_output_layer=False)
+            layer_output = self.marabou_nnet.evaluateNNet(inputs, last_layer=layer, normalize_inputs=False,
+                                                          normalize_outputs=False,
+                                                          activate_output_layer=False)
             # we know that the property holds on the inputs
             # Checking whether it also holds on the outputs; if it does , we have a counterexample!
             # Note that we currently assume that there are no constraints on the hidden layer!
 
             if check_bad_inputs:
-                network_output = self.marabou_nnet.evaluateNetworkFromLayer(layer_output, first_layer=layer,
-                                                                            normalize_inputs=False,
-                                                                            normalize_outputs=False,
-                                                                            activate_output_layer=False)
+                # layer_output = activateReluOnVector(layer_output)
+                network_output = self.marabou_nnet.evaluateNNet(activateReluOnVector(layer_output),
+                                                                first_layer=layer,
+                                                                normalize_inputs=False,
+                                                                normalize_outputs=False,
+                                                                activate_output_layer=False)
                 if self.verifyOutputProperty(network_output):
                     print('A counter example found! Randomly chosen input = ', inputs, 'output = ', network_output)
+                    if sanity_check:
+                        options = Marabou.createOptions(verbosity=0)
+                        marabou_output = self.marabou_nnet.evaluateWithMarabou(inputs, options=options)
+                        print(marabou_output)
+                        print(layer_output)
+                        output1 = self.nnet_object1.evaluateWithMarabou(inputs, options=options)
+                        print(output1)
+                        output1 = activateReluOnVector(output1.flatten())
+                        output2 = self.nnet_object2.evaluateWithMarabou(output1, options=options)
+                        print(output2)
+
+                        self.verifyOriginalQuery(verbosity=0)
                     sys.exit(0)
 
             good_set.append(layer_output)

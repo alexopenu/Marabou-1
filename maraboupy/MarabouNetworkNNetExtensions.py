@@ -73,7 +73,7 @@ def splitNNet(marabou_nnet: MarabouNetworkNNet, layer: int):
     # Note: the mins and the maxs for the second network can (and most probably will) contain None values!
     # Should not matter at the moment, since we should never normalize the inputs for the second layer.
 
-    mins2, maxs2 = marabou_nnet.getBoundsForLayer(layer, f=False)
+    mins2, maxs2 = marabou_nnet.getBoundsForLayer(layer, b=True)
 
     # maxs2 = [0]*new_input_size  # Change!
     # mins2 = [0]*new_input_size  # Change!
@@ -92,15 +92,18 @@ def splitNNet(marabou_nnet: MarabouNetworkNNet, layer: int):
     outputrange2 = marabou_nnet.outputRange
 
     try:
-        marabou_nnet1 = MarabouNetworkNNetQuery(normalize=True)
-        marabou_nnet2 = MarabouNetworkNNetQuery(normalize=True)
+        marabou_nnet1 = MarabouNetworkNNetQuery(normalize=False)
+        marabou_nnet2 = MarabouNetworkNNetQuery(normalize=False)
     except NameError:
-        marabou_nnet1 = MarabouNetworkNNet(normalize=True)
-        marabou_nnet2 = MarabouNetworkNNet(normalize=True)
+        marabou_nnet1 = MarabouNetworkNNet(normalize=False)
+        marabou_nnet2 = MarabouNetworkNNet(normalize=False)
 
-
-    marabou_nnet1.resetNetworkFromParameters(mins1, maxs1, means1, ranges1, outputmean1, outputrange1, weights1, biases1)
-    marabou_nnet2.resetNetworkFromParameters(mins2, maxs2, means2, ranges2, outputmean2, outputrange2, weights2, biases2)
+    marabou_nnet1.resetNetworkFromParameters(weights1, biases1, normalize=False,
+                                             inputMinimums=mins1, inputMaximums=maxs1, inputMeans=means1,
+                                             inputRanges=ranges1, outputMean=outputmean1, outputRange=outputrange1)
+    marabou_nnet2.resetNetworkFromParameters(weights2, biases2, normalize=False,
+                                             inputMinimums=mins2, inputMaximums=maxs2,  inputMeans=means2,
+                                             inputRanges=ranges2, outputMean=outputmean2, outputRange=outputrange2)
 
     return marabou_nnet1, marabou_nnet2
 
@@ -140,6 +143,10 @@ def computeRandomOutputsToLayer(marabou_nnet: MarabouNetworkNNet,layer: int, N: 
 
         return output_set
 
+def activateReluOnVector(vector: list):
+    activated_vector = [max(x,0) for x in vector]
+    return activated_vector
+
 
 def test_split_network(nnet_object: MarabouNetworkNNet,
                        nnet_object1: MarabouNetworkNNet, nnet_object2: MarabouNetworkNNet, N = 1000, layer = -1):
@@ -158,25 +165,25 @@ def test_split_network(nnet_object: MarabouNetworkNNet,
     for i in range(N):
             inputs = createRandomInputsForNetwork(nnet_object)
 
-            output1 = nnet_object1.evaluateNetworkToLayer(inputs, last_layer=-1, normalize_inputs=False,
+            output1 = nnet_object1.evaluateNNet(inputs, last_layer=-1, normalize_inputs=False,
                                                           normalize_outputs=False, activate_output_layer=True)
 
             # Comparing the output of the first network to the output to layer of the original one
             if layer>=0:
-                layer_output = nnet_object.evaluateNetworkToLayer(inputs, last_layer=layer, normalize_inputs=False,
+                layer_output = nnet_object.evaluateNNet(inputs, last_layer=layer, normalize_inputs=False,
                                                                   normalize_outputs=False, activate_output_layer=True)
                 if not (layer_output == output1).all():
                        print("Failed1")
-                output2b = nnet_object.evaluateNetworkFromLayer(layer_output,first_layer=layer)
+                output2b = nnet_object.evaluateNNet(layer_output, first_layer=layer)
 
 
             # The main comparison: comparing running the input through the original network to running it
             # through the first followed by the second.
-            true_output = nnet_object.evaluateNetworkToLayer(inputs, last_layer=-1, normalize_inputs=False,
+            true_output = nnet_object.evaluateNNet(inputs, last_layer=-1, normalize_inputs=False,
                                                              normalize_outputs=False)
-            true_output_b = nnet_object.evaluateNetwork(inputs,normalize_inputs=False,normalize_outputs=False)
+            true_output_b = nnet_object.evaluateNNet(inputs,normalize_inputs=False,normalize_outputs=False)
 
-            output2 = nnet_object2.evaluateNetworkToLayer(output1,last_layer=-1, normalize_inputs=False,
+            output2 = nnet_object2.evaluateNNet(output1,last_layer=-1, normalize_inputs=False,
                                                           normalize_outputs=False)
 
             if not (true_output == output2).all():
@@ -187,7 +194,7 @@ def test_split_network(nnet_object: MarabouNetworkNNet,
 
             # Comparing the output of the second network to the output from layer of the original one
             if layer>=0:
-                output2b = nnet_object.evaluateNetworkFromLayer(output1,first_layer=layer)
+                output2b = nnet_object.evaluateNNet(output1,first_layer=layer)
                 if not (output2b == true_output).all():
                        print("Failed3")
 
@@ -196,3 +203,5 @@ def test_split_network(nnet_object: MarabouNetworkNNet,
 
             if not (true_output_c == output2).all():
                    print("Failed4")
+
+    print('\nTest split passed\n')

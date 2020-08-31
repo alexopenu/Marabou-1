@@ -275,7 +275,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
                     self.inputMinimums[i] = (self.inputMinimums[i] - self.inputMeans[i]) / self.inputRanges[i]
                     self.inputMaximums[i] = (self.inputMaximums[i] - self.inputMeans[i]) / self.inputRanges[i]
 
-    def writeNNet(self, file_name: str):
+    def writeNNet(self, file_name: str, ignore_normalization=False):
         """Write network data into an .nnet file
 
         Args:
@@ -322,7 +322,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
             inputMinimums = self.inputMinimums[:]
             inputMaximums = self.inputMaximums[:]
 
-            if not self.normalize:
+            if not self.normalize and not ignore_normalization:
                 for i in range(self.inputSize):
                     inputMinimums[i] = self.inputMinimums[i] * self.inputRanges[i] + self.inputMeans[i]
                     inputMaximums[i] = self.inputMaximums[i] * self.inputRanges[i] + self.inputMeans[i]
@@ -471,7 +471,8 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         var = self.getVariable(layer, node, b)
         if self.upperBoundExists(var):
             return self.upperBounds[var]
-        return None
+        return sys.float_info.max
+
 
     def getLowerBound(self, layer, node, b=True):
         """ Get lower bound for the variable corresponding to layer, node
@@ -490,7 +491,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         var = self.getVariable(layer, node, b)
         if self.lowerBoundExists(var):
             return self.lowerBounds[var]
-        return None
+        return -sys.float_info.max
 
     def getUpperBoundsForLayer(self, layer, b=True):
         """ Returns a list of upper bounds for the given layer
@@ -582,7 +583,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
                                  normalize_outputs=self.normalize)
 
     def evaluateNNet(self, inputs, first_layer = 0, last_layer=-1, normalize_inputs=False,
-                     normalize_outputs=False, activate_output_layer=False):
+                     normalize_outputs=False, activate_output_layer=False, middle_layer_activation=True):
         """ Evaluate nnet directly (without Marabou) at a given point
 
         Evaluates the network on input inputs between layer first_layer (input layer by default)
@@ -613,9 +614,12 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         if last_layer == -1:
             last_layer = num_layers
 
-        inputs_norm = inputs[:]
-
         # Prepare the inputs to the neural network
+        if first_layer>0 and middle_layer_activation:
+            inputs_norm = [max(x,0) for x in inputs]
+        else:
+            inputs_norm = inputs[:]
+
         if normalize_inputs:
             if (first_layer == 0):
 

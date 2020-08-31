@@ -17,7 +17,7 @@ import sys
 import parser
 import re
 
-import MarabouCore
+from maraboupy import MarabouCore
 
 #from MarabouCore import *
 

@@ -2,7 +2,7 @@
 
 import os
 
-if os.getcwd()
+# if os.getcwd()
 
 # os.chdir('/Users/alexus/Coding/my_marabou/Marabou/maraboupy/')
 
@@ -307,13 +307,33 @@ print('Adjusting disjuncts and continuing in a loop.')
 status, argument_list = mcmh_object.CandidateSearch(number_of_trials=1000, individual_sample=100, verbosity=2,
                                                     timeout=TIMEOUT)
 
+current_time = time.time()
+
+search_time = current_time - start_time
 print('Disjuncts time: ', current_time - new_start_time)
-print('Total time: ', current_time - start_time)
+print('Total search time: ', search_time)
 
 if status == 'success':
     print('UNSAT')
     print('Interpolant for layer = ', mcmh_object.layer, ':')
     print(mcmh_object.layer_interpolant_candidate.getConjunction())
+    print("\n\nMaking sure this is indeed an invariant: \n")
+    print('\nVerifying all the disjuncts: \n')
+
+    new_start_time = time.time()
+
+    failed_disjuncts = mcmh_object.verifyAllDisjunctsWithMarabou(truncated_output_layer=False)
+    if failed_disjuncts:
+        warnings.warn('Failed disjuncts still present!')
+        print('Something went wrong! There are ', len(failed_disjuncts), ' failed disjuncts.')
+        print(failed_disjuncts)
+    else:
+        print('All disjuncts clear out.')
+
+    print("\nVerifying the conjunction: \n")
+    mcmh_object.verifyConjunctionWithMarabou(add_to_badset=False)
+    print('Total candidate search time: ', search_time)
+    print('Total candidate verification time: ', time.time()-new_start_time)
     sys.exit(0)
 
 if status == 'raw_conjunction_too_weak':

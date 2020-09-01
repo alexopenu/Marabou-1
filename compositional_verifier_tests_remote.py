@@ -339,11 +339,10 @@ if status == 'success':
     print('UNSAT')
     print('Interpolant for layer = ', mcmh_object.layer, ':')
     print(mcmh_object.layer_interpolant_candidate.getConjunction())
+
     print("\n\nMaking sure this is indeed an invariant: \n")
     print('\nVerifying all the disjuncts: \n')
-
     new_start_time = time.time()
-
     failed_disjuncts = mcmh_object.verifyAllDisjunctsWithMarabou(truncated_output_layer=False)
     if failed_disjuncts:
         warnings.warn('Failed disjuncts still present!')

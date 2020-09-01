@@ -1357,7 +1357,8 @@ class CompositionalVerifier:
         # Next step is verifying the disjunction
 
         failed_disjuncts, exit_due_to_timeout = \
-            self.verifyUnverifiedDisjunctsWithMarabou(timeout=timeout, individual_timeout=int(timeout / 10))
+            self.verifyUnverifiedDisjunctsWithMarabou(timeout=timeout, individual_timeout=int(timeout / 10),
+                                                      truncated_output_layer=False)
 
         if failed_disjuncts:
             status = 'failed_disjuncts'

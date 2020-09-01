@@ -49,7 +49,10 @@ start_time = time.time()
 NETWORK = '1_4'
 PROPERTY = '4'
 LAYER = 5
-TIMEOUT = 600
+if REMOTE:
+    TIMEOUT = 10000
+else:
+    TIMEOUT = 600
 
 network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_" + NETWORK + ".nnet"
 print('\nNetwork: ACASXU_experimental_v2a_' + NETWORK + '.nnet\n')

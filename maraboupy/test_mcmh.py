@@ -1,8 +1,11 @@
-# !/usr/bin/python3
+#!/usr/bin/python3
 
 import os
 
-# if os.getcwd()
+if 'cs' in os.getcwd():
+    REMOTE = True
+else:
+    REMOTE = False
 
 # os.chdir('/Users/alexus/Coding/my_marabou/Marabou/maraboupy/')
 

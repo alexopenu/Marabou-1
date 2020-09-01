@@ -144,6 +144,7 @@ class invariantOnNeuron:
 
         # y >= 0 does not require verification
         self.verified_disjunct = {'l': 0.0}
+        self.failed_disjunct = {}
 
         self.offset = {}
         self.deltas = {}
@@ -231,9 +232,28 @@ class invariantOnNeuron:
 
         return sign * self.suggested_bounds[side] >= sign * self.verified_disjunct[side]
 
+    def isDisjunctFailed(self, side: TYPES_OF_BOUNDS):
+        if side not in self.failed_disjunct.keys():
+            return False
+        # assert side in self.verified_disjunct.keys()
+        sign = TYPE_OF_BOUNDS_TO_SIGN[side]
+
+        return sign * self.suggested_bounds[side] <= sign * self.failed_disjunct[side]
+        # TODO: Have not been tested yet, make sure this is correct!
+
     def SetDisjunctAsVerified(self, side: TYPES_OF_BOUNDS):
         assert side in TYPES_OF_BOUNDS
         self.verified_disjunct[side] = self.suggested_bounds[side]
+
+    # Should never be used?
+    def SetDisjunctAsUnVerified(self, side: TYPES_OF_BOUNDS):
+        assert side in TYPES_OF_BOUNDS
+        if side in self.verified_disjunct.keys():
+            self.verified_disjunct.pop(side)
+
+    def SetDisjunctAsFailed(self, side: TYPES_OF_BOUNDS):
+        assert side in TYPES_OF_BOUNDS
+        self.failed_disjunct[side] = self.suggested_bounds[side]
 
     def computeInitialOffsets(self):
         if self.loose_epsilon_compute == 'const':
@@ -245,7 +265,7 @@ class invariantOnNeuron:
         else:  # 'double'
             for side in TYPES_OF_BOUNDS:
                 self.offset[side] = self.epsilon_twosided[
-                                        side] * 32  # 2^5 (will require five halves-somewhat arbitrary)
+                                        side] * 1024  # 2^10 (will require five halves-somewhat arbitrary)
 
         for side in TYPES_OF_BOUNDS:
             self.deltas[side] = self.offset[side]
@@ -661,6 +681,11 @@ class layerInterpolateCandidate:
 
     def reportVerifiedDisjunct(self, var, side):
         self.list_of_neurons[var].SetDisjunctAsVerified(side)
+
+    def reportFailedDisjunct(self, var, side):
+        # self.list_of_neurons[var].SetDisjunctAsUnVerified(side) # Unreasonable
+        self.list_of_neurons[var].SetDisjunctAsFailed(side)
+
 
     def createRandomStrictInputForLayer(self):
         # input = []

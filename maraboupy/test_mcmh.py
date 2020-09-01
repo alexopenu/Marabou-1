@@ -1,10 +1,16 @@
-# !/usr/bin/python3
+#!/usr/bin/python3
 
 import os
 
-# if os.getcwd()
+if '/cs' in os.getcwd():
+    REMOTE = True
+else:
+    REMOTE = False
 
-# os.chdir('/Users/alexus/Coding/my_marabou/Marabou/maraboupy/')
+print(REMOTE)
+
+if REMOTE:
+    os.chdir('/cs/usr/alexus/coding/my_Marabou/Marabou-1/')
 
 # from MarabouNetworkNNetIPQ import *
 # from MarabouNetworkNNetProperty import *
@@ -16,7 +22,7 @@ import os
 
 # import MarabouCore
 
-from maraboupy.CompositionalVerifier import *
+from CompositionalVerifier import *
 
 # import re
 

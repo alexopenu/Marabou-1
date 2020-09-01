@@ -1265,10 +1265,10 @@ class CompositionalVerifier:
 
             # Experimenting..
             # TODO: make more systematic or remove?
-            if (not self.layer_interpolant_candidate.list_of_neurons[var].tight_bounds) and \
-                    (self.layer_interpolant_candidate.list_of_neurons[var].getOffset(side)/2 >
-                     self.layer_interpolant_candidate.list_of_neurons[var].epsilon_twosided[side]):
-                self.layer_interpolant_candidate.list_of_neurons[var].halfOffset(side)
+            # if (not self.layer_interpolant_candidate.list_of_neurons[var].tight_bounds) and \
+            #        (self.layer_interpolant_candidate.list_of_neurons[var].getOffset(side)/2 >
+            #         self.layer_interpolant_candidate.list_of_neurons[var].epsilon_twosided[side]):
+            #    self.layer_interpolant_candidate.list_of_neurons[var].halfOffset(side)
 
     def CandidateSearch(self, number_of_trials: int, individual_sample: int, timeout=0, verbosity=0,
                         extremes=False, truncated_output_layer=False):

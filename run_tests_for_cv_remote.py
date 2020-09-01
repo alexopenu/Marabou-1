@@ -345,7 +345,8 @@ if status == 'success':
     if failed_disjuncts:
         warnings.warn('Failed disjuncts still present!')
         print('Something went wrong! There are ', len(failed_disjuncts), ' failed disjuncts.')
-        print([(x[0],x[1],mcmh_obhect.layer_interpolant_candidate[x[0]].suggested_bounds[x[1]], mcmh_obhect.layer_interpolant_candidate[x[0]].verified_disjunct[x[1]]) for x in failed_disjuncts])
+        print([(x[0],x[1],mcmh_object.layer_interpolant_candidate[x[0]].suggested_bounds[x[1]],
+                mcmh_object.layer_interpolant_candidate[x[0]].verified_disjunct[x[1]]) for x in failed_disjuncts])
         failed_disjuncts, _ = mcmh_object.verifyUnverifiedDisjunctsWithMarabou(truncated_output_layer=False)
         print(len(failed_disjuncts), 'unverified disjuncts have also failed: ')
         print([(x[0],x[1]) for x in failed_disjuncts])

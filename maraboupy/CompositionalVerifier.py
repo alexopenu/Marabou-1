@@ -398,7 +398,7 @@ class invariantOnNeuron:
             # new_offset = old_offset * (1 + difference) / 2
             new_offset = old_offset * difference / 2
         else:
-            print('Unsupported argument for strengthenEpsilons')
+            print('Unsupported argument for strengthenEpsilons: ', adjust_epsilons)
             sys.exit(1)
 
         if self.tight_bounds:
@@ -470,7 +470,7 @@ class layerInterpolateCandidate:
         self.compute_loose_offsets = compute_loose_offsets
         self.loose_offset_const = loose_offset_const
 
-        self.list_of_neurons = []
+        # self.list_of_neurons = []
         self.list_of_neurons = [invariantOnNeuron()] * layer_size
 
         self.active_neurons = {}
@@ -624,13 +624,13 @@ class layerInterpolateCandidate:
     def adjustObservedBoundForVariable(self, var: int, new_input: float):
         assert var in range(self.layer_size)
 
-        if new_input < self.layer_minimums[var]:
+        if new_input < self.list_of_neurons[var].observed_minimum:
             self.layer_minimums[var] = new_input
             self.list_of_neurons[var].observed_minimum = new_input
             self.list_of_neurons[var].recomputeBounds('l')
             self.updateSuggestedBound(var, 'l')
 
-        if new_input > self.layer_maximums[var]:
+        if new_input > self.list_of_neurons[var].observed_maximum:
             self.layer_maximums[var] = new_input
             self.list_of_neurons[var].observed_maximum = new_input
             self.list_of_neurons[var].recomputeBounds('r')
@@ -694,7 +694,8 @@ class layerInterpolateCandidate:
         #                                      high=self.layer_maximums[var])
         #     input.append(random_value)
         # return input
-        return [np.random.uniform(low=self.layer_minimums[var], high=self.layer_maximums[var])
+        return [np.random.uniform(low=self.list_of_neurons[var].observed_minimum,
+                                  high=self.list_of_neurons[var].observed_maximum)
                 for var in range(self.layer_size)]
 
     def createRandomSuggestedInputForLayer(self):
@@ -704,7 +705,8 @@ class layerInterpolateCandidate:
         #                                      high=self.suggested_bounds['r'][var])
         #     input.append(random_value)
         # return input
-        return [np.random.uniform(low=self.suggested_bounds['l'][var], high=self.suggested_bounds['r'][var])
+        return [np.random.uniform(low=self.list_of_neurons[var].suggested_bounds['l'],
+                                  high=self.list_of_neurons[var].suggested_bounds['r'])
                 for var in range(self.layer_size)]
 
     def createRandomInputOfExtremesForLayer(self):
@@ -1112,10 +1114,12 @@ class CompositionalVerifier:
         self.createOriginalOutputPropertyFile()
         self.addLayerPropertiesToOutputPropertyFile()
 
+        self.ipq2 = MarabouCore.InputQuery()
         MarabouCore.createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
         options = Marabou.createOptions(verbosity=2, timeoutInSeconds=timeout)
         [vals, stats] = Marabou.solve_query(ipq=self.ipq2, verbose=True, options=options)
-        bad_input = self.convertVectorFromDictToList(vals)
+        bad_vars = self.convertVectorFromDictToList(vals)
+        bad_input = bad_vars[:self.layer_size]
 
         if stats.hasTimedOut():
             return bad_input, True
@@ -1147,16 +1151,18 @@ class CompositionalVerifier:
         options = Marabou.createOptions(initialTimeout=timeout,verbosity=2)
 
         [vals, stats] = Marabou.solve_query(self.ipq1, verbose=True, options=options)
-        bad_input = self.convertVectorFromDictToList(vals)
-        if stats.hasTimedOut():
-            return bad_input, True
+        bad_vars = self.convertVectorFromDictToList(vals)
+        bad_output = bad_vars[-self.layer_size:]
 
-        if bad_input:  # SAT
+        if stats.hasTimedOut():
+            return bad_output, True
+
+        if bad_output:  # SAT
             if add_to_goodset:
-                self.good_set.append(bad_input)
+                self.good_set.append(bad_output)
         else:
             self.layer_interpolant_candidate.reportVerifiedDisjunct(var, side)
-        return bad_input, False
+        return bad_output, False
 
     def verifyUnverifiedDisjunctsWithMarabou(self, add_to_goodset=True, timeout=0, individual_timeout=0,
                                              verbosity=0, truncated_output_layer=True):
@@ -1203,6 +1209,11 @@ class CompositionalVerifier:
                 if not bad_input:  # UNSAT
                     continue
                 failed_disjuncts.append((var, side, bad_input))
+                if verbosity>2:
+                    print('Discovered a faiiled disjunct: ')
+                    print(var, side)
+                    print(len(bad_input))
+                    print(bad_input)
 
         return failed_disjuncts, exit_due_to_timeout
 
@@ -1640,6 +1651,7 @@ class CompositionalVerifier:
         return input
 
     def verifyOriginalQuery(self, verbosity=0):
+        self.ipq = MarabouCore.InputQuery()
         MarabouCore.createInputQuery(self.ipq, self.network_filename, self.property_filename)
         options = Marabou.createOptions(verbosity=verbosity)
         [vals, _] = Marabou.solve_query(self.ipq, verbose=True, options=options)
@@ -1652,16 +1664,19 @@ class CompositionalVerifier:
         try:
             with open(self.property_filename2, 'a') as f2:
                 for var in range(self.layer_size):
-                    p = 'x' + str(var) + ' <= ' + str(max(0, self.layer_interpolant_candidate.layer_maximums[var]))
+                    p = 'x' + str(var) + ' <= ' + \
+                        str(max(0, self.layer_interpolant_candidate.list_of_neurons[var].observed_maximum))
                     f2.write(p)
                     f2.write('\n')
-                    p = 'x' + str(var) + ' >= ' + str(max(0, self.layer_interpolant_candidate.layer_minimums[var]))
+                    p = 'x' + str(var) + ' >= ' + \
+                        str(max(0, self.layer_interpolant_candidate.list_of_neurons[var].observed_minimum))
                     f2.write(p)
                     f2.write('\n')
         except:
             print('Something went wrong with writing to property_file2')
             sys.exit(1)
 
+        self.ipq2 = MarabouCore.InputQuery()
         MarabouCore.createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
         options = Marabou.createOptions(verbosity=0)
 
@@ -1671,10 +1686,18 @@ class CompositionalVerifier:
     def convertVectorFromDictToList(self, dict_vector: dict):
         return [dict_vector[i] for i in dict_vector.keys()]
 
+    # def convertValsFromDictToLists(self, dict_vector: dict, ipq: MarabouCore.InputQuery):
+    #     inputs = [dict_vector[i] for i in range(ipq.getNumInputVariables())]
+    #     for i in range(ipq.getNumOutputVariables()):
+
     def detailedDumpLayerInput(self, layer_input):
         for var in range(self.layer_interpolant_candidate.layer_size):
-            print('var = ', var, ': min. = ', self.layer_interpolant_candidate.layer_minimums[var],
-                  ' max = ', self.layer_interpolant_candidate.layer_maximums[var],
+            print('var = ', var, ': min. = ', self.layer_interpolant_candidate.list_of_neurons[var].observed_minimum,
+                  ' max = ', self.layer_interpolant_candidate.list_of_neurons[var].observed_maximum,
+                  ' suggested lower bound = ',
+                  self.layer_interpolant_candidate.list_of_neurons[var].suggested_bounds['l'],
+                  ' suggested upper bound = ',
+                  self.layer_interpolant_candidate.list_of_neurons[var].suggested_bounds['r'],
                   'property: ', self.layer_interpolant_candidate.list_of_neurons[var].interpolant_property['l'],
                   ' ', self.layer_interpolant_candidate.list_of_neurons[var].interpolant_property['r'],
                   ' input = ', layer_input[var])

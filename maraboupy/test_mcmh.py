@@ -282,7 +282,7 @@ print("\nVerifying disjunction with Marabou.\n")
 
 
 failed_disjuncts, exit_due_to_timeout = mcmh_object.verifyUnverifiedDisjunctsWithMarabou(add_to_goodset=False,
-                                                                                         timeout=TIMEOUT, verbosity=2,
+                                                                                         timeout=TIMEOUT, verbosity=3,
                                                                                          truncated_output_layer=False)
 
 

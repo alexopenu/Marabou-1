@@ -1254,6 +1254,11 @@ class CompositionalVerifier:
         for (var, side, bad_input) in failed_disjuncts:
             self.layer_interpolant_candidate.adjustObservedBoundForVariable(var, bad_input[var])
 
+            # Experimenting..
+            # TODO: make more systematic or remove?
+            if not self.layer_interpolant_candidate.list_of_neurons[var].tight_bounds:
+                self.layer_interpolant_candidate.list_of_neurons[var].halfOffset(side)
+
     def CandidateSearch(self, number_of_trials: int, individual_sample: int, timeout=0, verbosity=0,
                         extremes=False):
 

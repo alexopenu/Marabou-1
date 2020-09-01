@@ -641,13 +641,13 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
 
         layer = last_layer - 1
 
-        if (activate_output_layer):
+        if activate_output_layer:
             outputs = np.maximum(np.dot(weights[layer], inputs_norm) + biases[layer], 0)
         else:
             outputs = np.dot(weights[layer], inputs_norm) + biases[layer]
 
         # Undo output normalization
-        if (normalize_outputs):
+        if normalize_outputs:
             if last_layer == num_layers:
                 output_mean = self.outputMean
                 output_range = self.outputRange

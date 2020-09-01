@@ -1210,6 +1210,8 @@ class CompositionalVerifier:
         failed_disjuncts = []
         for var in range(self.layer_size):
             for side in TYPES_OF_BOUNDS:
+                if side == 'l' and self.layer_interpolant_candidate.list_of_neurons[var].suggested_bounds['l'] <= 0:
+                    continue
                 bad_input, _ = \
                     self.verifyDisjunctWithMarabou(var, side, add_to_goodset=add_to_goodset,
                                                    truncated_output_layer=truncated_output_layer)

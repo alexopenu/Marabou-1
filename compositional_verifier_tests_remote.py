@@ -327,7 +327,7 @@ new_start_time = time.time()
 print('Adjusting disjuncts and continuing in a loop.')
 
 status, argument_list = mcmh_object.CandidateSearch(number_of_trials=1000, individual_sample=100, verbosity=3,
-                                                    timeout=TIMEOUT)
+                                                    timeout=TIMEOUT, truncated_output_layer=False)
 
 current_time = time.time()
 

@@ -686,7 +686,6 @@ class layerInterpolateCandidate:
         # self.list_of_neurons[var].SetDisjunctAsUnVerified(side) # Unreasonable
         self.list_of_neurons[var].SetDisjunctAsFailed(side)
 
-
     def createRandomStrictInputForLayer(self):
         # input = []
         # for var in range(self.layer_size):
@@ -1148,7 +1147,7 @@ class CompositionalVerifier:
         self.ipq1 = MarabouCore.InputQuery()
         MarabouCore.createInputQuery(self.ipq1, network_filename1, self.property_filename1)
 
-        options = Marabou.createOptions(initialTimeout=timeout,verbosity=2)
+        options = Marabou.createOptions(initialTimeout=timeout, verbosity=2)
 
         [vals, stats] = Marabou.solve_query(self.ipq1, verbose=True, options=options)
         bad_vars = self.convertVectorFromDictToList(vals)
@@ -1212,7 +1211,7 @@ class CompositionalVerifier:
                 if not bad_output:  # UNSAT
                     continue
                 failed_disjuncts.append((var, side, bad_output))
-                if verbosity>2:
+                if verbosity > 2:
                     print('Discovered a faiiled disjunct: ')
                     print(var, side)
                     print(len(bad_output))
@@ -1220,7 +1219,7 @@ class CompositionalVerifier:
 
         return failed_disjuncts, exit_due_to_timeout
 
-    def verifyAllDisjunctsWithMarabou(self, add_to_goodset=True, truncated_output_layer=True, verbosity = 0):
+    def verifyAllDisjunctsWithMarabou(self, add_to_goodset=True, truncated_output_layer=True, verbosity=0):
         failed_disjuncts = []
         for var in range(self.layer_size):
             for side in TYPES_OF_BOUNDS:
@@ -1249,7 +1248,7 @@ class CompositionalVerifier:
                                                                 number_of_epsilons=number_of_epsilons_to_adjust)
         return epsilon_adjusted
 
-    def adjustDisjunctsOnBadInputs(self, failed_disjuncts: list):
+    def adjustDisjunctsOnBadInputs(self, failed_disjuncts: list, truncated_output_layer=False):
         """
 
         Args:
@@ -1259,15 +1258,20 @@ class CompositionalVerifier:
 
         """
         for (var, side, bad_input) in failed_disjuncts:
-            self.layer_interpolant_candidate.adjustObservedBoundForVariable(var, bad_input[var])
+            if truncated_output_layer:
+                self.layer_interpolant_candidate.adjustObservedBoundForVariable(var, bad_input[0])
+            else:
+                self.layer_interpolant_candidate.adjustObservedBoundForVariable(var, bad_input[var])
 
             # Experimenting..
             # TODO: make more systematic or remove?
-            if not self.layer_interpolant_candidate.list_of_neurons[var].tight_bounds:
+            if (not self.layer_interpolant_candidate.list_of_neurons[var].tight_bounds) and \
+                    (self.layer_interpolant_candidate.list_of_neurons[var].getOffset(side)/2 >
+                     self.layer_interpolant_candidate.list_of_neurons[var].epsilon_twosided[side]):
                 self.layer_interpolant_candidate.list_of_neurons[var].halfOffset(side)
 
     def CandidateSearch(self, number_of_trials: int, individual_sample: int, timeout=0, verbosity=0,
-                        extremes=False):
+                        extremes=False, truncated_output_layer=False):
 
         starting_time = time.time()
         counter = 0
@@ -1275,11 +1279,13 @@ class CompositionalVerifier:
         while True:
             # Continue until success, failure, or time out
 
-            status, result, argument_list, time_elapsed = self.oneRoundCandidateSearch(total_trials=number_of_trials,
-                                                                                       individual_sample=individual_sample,
-                                                                                       timeout=timeout,
-                                                                                       extremes=extremes,
-                                                                                       verbosity=verbosity)
+            status, result, argument_list, time_elapsed = \
+                self.oneRoundCandidateSearch(total_trials=number_of_trials,
+                                             individual_sample=individual_sample,
+                                             timeout=timeout,
+                                             extremes=extremes,
+                                             verbosity=verbosity,
+                                             truncated_output_layer=truncated_output_layer)
             counter += 1
             if verbosity > 0:
                 print('Round number: ', counter)
@@ -1318,7 +1324,7 @@ class CompositionalVerifier:
                 continue
 
             if status == 'failed_disjuncts':
-                self.adjustDisjunctsOnBadInputs(argument_list)
+                self.adjustDisjunctsOnBadInputs(argument_list, truncated_output_layer=truncated_output_layer)
                 if verbosity > 0:
                     print('failed disjuncts, observed bounds adjusted: ', argument_list)
                 continue
@@ -1326,7 +1332,7 @@ class CompositionalVerifier:
             # TODO: change number of trials and the size of individual sample depending on progress?
 
     def oneRoundCandidateSearch(self, total_trials=100, individual_sample=20, timeout=0, verbosity=0,
-                                extremes=False):
+                                extremes=False, truncated_output_layer=False):
 
         starting_time = time.time()
 
@@ -1393,7 +1399,7 @@ class CompositionalVerifier:
 
         failed_disjuncts, exit_due_to_timeout = \
             self.verifyUnverifiedDisjunctsWithMarabou(timeout=timeout, individual_timeout=int(timeout / 10),
-                                                      truncated_output_layer=False)
+                                                      truncated_output_layer=False, verbosity=verbosity)
 
         if verbosity > 2:
             print('\nOne time candidate search: ', len(failed_disjuncts), ' failed disjuncts', ' present\n')

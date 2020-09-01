@@ -1152,7 +1152,10 @@ class CompositionalVerifier:
 
         [vals, stats] = Marabou.solve_query(self.ipq1, verbose=True, options=options)
         bad_vars = self.convertVectorFromDictToList(vals)
-        bad_output = bad_vars[-self.layer_size:]
+        if truncated_output_layer:
+            bad_output = bad_vars[-1:]
+        else:
+            bad_output = bad_vars[-self.layer_size:]
 
         if stats.hasTimedOut():
             return bad_output, True
@@ -1198,7 +1201,7 @@ class CompositionalVerifier:
                     print('Dual property to verify:')
                     print(self.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side])
 
-                bad_input, exit_due_to_timeout = \
+                bad_output, exit_due_to_timeout = \
                     self.verifyDisjunctWithMarabou(var, side, add_to_goodset=add_to_goodset,
                                                    timeout=individual_timeout,
                                                    truncated_output_layer=truncated_output_layer)
@@ -1206,23 +1209,27 @@ class CompositionalVerifier:
                 if exit_due_to_timeout:
                     break
 
-                if not bad_input:  # UNSAT
+                if not bad_output:  # UNSAT
                     continue
-                failed_disjuncts.append((var, side, bad_input))
+                failed_disjuncts.append((var, side, bad_output))
                 if verbosity>2:
                     print('Discovered a faiiled disjunct: ')
                     print(var, side)
-                    print(len(bad_input))
-                    print(bad_input)
+                    print(len(bad_output))
+                    print(bad_output)
 
         return failed_disjuncts, exit_due_to_timeout
 
-    def verifyAllDisjunctsWithMarabou(self, add_to_goodset=True, truncated_output_layer=True):
+    def verifyAllDisjunctsWithMarabou(self, add_to_goodset=True, truncated_output_layer=True, verbosity = 0):
         failed_disjuncts = []
         for var in range(self.layer_size):
             for side in TYPES_OF_BOUNDS:
                 if side == 'l' and self.layer_interpolant_candidate.list_of_neurons[var].suggested_bounds['l'] <= 0:
                     continue
+                if verbosity > 1:
+                    print('Verifying all disjuncts. Disjuct ', var, side)
+                    print('Property to verify: ',
+                          self.layer_interpolant_candidate.list_of_neurons[var].dual_interpolant_property[side])
                 bad_input, _ = \
                     self.verifyDisjunctWithMarabou(var, side, add_to_goodset=add_to_goodset,
                                                    truncated_output_layer=truncated_output_layer)
@@ -1271,7 +1278,8 @@ class CompositionalVerifier:
             status, result, argument_list, time_elapsed = self.oneRoundCandidateSearch(total_trials=number_of_trials,
                                                                                        individual_sample=individual_sample,
                                                                                        timeout=timeout,
-                                                                                       extremes=extremes)
+                                                                                       extremes=extremes,
+                                                                                       verbosity=verbosity)
             counter += 1
             if verbosity > 0:
                 print('Round number: ', counter)
@@ -1325,6 +1333,9 @@ class CompositionalVerifier:
         result, out_of_bounds_inputs, differences_dict, time_elapsed = \
             self.checkConjunction(total_trials=total_trials, individual_sample=individual_sample, timeout=timeout,
                                   verbosity=verbosity, extremes=extremes)
+        if verbosity > 1:
+            print('\nOne time candidate search: checkConjunction performed, result = ', result, out_of_bounds_inputs,
+                  '\n')
 
         # if result == 'success':
         #     status = 'success'
@@ -1337,6 +1348,8 @@ class CompositionalVerifier:
         if result == 'failed':
             bad_input = self.verifyRawConjunction()  # Verifying whether the observed bounds are strong enough
             if bad_input:
+                if verbosity > 1:
+                    print('\nOne time candidate search: Verifying raw conjunction\n')
                 status = 'raw_conjunction_too_weak'
                 return status, result, bad_input, time.time() - starting_time
             status = 'candidate_too_weak'
@@ -1350,6 +1363,9 @@ class CompositionalVerifier:
 
         if not self.marabou_verification_initiated:
             self.prepareForMarabouCandidateVerification()
+
+        if verbosity > 1:
+            print('\nOne time candidate search: verifying conjunction with Marabou\n')
 
         bad_input, exit_due_to_timeout = self.verifyConjunctionWithMarabou(add_to_badset=True, timeout=timeout)
 
@@ -1372,9 +1388,16 @@ class CompositionalVerifier:
         # So for now we assume that we have a candidate which is not too weak
         # Next step is verifying the disjunction
 
+        if verbosity > 1:
+            print('\nOne time candidate search: verifying unverified disjuncts with Marabou.\n')
+
         failed_disjuncts, exit_due_to_timeout = \
             self.verifyUnverifiedDisjunctsWithMarabou(timeout=timeout, individual_timeout=int(timeout / 10),
                                                       truncated_output_layer=False)
+
+        if verbosity > 2:
+            print('\nOne time candidate search: ', len(failed_disjuncts), ' failed disjuncts', ' present\n')
+            print('Failed disjuncts: ', [(x[0], x[1]) for x in failed_disjuncts])
 
         if failed_disjuncts:
             status = 'failed_disjuncts'

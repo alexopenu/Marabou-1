@@ -326,7 +326,7 @@ new_start_time = time.time()
 
 print('Adjusting disjuncts and continuing in a loop.')
 
-status, argument_list = mcmh_object.CandidateSearch(number_of_trials=1000, individual_sample=100, verbosity=2,
+status, argument_list = mcmh_object.CandidateSearch(number_of_trials=1000, individual_sample=100, verbosity=3,
                                                     timeout=TIMEOUT)
 
 current_time = time.time()
@@ -343,7 +343,7 @@ if status == 'success':
     print("\n\nMaking sure this is indeed an invariant: \n")
     print('\nVerifying all the disjuncts: \n')
     new_start_time = time.time()
-    failed_disjuncts = mcmh_object.verifyAllDisjunctsWithMarabou(truncated_output_layer=False)
+    failed_disjuncts = mcmh_object.verifyAllDisjunctsWithMarabou(truncated_output_layer=False, verbosity=3)
     if failed_disjuncts:
         warnings.warn('Failed disjuncts still present!')
         print('Something went wrong! There are ', len(failed_disjuncts), ' failed disjuncts.')

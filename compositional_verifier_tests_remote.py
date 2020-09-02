@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 
 import os
+import site
+import sys
 
 if '/cs' in os.getcwd():
     REMOTE = True
@@ -10,7 +12,12 @@ else:
 print(REMOTE)
 
 if REMOTE:
+    os.path.join('/cs/usr/alexus/coding/my_Marabou/Marabou-1')
+    site.addsitedir('/cs/usr/alexus/coding/my_Marabou/Marabou-1')
+    sys.path.append('/cs/usr/alexus/coding/my_Marabou/Marabou-1')
     os.chdir('/cs/usr/alexus/coding/my_Marabou/Marabou-1/maraboupy')
+
+print(sys.path)
 
 print(os.getcwd())
 
@@ -46,11 +53,11 @@ from random import randint
 start_time = time.time()
 
 
-NETWORK = '1_4'
+NETWORK = '2_4'
 PROPERTY = '4'
 LAYER = 5
 if REMOTE:
-    TIMEOUT = 10000
+    TIMEOUT = 40000
 else:
     TIMEOUT = 600
 
@@ -62,13 +69,13 @@ print("Interpolant search on layer", LAYER, "\n")
 
 property_filename1 = "../resources/properties/acas_property_1.txt"
 
-network_filename1 = "test/ACASXU_experimental_v2a_1_9_input.nnet"
-network_filename2 = "test/ACASXU_experimental_v2a_1_9_output.nnet"
+network_filename1 = "test/ACASXU_experimental_v2a_"+NETWORK+"_input_.nnet"
+network_filename2 = "test/ACASXU_experimental_v2a_"+NETWORK+"_output.nnet"
 
-output_property_file = "output_property_test1.txt"
+output_property_file = "output_property_test1_"+NETWORK+".txt"
 input_property_file = "input_property_" + "acas" + NETWORK + "_prop" + PROPERTY + "_level" + str(LAYER) + "_test1.txt"
 
-disjunct_network_file = "test/ACASXU_experimental_v2a_1_9_disjunct.nnet"
+disjunct_network_file = "test/ACASXU_experimental_v2a_"+NETWORK+"_disjunct.nnet"
 
 mcmh_object = CompositionalVerifier(network_filename=network_filename, property_filename=property_filename, layer=LAYER)
 

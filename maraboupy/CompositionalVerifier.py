@@ -1238,6 +1238,248 @@ class CompositionalVerifier:
 
         return failed_disjuncts
 
+    def verifyInterpolantFromFile(self, property_filename='', verbosity=0, timeout=0, split_network=True,
+                                  proceed_to_the_end = True, sanity_check = True):
+
+        interpolant_verified = True
+
+        hidden_layer_index = str(self.layer)
+        hidden_var = 'h_' + hidden_layer_index + '_'
+
+        if split_network:
+            disjunction_network = self.network_filename1
+            conjunction_network = self.network_filename2
+            conjunction_var = 'x'
+            disjunction_var = 'y'
+        else:
+            disjunction_network = self.network_filename
+            conjunction_network = self.network_filename
+            conjunction_var = hidden_var
+            disjunction_var = hidden_var
+
+        if verbosity > 0:
+            print('\nVerifying the interpolant from a file independently of Compositional Verifier.\n')
+        if not property_filename:
+            property_filename = self.property_filename2
+            print('Property filename not provided! Using ', self.property_filename2)
+        try:
+            property = Property(self.property_filename2, compute_executable_bounds=False,
+                                compute_executable_equations=False, compute_marabou_lists=False)
+        except:
+            warnings.warn('Something went wrong with creating the Interpolant Property!')
+            print('Interpolant has not been verified')
+            return
+
+        legal_interpolant_candidate = True
+        new_property_file_necessary = False
+
+        if not property.mixed_properties_present():
+
+            if property.h_properties_present():
+                if property.get_original_x_properties():
+                    legal_interpolant_candidate = False
+                elif split_network:
+                    list_of_conjuncts = []
+                    for p in property.get_original_h_properties():
+                        if hidden_var in p:
+                            list_of_conjuncts.append(p.replace(hidden_var, 'x'))
+                        else:
+                            legal_interpolant_candidate = False
+                            break
+                    new_property_file_necessary = True
+                else:
+                    list_of_conjuncts = property.get_original_h_properties()
+
+            else:
+                if not split_network:
+                    list_of_conjuncts = []
+                    for p in property.get_original_x_properties():
+                        list_of_conjuncts.append(p.replace('x', hidden_var))
+                    new_property_file_necessary = True
+                else:
+                    list_of_conjuncts = property.get_original_x_properties()
+
+        else:
+            legal_interpolant_candidate = False
+
+        if not legal_interpolant_candidate:
+            warnings.warn('Illegal interpolant property file! Interpolant verification aborted.')
+            return
+
+        if verbosity > 0 and new_property_file_necessary:
+            print('The interpolant has been recomputed based on the provided value of split_network = ', split_network)
+            if verbosity>1:
+                print('The old interpolant was: ')
+                if property.h_properties_present():
+                    print(property.get_original_h_properties())
+                else:
+                    print(property.get_original_y_properties())
+
+        if verbosity > 1:
+            print('The interpolant to be verified is: ', list_of_conjuncts)
+
+        if new_property_file_necessary:
+            new_property_filename = 'new_' + property_filename
+            if verbosity > 0:
+                print('New property file is necessary.')
+                print('Using ', new_property_filename)
+            try:
+                with open(new_property_filename, 'w') as f2:
+                    for p in property.get_original_y_properties():
+                        f2.write(p)
+                    for p in list_of_conjuncts:
+                        f2.write(p)
+                    if not split_network:
+                        for p in self.marabou_query.property.get_original_x_properties():
+                            f2.write(p)
+            except:
+                warnings.warn('Something went wrong with writing to a new property file! '
+                              'Interpolant verification aborted.')
+                return
+        else:
+            new_property_filename = property_filename
+
+        if verbosity > 2:
+            print('Property filename: ', new_property_filename)
+
+        # self.verifyConjunctionWithMarabou(add_to_badset=False)
+
+        if verbosity > 0:
+            print("\nVerifying the conjunction.\n")
+        conj_ipq = MarabouCore.InputQuery()
+        print('1')
+        print(conjunction_network)
+        MarabouCore.createInputQuery(conj_ipq, conjunction_network, new_property_filename)
+        print('2')
+        options = Marabou.createOptions(verbosity=max(2,verbosity), timeoutInSeconds=timeout)
+        [vals, stats] = Marabou.solve_query(ipq=conj_ipq, verbose=True, options=options)
+        bad_vals = self.convertVectorFromDictToList(vals)
+        bad_output = bad_vals[-conj_ipq.getNumOutputVariables():]
+        if split_network:
+            bad_vals = bad_vals[:self.layer_size]
+
+        if stats.hasTimedOut() and verbosity > 0:
+            print('Conjunction verification has timed out!')
+            print('Interpolant verification has failed.')
+            return
+
+        if bad_vals and verbosity > 0:  # SAT
+            print('A counterexample to the conjunction has been found!')
+            print('Interpolant verification has failed.')
+            if verbosity > 1:
+                print('The counterexample: ')
+                print(bad_vals)
+                print('Bad output: ', bad_output)
+
+        if bad_vals:
+            interpolant_verified = False
+            if not proceed_to_the_end:
+                return
+
+        if verbosity > 0:
+            print('\nConjunction verification succeeded.\n')
+            print('\nVerifying all the disjuncts sequentially.\n')
+
+        # list_of_conjuncts = property.get_original_x_properties()
+        if verbosity > 1:
+            print('The conjucts are:')
+            print(list_of_conjuncts)
+        list_of_disjuncts = []
+        for conjunct in list_of_conjuncts:
+            if split_network:
+                disjunct = conjunct.replace('x', 'y')
+            else:
+                disjunct = conjunct
+            if '<' in conjunct:
+                disjunct = disjunct.replace('<', '>', 1)
+            else:
+                disjunct = disjunct.replace('>', '<', 1)
+
+            list_of_disjuncts.append(disjunct)
+
+        temp_disj_property_filename = self.property_filename1
+
+        failed_disjunts = []
+        for disjunct_index in range(len(list_of_disjuncts)):
+            disjunct = list_of_disjuncts[disjunct_index]
+
+            if verbosity > 0:
+                print('Verifying disjunct: ', disjunct)
+            if verbosity > 1:
+                print('Associated conjunct: ', list_of_conjuncts[disjunct_index])
+            if '<= 0\n' in disjunct:
+                if verbosity > 0:
+                    print("Does not require verification.")
+                continue
+            elif verbosity > 0:
+                print("Requires verification.")
+
+            try:
+                with open(temp_disj_property_filename, 'w') as f2:
+                    for p in self.marabou_query.property.get_original_x_properties():
+                        f2.write(p)
+                        print('p=', p)
+                    f2.write(disjunct)
+            except:
+                warnings.warn('Something went wrong with writing to the disjuction property file! '
+                              'Interpolant verification aborted.')
+                return
+
+            disj_ipq = MarabouCore.InputQuery()
+            MarabouCore.createInputQuery(disj_ipq, disjunction_network, temp_disj_property_filename)
+            options = Marabou.createOptions(verbosity=max(2, verbosity), timeoutInSeconds=timeout)
+            [vals, stats] = Marabou.solve_query(ipq=disj_ipq, verbose=True, options=options)
+            bad_vals = self.convertVectorFromDictToList(vals)
+            bad_input = bad_vals[:disj_ipq.getNumInputVariables()]
+            if split_network:
+                bad_vals = bad_vals[-self.layer_size:]
+
+            if bad_vals:
+                interpolant_verified = False
+                failed_disjunts.append(disjunct)
+                if verbosity > 0:
+                    print('Disjunct ', disjunct, ' has failed.')
+                if verbosity > 2:
+                    print('Counterexample: ')
+                    print("Bad input: ", bad_input)
+                    print('input size: ', disj_ipq.getNumInputVariables())
+                    print("Bad output/values: ", bad_vals)
+
+                if sanity_check and split_network:
+                    nnet_object = Marabou.read_nnet(disjunction_network)
+
+                    sanity_check_network_output = nnet_object.evaluateNNet(bad_input,
+                                                                           activate_output_layer=False)
+                    if verbosity>0:
+                        print('Sanity check output: ', sanity_check_network_output)
+                    if verbosity>1:
+                        print('Difference between the outputs: ')
+                        print(sanity_check_network_output-bad_vals)
+
+                    temp_disj_property = Property(temp_disj_property_filename, compute_marabou_lists=False)
+                    print('Re-checking whether the property holds with python Property class: ',
+                          temp_disj_property.verify_io_property_exec(x=bad_input, y=sanity_check_network_output))
+
+                if not proceed_to_the_end:
+                    return
+
+        if verbosity > 0:
+            print('\nDisjunction verification completed.\n')
+            if failed_disjunts:
+                print("Failed, ", len(failed_disjunts), "failed disjuncts found")
+                if verbosity > 1:
+                    print("Failed disjuncts: ", failed_disjunts)
+            else:
+                print("No failed disjuncts.")
+
+        if interpolant_verified:
+            print('Success! Interpolant verified.')
+        else:
+            print("Failure, not an interpolant.")
+
+
+
+
     def adjustConjunctionOnBadInput(self, layer_input, adjust_epsilons='random', number_of_epsilons_to_adjust=1):
         out_of_bounds_inputs, differene_dict = \
             self.layer_interpolant_candidate.analyzeBadLayerInput(layer_input)
@@ -1263,7 +1505,7 @@ class CompositionalVerifier:
             else:
                 self.layer_interpolant_candidate.adjustObservedBoundForVariable(var, bad_input[var])
 
-            # Experimenting..
+            # Experimenting.. Didn't work!
             # TODO: make more systematic or remove?
             # if (not self.layer_interpolant_candidate.list_of_neurons[var].tight_bounds) and \
             #        (self.layer_interpolant_candidate.list_of_neurons[var].getOffset(side)/2 >
@@ -1542,6 +1784,7 @@ class CompositionalVerifier:
                 result = 'out_of_bounds'
 
         return result, one_out_of_bounds_inputs, one_differene_dict, output
+
 
     def createOriginalInputPropertyFile(self):
         property_filename1 = self.property_filename1

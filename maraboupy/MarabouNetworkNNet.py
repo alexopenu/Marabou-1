@@ -623,7 +623,6 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
         if normalize_inputs:
             if (first_layer == 0):
 
-
                 for i in range(input_size):
                     if inputs[i] < mins[i]:
                         inputs_norm[i] = (mins[i] - means[i]) / ranges[i]

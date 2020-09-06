@@ -340,7 +340,7 @@ class invariantOnNeuron:
         for side in TYPES_OF_BOUNDS:
             self.recomputeInterpolantProperty(side)
 
-    def recomputeRealBound(self, side: TYPES_OF_BOUNDS, round_bound = True):
+    def recomputeRealBound(self, side: TYPES_OF_BOUNDS, round_bound=True):
         epsilon = self.epsilon_twosided[side]
         if side == 'l':
             bound = self.observed_minimum - epsilon
@@ -356,18 +356,23 @@ class invariantOnNeuron:
             bound = round(bound, ROUND_TO_DIGITS)
         self.real_bounds_for_invariant[side] = max(bound, 0)
 
-    def recomputeLooseBound(self, side: TYPES_OF_BOUNDS):
+    def recomputeLooseBound(self, side: TYPES_OF_BOUNDS, round_bound=True):
         delta = self.deltas[side]
 
         if side == 'l':
             bound = self.observed_minimum - delta
-            self.loose_bounds_for_invariant[side] = max(bound, 0)
+            # self.loose_bounds_for_invariant[side] = max(bound, 0)
         elif side == 'r':
             bound = self.observed_maximum + delta
-            self.loose_bounds_for_invariant[side] = max(bound, 0)
+            # self.loose_bounds_for_invariant[side] = max(bound, 0)
             # self.loose_bounds_for_invariant[side] = -1 if bound < -1 else max(bound, 1)
         else:  # side not in TYPES_OF_BOUNDS!
             assert False
+
+        if round_bound:
+            bound = round(bound, ROUND_TO_DIGITS)
+        self.loose_bounds_for_invariant[side] = max(bound, 0)
+
 
     def recomputeSuggestedBound(self, side: TYPES_OF_BOUNDS, recompute_property=True):
         self.suggested_bounds[side] = self.getSuggestedBound(side)

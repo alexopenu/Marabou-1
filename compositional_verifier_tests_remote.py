@@ -53,7 +53,7 @@ from random import randint
 start_time = time.time()
 
 
-NETWORK = '2_4'
+NETWORK = '2_5'
 PROPERTY = '4'
 LAYER = 5
 if REMOTE:

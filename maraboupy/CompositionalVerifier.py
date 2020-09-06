@@ -278,7 +278,7 @@ class invariantOnNeuron:
 
     def setEpsilon(self, side: TYPES_OF_BOUNDS, new_epsilon: float, use_safety_factor=True):
         assert side in TYPES_OF_BOUNDS
-        if use_safety_factor:
+        if use_safety_factor and new_epsilon*2 < SAFETY_FACTOR:
             print('Warning: Trying to set the tight offset for neuron ', self.var, ' ', side, 'to less than ', SAFETY_FACTOR)
             print('Set offset rejected')
             return False
@@ -287,7 +287,7 @@ class invariantOnNeuron:
         return True
 
     def setDelta(self, side: TYPES_OF_BOUNDS, new_delta: float, use_safety_factor=True):
-        if use_safety_factor:
+        if use_safety_factor and new_delta*2 < SAFETY_FACTOR:
             print('Warning: Trying to set the loose offset for neuron ', self.var, ' ', side, 'to less than ', SAFETY_FACTOR)
             print('Set offset rejected')
             return False

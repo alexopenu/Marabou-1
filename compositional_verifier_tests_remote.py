@@ -3,6 +3,7 @@
 import os
 import site
 import sys
+import getopt
 
 if '/cs' in os.getcwd():
     REMOTE = True
@@ -60,6 +61,28 @@ if REMOTE:
     TIMEOUT = 40000
 else:
     TIMEOUT = 600
+
+if __name__ == "__main__":
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],"hn:t:l:p:",["network=","timout=","layer=","property="])
+    except getopt.GetoptError:
+        print('verify_interpolant.py --network=<network> --timout=<timeout> --layer=<layer> --property=<property>')
+        sys.exit(5)
+    print(opts)
+    print(args)
+    for opt, arg in opts:
+        if opt == '-h':
+            print('verify_interpolant.py --network=<network> --timout=<timeout> --layer=<layer> --property=<property>')
+            sys.exit(0)
+        elif opt in ('-n', "--network"):
+            NETWORK = arg
+        elif opt in ("-t", "--timeout"):
+            TIMEOUT = int(arg)
+        elif opt in ("-l", "--layer"):
+            LAYER = int(arg)
+        elif opt in ("-p", "--property"):
+            PROPERTY = arg
+
 
 network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_" + NETWORK + ".nnet"
 print('\nNetwork: ACASXU_experimental_v2a_' + NETWORK + '.nnet\n')

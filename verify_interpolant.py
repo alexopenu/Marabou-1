@@ -3,6 +3,7 @@
 import os
 import site
 import sys
+import getopt
 
 if '/cs' in os.getcwd():
     REMOTE = True
@@ -52,16 +53,38 @@ import matplotlib.pyplot as plt
 import scipy.stats as stats
 from random import randint
 
+
 start_time = time.time()
 
 
-NETWORK = '2_5'
+NETWORK = '2_7'
 PROPERTY = '4'
 LAYER = 5
 if REMOTE:
     TIMEOUT = 40000
 else:
     TIMEOUT = 600
+
+# def main(argv):
+if __name__ == "__main__":
+   # main(sys.argv[1:])
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],"hn:t:l:p:",["network=","timout=","layer=","property="])
+    except getopt.GetoptError:
+        print('verify_interpolant.py --network=<network> --timout=<timeout> --layer=<layer> --property=<property>')
+        sys.exit(5)
+    for opt, arg in opts:
+        if opt == '-h':
+            print('verify_interpolant.py --network=<network> --timout=<timeout> --layer=<layer> --property=<property>')
+            sys.exit(0)
+        elif opt in ('-n', "--network"):
+            NETWORK = arg
+        elif opt in ("-t", "--timeout"):
+            TIMEOUT = int(arg)
+        elif opt in ("-l", "--layer"):
+            LAYER = int(arg)
+        elif opt in ("-p", "--property"):
+            PROPERTY = arg
 
 network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_" + NETWORK + ".nnet"
 print('\nNetwork: ACASXU_experimental_v2a_' + NETWORK + '.nnet\n')
@@ -109,3 +132,22 @@ current_time = time.time()
 print('Time first verification took: ', new_start_time-start_time)
 
 print('Time second verification took: ', current_time-new_start_time)
+
+# def main(argv):
+#     try:
+#         opts, args = getopt.getopt(argv,"hn:t:l:p:",["network=","timout=","layer=","property="])
+#     except getopt.GetoptError:
+#         print('verify_interpolant.py --network=<network> --timout=<timeout> --layer=<layer> --property=<property>')
+#         sys.exit(5)
+#     for opt, arg in opts:
+#         if opt == '-h':
+#             print('verify_interpolant.py --network=<network> --timout=<timeout> --layer=<layer> --property=<property>')
+#             sys.exit(0)
+#         elif opt in ("-n", "--network"):
+#             NETWORK = arg
+#         elif opt in ("-t", "--timeout"):
+#             TIMEOUT = int(arg)
+#         elif opt in ("-l", "--layer"):
+#             LAYER = int(arg)
+#         elif opt in ("-p", "--property"):
+#             PROPERTY = arg

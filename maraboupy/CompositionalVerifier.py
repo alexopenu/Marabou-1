@@ -36,6 +36,8 @@ TYPES_OF_BOUNDS = ['l', 'r']
 TYPE_OF_BOUNDS_TO_SIGN = {'l': -1, 'r': 1}
 
 INFINITY = 100
+SAFETY_FACTOR = 0.0001
+ROUND_TO_DIGITS = 4
 
 
 class basic_mcmh_statistics:
@@ -274,13 +276,21 @@ class invariantOnNeuron:
         assert side in TYPES_OF_BOUNDS
         return self.epsilon_twosided[side] if self.tight_bounds else self.deltas[side]
 
-    def setEpsilon(self, side: TYPES_OF_BOUNDS, new_epsilon: float):
+    def setEpsilon(self, side: TYPES_OF_BOUNDS, new_epsilon: float, use_safety_factor=True):
         assert side in TYPES_OF_BOUNDS
+        if use_safety_factor:
+            print('Warning: Trying to set the tight offset for neuron ', self.var, ' ', side, 'to less than ', SAFETY_FACTOR)
+            print('Set offset rejected')
+            return False
         self.epsilon_twosided[side] = new_epsilon
-
         self.recomputeBounds(side)
+        return True
 
-    def setDelta(self, side: TYPES_OF_BOUNDS, new_delta: float):
+    def setDelta(self, side: TYPES_OF_BOUNDS, new_delta: float, use_safety_factor=True):
+        if use_safety_factor:
+            print('Warning: Trying to set the loose offset for neuron ', self.var, ' ', side, 'to less than ', SAFETY_FACTOR)
+            print('Set offset rejected')
+            return False
         assert side in TYPES_OF_BOUNDS
         self.deltas[side] = new_delta
 
@@ -289,9 +299,12 @@ class invariantOnNeuron:
             self.tight_bounds = True
 
         self.recomputeBounds(side)
+        return True
 
-    def setOffset(self, side: TYPES_OF_BOUNDS, new_offset: float):
-        self.setEpsilon(side, new_offset) if self.tight_bounds else self.setDelta(side, new_offset)
+    def setOffset(self, side: TYPES_OF_BOUNDS, new_offset: float, use_safety_factor=True):
+        status = self.setEpsilon(side, new_offset, use_safety_factor=use_safety_factor) if self.tight_bounds \
+            else self.setDelta(side, new_offset, use_safety_factor=use_safety_factor)
+        return status
 
     def zeroLowerBound(self):
         self.makeBoundsLoose()
@@ -299,8 +312,10 @@ class invariantOnNeuron:
             self.setDelta('l', self.observed_minimum)
         assert self.suggested_bounds['l'] == 0
 
-    def halfOffset(self, side: TYPES_OF_BOUNDS):
+    def halfOffset(self, side: TYPES_OF_BOUNDS, use_safety_factor=True):
         offset = self.getOffset(side)
+        if use_safety_factor and offset < SAFETY_FACTOR*2:
+            return
         self.setOffset(side, offset / 2)
 
     def recomputeBounds(self, side, recompute_property=True):
@@ -325,17 +340,21 @@ class invariantOnNeuron:
         for side in TYPES_OF_BOUNDS:
             self.recomputeInterpolantProperty(side)
 
-    def recomputeRealBound(self, side: TYPES_OF_BOUNDS):
+    def recomputeRealBound(self, side: TYPES_OF_BOUNDS, round_bound = True):
         epsilon = self.epsilon_twosided[side]
         if side == 'l':
             bound = self.observed_minimum - epsilon
-            self.real_bounds_for_invariant[side] = max(bound, 0)
+            # self.real_bounds_for_invariant[side] = max(bound, 0)
         elif side == 'r':
             bound = self.observed_maximum + epsilon
-            self.real_bounds_for_invariant[side] = max(bound, 0)
+            # self.real_bounds_for_invariant[side] = max(bound, 0)
             # self.real_bounds_for_invariant[side] = -1 if bound < -1 else max(bound, 0.01)
         else:  # side not in TYPES_OF_BOUNDS!
             assert False
+
+        if round_bound:
+            bound = round(bound, ROUND_TO_DIGITS)
+        self.real_bounds_for_invariant[side] = max(bound, 0)
 
     def recomputeLooseBound(self, side: TYPES_OF_BOUNDS):
         delta = self.deltas[side]
@@ -387,7 +406,7 @@ class invariantOnNeuron:
         else:
             return self.loose_bounds_for_invariant['l']
 
-    def strengthenOffset(self, side: TYPES_OF_BOUNDS, adjust_epsilons: str, difference: float):
+    def strengthenOffset(self, side: TYPES_OF_BOUNDS, adjust_epsilons: str, difference: float, use_safety_factor=True):
         offset_dict = self.epsilon_twosided if self.tight_bounds else self.deltas
         old_offset = offset_dict[side]
 
@@ -402,24 +421,30 @@ class invariantOnNeuron:
             sys.exit(1)
 
         if self.tight_bounds:
-            self.setEpsilon(side, new_epsilon=new_offset)
+            status = self.setEpsilon(side, new_epsilon=new_offset, use_safety_factor=use_safety_factor)
         else:
-            self.setDelta(side, new_delta=new_offset)
+            status = self.setDelta(side, new_delta=new_offset, use_safety_factor=use_safety_factor)
 
         # TODO: note: currently we half deltas regardless of the value of adjust_epsilons. Change?
 
-        return old_offset, new_offset
+        return old_offset, new_offset, status
 
-    def computeLowerBoundProperty(self):
+    def computeLowerBoundProperty(self, use_safety_factor=True):
         var = self.var
         p = 'x' + str(var) + ' >= ' + str(self.suggested_bounds['l'])
-        dual_p = 'y' + str(var) + ' <= ' + str(self.suggested_bounds['l'])
+        dual_bound = self.suggested_bounds['l']
+        if use_safety_factor:
+            dual_bound += SAFETY_FACTOR
+        dual_p = 'y' + str(var) + ' <= ' + str(dual_bound)
         return p, dual_p
 
-    def computeUpperBoundProperty(self):
+    def computeUpperBoundProperty(self, use_safety_factor=True):
         var = self.var
         p = 'x' + str(var) + ' <= ' + str(self.suggested_bounds['r'])
-        dual_p = 'y' + str(var) + ' >= ' + str(self.suggested_bounds['r'])
+        dual_bound = self.suggested_bounds['r']
+        if use_safety_factor:
+            dual_bound -= SAFETY_FACTOR
+        dual_p = 'y' + str(var) + ' >= ' + str(dual_bound)
         return p, dual_p
 
     def computeBoundProperty(self, side: str):
@@ -777,9 +802,11 @@ class layerInterpolateCandidate:
         for (var, side, _) in epsilons_to_adjust:
             if (var, side) in offsets_adjusted.keys():  # avoid multiple changes of the same bound
                 continue
-            offsets_adjusted[(var, side)] = \
+            one_offset_adjusted = \
                 self.list_of_neurons[var].strengthenOffset(side, adjust_epsilons, difference_dict[(var, side)])
-            self.updateSuggestedBound(var, side)
+            if one_offset_adjusted[2] == True:
+                offsets_adjusted[(var, side)] = (one_offset_adjusted[0],one_offset_adjusted[1])
+                self.updateSuggestedBound(var, side)
 
         return offsets_adjusted
 

@@ -315,6 +315,8 @@ class invariantOnNeuron:
     def halfOffset(self, side: TYPES_OF_BOUNDS, use_safety_factor=True):
         offset = self.getOffset(side)
         if use_safety_factor and offset < SAFETY_FACTOR*2:
+            print('Warning: Trying to set the loose offset for neuron ', self.var, ' ', side, 'to less than ', SAFETY_FACTOR)
+            print('Set offset rejected')
             return
         self.setOffset(side, offset / 2)
 
@@ -434,21 +436,21 @@ class invariantOnNeuron:
 
         return old_offset, new_offset, status
 
-    def computeLowerBoundProperty(self, use_safety_factor=False):
+    def computeLowerBoundProperty(self, use_safety_factor=True):
         var = self.var
         p = 'x' + str(var) + ' >= ' + str(self.suggested_bounds['l'])
         dual_bound = self.suggested_bounds['l']
         if use_safety_factor:
-            dual_bound += SAFETY_FACTOR
+            dual_bound += SAFETY_FACTOR/2
         dual_p = 'y' + str(var) + ' <= ' + str(dual_bound)
         return p, dual_p
 
-    def computeUpperBoundProperty(self, use_safety_factor=False):
+    def computeUpperBoundProperty(self, use_safety_factor=True):
         var = self.var
         p = 'x' + str(var) + ' <= ' + str(self.suggested_bounds['r'])
         dual_bound = self.suggested_bounds['r']
         if use_safety_factor:
-            dual_bound -= SAFETY_FACTOR
+            dual_bound -= SAFETY_FACTOR/2
         dual_p = 'y' + str(var) + ' >= ' + str(dual_bound)
         return p, dual_p
 
@@ -1490,7 +1492,7 @@ class CompositionalVerifier:
 
                     temp_disj_property = Property(temp_disj_property_filename, compute_marabou_lists=False)
                     print('Re-checking whether the property holds with python Property class: ',
-                          temp_disj_property.verify_io_property_exec(x=bad_input, y=sanity_check_network_output))
+                          temp_disj_property.verify_io_property(x=bad_input, y=sanity_check_network_output))
 
                 if not proceed_to_the_end:
                     return

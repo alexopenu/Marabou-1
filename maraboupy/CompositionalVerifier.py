@@ -1281,7 +1281,7 @@ class CompositionalVerifier:
 
         interpolant_verified = True
 
-        hidden_layer_index = str(self.layer)*2
+        hidden_layer_index = str(self.layer*2)
         hidden_var = 'h_' + hidden_layer_index + '_'
 
         if split_network:

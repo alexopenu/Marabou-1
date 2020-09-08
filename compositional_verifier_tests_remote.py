@@ -54,11 +54,11 @@ from random import randint
 start_time = time.time()
 
 
-NETWORK = '2_7'
+NETWORK = '2_2'
 PROPERTY = '4'
 LAYER = 5
 if REMOTE:
-    TIMEOUT = 40000
+    TIMEOUT = 100000
 else:
     TIMEOUT = 600
 

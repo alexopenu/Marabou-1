@@ -44,9 +44,9 @@ from random import randint
 start_time = time.time()
 
 
-NETWORK = '1_4'
+NETWORK = '2_8'
 PROPERTY = '4'
-LAYER = 5
+LAYER = 4
 TIMEOUT = 600
 
 network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_" + NETWORK + ".nnet"
@@ -74,7 +74,11 @@ mcmh_object.prepareForMarabouCandidateVerification(network_filename1=network_fil
                                                    network_filename_disjunct=disjunct_network_file)
 mcmh_object.initiateVerificationProcess(N=5000, compute_loose_offsets='range')
 
-test_split_network(mcmh_object.marabou_nnet, mcmh_object.nnet_object1, mcmh_object.nnet_object2, layer=5)
+test_split_network(mcmh_object.marabou_nnet, mcmh_object.nnet_object1, mcmh_object.nnet_object2, layer=LAYER)
+for i in range(mcmh_object.layer_size):
+    mcmh_object.basic_statistics.graphGoodSetDist(i)
+
+sys.exit(0)
 
 # mcmh_object.layer_interpolant_candidate.setInitialParticipatingNeurons(zero_bottoms=False)
 

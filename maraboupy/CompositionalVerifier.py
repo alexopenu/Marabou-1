@@ -1800,7 +1800,7 @@ class CompositionalVerifier:
 
         return status, epsilon_adjusted, out_of_bounds_inputs, difference_dict
 
-    def checkCandidateOnInput(self, layer_input, add_to_bad_set=True):
+    def checkCandidateOnInput(self, layer_input, add_to_bad_set=True, use_executables=False):
         # assert adjust_epsilons in ['','random','all']
 
         output = self.marabou_nnet.evaluateNNet(layer_input, first_layer=self.layer)
@@ -1809,7 +1809,7 @@ class CompositionalVerifier:
 
         result = 'success'  # No counterexamples to the candidate found
 
-        if self.verifyOutputProperty(y=output):
+        if self.marabou_query.property.verify_output_properties(y=output, use_executables=use_executables):
             if add_to_bad_set:
                 self.bad_set.append(layer_input)
 
@@ -2134,7 +2134,7 @@ class CompositionalVerifier:
                                                                 normalize_inputs=False,
                                                                 normalize_outputs=False,
                                                                 activate_output_layer=False)
-                if self.verifyOutputProperty(network_output):
+                if self.marabou_query.property.verify_output_properties(network_output, use_executables=False):
                     print('A counter example found! Randomly chosen input = ', inputs, 'output = ', network_output)
                     if sanity_check:
                         options = Marabou.createOptions(verbosity=0)

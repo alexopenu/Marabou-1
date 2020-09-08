@@ -109,7 +109,7 @@ mcmh_object.prepareForMarabouCandidateVerification(network_filename1=network_fil
                                                    network_filename_disjunct=disjunct_network_file)
 mcmh_object.initiateVerificationProcess(N=5000, compute_loose_offsets='range')
 
-test_split_network(mcmh_object.marabou_nnet, mcmh_object.nnet_object1, mcmh_object.nnet_object2, layer=5)
+test_split_network(mcmh_object.marabou_nnet, mcmh_object.nnet_object1, mcmh_object.nnet_object2, layer=LAYER)
 
 
 print("\nVerifying the original query with Marabou for comparison.\n")

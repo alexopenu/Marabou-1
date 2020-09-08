@@ -154,6 +154,7 @@ void PropertyParser::processSingleLine( const String &line, InputQuery &inputQue
                 throw InputParserError( InputParserError::HIDDEN_VARIABLE_DOESNT_EXIST_IN_NLR );
 
             variable = layer->neuronToVariable( nodeIndex );
+            printf ("Layer:  %d ; Node: %d ", layerIndex, nodeIndex);
         }
 
         if ( type == Equation::GE )

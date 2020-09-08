@@ -41,7 +41,7 @@ ROUND_TO_DIGITS = 4
 
 
 class basic_mcmh_statistics:
-    def __init__(self, good_set=[], epsilon=0.01, two_sided=True):
+    def __init__(self, good_set=[], epsilon=SAFETY_FACTOR, two_sided=True):
         self.epsilon = epsilon
 
         self.layer_size = 0
@@ -257,7 +257,7 @@ class invariantOnNeuron:
         assert side in TYPES_OF_BOUNDS
         self.failed_disjunct[side] = self.suggested_bounds[side]
 
-    def computeInitialOffsets(self):
+    def computeInitialOffsets(self, use_safety_factor=True):
         if self.loose_epsilon_compute == 'const':
             self.offset['l'] = self.loose_epsilon_const
             self.offset['r'] = self.loose_epsilon_const
@@ -267,8 +267,12 @@ class invariantOnNeuron:
         else:  # 'double'
             for side in TYPES_OF_BOUNDS:
                 self.offset[side] = self.epsilon_twosided[
-                                        side] * 1024  # 2^10 (will require five halves-somewhat arbitrary)
-
+                                        side] * 1024  # 2^10 (will require ten halves-somewhat arbitrary)
+        if use_safety_factor:
+            for side in TYPES_OF_BOUNDS:
+                self.offset[side] = max(self.offset[side], SAFETY_FACTOR)
+                # self.epsilon_twosided[side] = max(self.epsilon_twosided[side], SAFETY_FACTOR)
+                #TODO: figure out what to do with this?
         for side in TYPES_OF_BOUNDS:
             self.deltas[side] = self.offset[side]
 

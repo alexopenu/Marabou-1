@@ -54,9 +54,9 @@ from random import randint
 start_time = time.time()
 
 
-NETWORK = '2_2'
+NETWORK = '2_8'
 PROPERTY = '4'
-LAYER = 5
+LAYER = 4
 if REMOTE:
     TIMEOUT = 100000
 else:

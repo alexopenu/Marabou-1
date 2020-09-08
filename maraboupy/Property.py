@@ -525,13 +525,13 @@ class Property:
         :return: bool
         '''
 
-        if use_executables:
-            assert self.exec_bounds_computed
-
-        if input:
-            assert x
-        if output:
-            assert y
+        # if use_executables:
+        #     assert self.exec_bounds_computed
+        #
+        # if input:
+        #     assert x
+        # if output:
+        #     assert y
 
         bounds_to_verify = []
 
@@ -564,13 +564,13 @@ class Property:
         :return: bool
         '''
 
-        if use_executables:
-            assert self.exec_equations_computed
-
-        if input:
-            assert x
-        if output:
-            assert y
+        # if use_executables:
+        #     assert self.exec_equations_computed
+        #
+        # if input:
+        #     assert x
+        # if output:
+        #     assert y
 
         equations_to_verify = []
 

@@ -117,7 +117,7 @@ print('Verifying interpolant by splitting the network.')
 
 start_time = time.time()
 
-mcmh_object.verifyInterpolantFromFile(verbosity=3, proceed_to_the_end=False)
+# mcmh_object.verifyInterpolantFromFile(verbosity=3, proceed_to_the_end=False)
 
 new_start_time = time.time()
 
@@ -125,7 +125,7 @@ print('Time first verification took: ', new_start_time-start_time)
 
 print('Verifying interpolant using the original network and hidden neuron property.')
 
-# mcmh_object.verifyInterpolantFromFile(verbosity=3, split_network=False)
+mcmh_object.verifyInterpolantFromFile(verbosity=3, split_network=False)
 
 current_time = time.time()
 

@@ -92,13 +92,13 @@ print("Interpolant search on layer", LAYER, "\n")
 
 property_filename1 = "../resources/properties/acas_property_1.txt"
 
-network_filename1 = "test/ACASXU_experimental_v2a_"+NETWORK+"_input_.nnet"
-network_filename2 = "test/ACASXU_experimental_v2a_"+NETWORK+"_output.nnet"
+network_filename1 = "test/ACASXU_experimental_v2a_"+NETWORK+"layer_"+str(LAYER)+"_input.nnet"
+network_filename2 = "test/ACASXU_experimental_v2a_"+NETWORK+"layer_"+str(LAYER)+"_output.nnet"
 
-output_property_file = "output_property_test1_"+NETWORK+".txt"
-input_property_file = "input_property_" + "acas" + NETWORK + "_prop" + PROPERTY + "_level" + str(LAYER) + "_test1.txt"
+output_property_file = "output_property_test1_"+NETWORK+"_layer_"+str(LAYER)+".txt"
+input_property_file = "input_property_" + "acas" + NETWORK + "_prop" + PROPERTY + "_layer_" + str(LAYER) + "_test1.txt"
 
-disjunct_network_file = "test/ACASXU_experimental_v2a_"+NETWORK+"_disjunct.nnet"
+disjunct_network_file = "test/ACASXU_experimental_v2a_"+NETWORK+"_layer_"+str(LAYER)+"_disjunct.nnet"
 
 mcmh_object = CompositionalVerifier(network_filename=network_filename, property_filename=property_filename, layer=LAYER)
 

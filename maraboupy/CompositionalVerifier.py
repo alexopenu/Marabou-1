@@ -1281,8 +1281,10 @@ class CompositionalVerifier:
 
         interpolant_verified = True
 
-        hidden_layer_index = str(self.layer*2)
-        hidden_var = 'h_' + hidden_layer_index + '_'
+        hidden_layer_index_f = str(self.layer*2)
+        hidden_layer_index_b = str(self.layer*2-1)
+        hidden_var_f = 'h_' + hidden_layer_index_f + '_'
+        hidden_var_b = 'h_' + hidden_layer_index_b + '_'
 
         if split_network:
             disjunction_network = self.network_filename1
@@ -1292,8 +1294,8 @@ class CompositionalVerifier:
         else:
             disjunction_network = self.network_filename
             conjunction_network = self.network_filename
-            conjunction_var = hidden_var
-            disjunction_var = hidden_var
+            conjunction_var = hidden_var_f
+            disjunction_var = hidden_var_b
 
         if verbosity > 0:
             print('\nVerifying the interpolant from a file independently of Compositional Verifier.\n')
@@ -1319,8 +1321,8 @@ class CompositionalVerifier:
                 elif split_network:
                     list_of_conjuncts = []
                     for p in property.get_original_h_properties():
-                        if hidden_var in p:
-                            list_of_conjuncts.append(p.replace(hidden_var, 'x'))
+                        if hidden_var_f in p:
+                            list_of_conjuncts.append(p.replace(hidden_var_f, 'x'))
                         else:
                             legal_interpolant_candidate = False
                             break
@@ -1332,7 +1334,7 @@ class CompositionalVerifier:
                 if not split_network:
                     list_of_conjuncts = []
                     for p in property.get_original_x_properties():
-                        list_of_conjuncts.append(p.replace('x', hidden_var))
+                        list_of_conjuncts.append(p.replace('x', hidden_var_f))
                     new_property_file_necessary = True
                 else:
                     list_of_conjuncts = property.get_original_x_properties()
@@ -1424,10 +1426,9 @@ class CompositionalVerifier:
             print(list_of_conjuncts)
         list_of_disjuncts = []
         for conjunct in list_of_conjuncts:
-            if split_network:
-                disjunct = conjunct.replace('x', 'y')
-            else:
-                disjunct = conjunct
+
+            conjunct.replace(conjunction_var, disjunction_var)
+
             if '<' in conjunct:
                 disjunct = disjunct.replace('<', '>', 1)
             else:

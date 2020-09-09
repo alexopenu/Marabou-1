@@ -9,7 +9,7 @@ cluster_run = True if str(os.getcwd()).count('labs/guykatz') else False
 
 if cluster_run: # Running on the cluster
     sys.path.append('/cs/labs/guykatz/alexus/my_marbou/Marabou-1/maraboupy/')
-    sys.stdout = open('./test_mcmh_slurm_output', 'w')
+    sys.stdout = open('./test_mcmh_slurm_output_truncated', 'w')
 
 
 print(os.getcwd())
@@ -126,14 +126,14 @@ for i in [4]:
     # property_filename1 = "../resources/properties/acas_property_1.txt"
 
 
-    network_filename1 = "test/ACASXU_experimental_v2a_1_9_output1.nnet"
-    network_filename2 = "test/ACASXU_experimental_v2a_1_9_output2.nnet"
+    network_filename1 = "test/ACASXU_experimental_v2a_1_9_output1_trunc.nnet"
+    network_filename2 = "test/ACASXU_experimental_v2a_1_9_output2_trunc.nnet"
 
 
-    output_property_file = "output_property_test1.txt"
-    input_property_file = "input_property_test1.txt"
+    output_property_file = "output_property_test1_trunc.txt"
+    input_property_file = "input_property_test1_trunc.txt"
 
-    disjunct_network_file = "test/ACASXU_experimental_v2a_1_9_disjunct.nnet"
+    disjunct_network_file = "test/ACASXU_experimental_v2a_1_9_disjunct_trunc.nnet"
 
     mcmh_object = MarabouNNetMCMH(network_filename=network_filename, property_filename=property_filename, layer=5)
 

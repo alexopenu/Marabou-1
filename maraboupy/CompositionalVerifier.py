@@ -1277,7 +1277,7 @@ class CompositionalVerifier:
         return failed_disjuncts
 
     def verifyInterpolantFromFile(self, property_filename='', verbosity=0, timeout=0, split_network=True,
-                                  proceed_to_the_end = True, sanity_check = True):
+                                  proceed_to_the_end = True, sanity_check = True, use_nlr=False):
 
         interpolant_verified = True
 
@@ -1387,7 +1387,7 @@ class CompositionalVerifier:
         conj_ipq = MarabouCore.InputQuery()
         print('1')
         print(conjunction_network)
-        MarabouCore.createInputQuery(conj_ipq, conjunction_network, new_property_filename)
+        MarabouCore.createInputQuery(conj_ipq, conjunction_network, new_property_filename, use_nlr)
         print('2')
         options = Marabou.createOptions(verbosity=max(2,verbosity), timeoutInSeconds=timeout)
         [vals, stats] = Marabou.solve_query(ipq=conj_ipq, verbose=True, options=options)
@@ -1464,7 +1464,7 @@ class CompositionalVerifier:
                 return
 
             disj_ipq = MarabouCore.InputQuery()
-            MarabouCore.createInputQuery(disj_ipq, disjunction_network, temp_disj_property_filename)
+            MarabouCore.createInputQuery(disj_ipq, disjunction_network, temp_disj_property_filename, use_nlr)
             options = Marabou.createOptions(verbosity=max(2, verbosity), timeoutInSeconds=timeout)
             [vals, stats] = Marabou.solve_query(ipq=disj_ipq, verbose=True, options=options)
             bad_vals = self.convertVectorFromDictToList(vals)

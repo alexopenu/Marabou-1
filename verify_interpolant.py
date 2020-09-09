@@ -66,12 +66,14 @@ else:
     TIMEOUT = 600
 
 HIDDEN_LAYER_PROPERTY = False
+SPLIT_LAYER_PROPERTY = True
 
 # def main(argv):
 if __name__ == "__main__":
    # main(sys.argv[1:])
     try:
-        opts, args = getopt.getopt(sys.argv[1:],"hHn:t:l:p:",["network=","timout=","layer=","property="])
+        opts, args = getopt.getopt(sys.argv[1:],"hHn:t:l:p:",["hidden","network=","timout=","layer=","property=",
+                                                              "nosplit"])
     except getopt.GetoptError:
         print('verify_interpolant.py --network=<network> --timout=<timeout> --layer=<layer> --property=<property>')
         sys.exit(5)
@@ -87,8 +89,10 @@ if __name__ == "__main__":
             LAYER = int(arg)
         elif opt in ("-p", "--property"):
             PROPERTY = arg
-        elif opt == '-H':
+        elif opt in ('-H', "hidden"):
             HIDDEN_LAYER_PROPERTY = True
+        elif opt in ("nosplit"):
+            SPLIT_LAYER_PROPERTY = False
 
 network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_" + NETWORK + ".nnet"
 print('\nNetwork: ACASXU_experimental_v2a_' + NETWORK + '.nnet\n')
@@ -121,7 +125,7 @@ print('Verifying interpolant by splitting the network.')
 
 start_time = time.time()
 
-if not HIDDEN_LAYER_PROPERTY:
+if SPLIT_LAYER_PROPERTY:
     mcmh_object.verifyInterpolantFromFile(verbosity=3, proceed_to_the_end=False)
 
 new_start_time = time.time()

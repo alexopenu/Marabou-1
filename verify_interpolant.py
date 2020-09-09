@@ -65,11 +65,13 @@ if REMOTE:
 else:
     TIMEOUT = 600
 
+HIDDEN_LAYER_PROPERTY = False
+
 # def main(argv):
 if __name__ == "__main__":
    # main(sys.argv[1:])
     try:
-        opts, args = getopt.getopt(sys.argv[1:],"hn:t:l:p:",["network=","timout=","layer=","property="])
+        opts, args = getopt.getopt(sys.argv[1:],"hHn:t:l:p:",["network=","timout=","layer=","property="])
     except getopt.GetoptError:
         print('verify_interpolant.py --network=<network> --timout=<timeout> --layer=<layer> --property=<property>')
         sys.exit(5)
@@ -85,6 +87,8 @@ if __name__ == "__main__":
             LAYER = int(arg)
         elif opt in ("-p", "--property"):
             PROPERTY = arg
+        elif opt == '-H':
+            HIDDEN_LAYER_PROPERTY = True
 
 network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_" + NETWORK + ".nnet"
 print('\nNetwork: ACASXU_experimental_v2a_' + NETWORK + '.nnet\n')
@@ -117,7 +121,8 @@ print('Verifying interpolant by splitting the network.')
 
 start_time = time.time()
 
-# mcmh_object.verifyInterpolantFromFile(verbosity=3, proceed_to_the_end=False)
+if not HIDDEN_LAYER_PROPERTY:
+    mcmh_object.verifyInterpolantFromFile(verbosity=3, proceed_to_the_end=False)
 
 new_start_time = time.time()
 
@@ -125,7 +130,8 @@ print('Time first verification took: ', new_start_time-start_time)
 
 print('Verifying interpolant using the original network and hidden neuron property.')
 
-mcmh_object.verifyInterpolantFromFile(verbosity=3, split_network=False)
+if HIDDEN_LAYER_PROPERTY:
+    mcmh_object.verifyInterpolantFromFile(verbosity=3, split_network=False)
 
 current_time = time.time()
 

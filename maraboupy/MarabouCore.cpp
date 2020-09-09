@@ -108,11 +108,12 @@ void addAbsConstraint(InputQuery& ipq, unsigned b, unsigned f){
     ipq.addPiecewiseLinearConstraint(new AbsoluteValueConstraint(b, f));
 }
 
-void createInputQuery(InputQuery &inputQuery, std::string networkFilePath, std::string propertyFilePath){
+void createInputQuery(InputQuery &inputQuery, std::string networkFilePath, std::string propertyFilePath,
+                      bool construct_nlr=false){
   try{
     AcasParser* acasParser = new AcasParser( String(networkFilePath) );
     acasParser->generateQuery( inputQuery );
-    if ( true )
+    if ( construct_nlr )
       {
         success = inputQuery.constructNetworkLevelReasoner();
         if ( success )

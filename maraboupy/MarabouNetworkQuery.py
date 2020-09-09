@@ -74,7 +74,7 @@ class MarabouNetworkQuery:
         :meta private:
         """
         if self.network_filename:
-            MarabouCore.createInputQuery(self.ipq, self.network_filename, self.property_filename, True)
+            MarabouCore.createInputQuery(self.ipq, self.network_filename, self.property_filename)
 
     def setNetworkFilename(self, network_filename: str, compute_attributes=True):
         """

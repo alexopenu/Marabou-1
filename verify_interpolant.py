@@ -131,7 +131,7 @@ print('Time first verification took: ', new_start_time-start_time)
 print('Verifying interpolant using the original network and hidden neuron property.')
 
 if HIDDEN_LAYER_PROPERTY:
-    mcmh_object.verifyInterpolantFromFile(verbosity=3, split_network=False)
+    mcmh_object.verifyInterpolantFromFile(verbosity=3, split_network=False, use_nlr=True)
 
 current_time = time.time()
 

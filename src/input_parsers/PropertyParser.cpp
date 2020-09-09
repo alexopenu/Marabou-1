@@ -132,24 +132,37 @@ void PropertyParser::processSingleLine( const String &line, InputQuery &inputQue
         {
             // These variables are of the form h_2_5
             subTokens = token.tokenize( "_" );
+            printf ("Hidden variable\n");
 
             if ( subTokens.size() != 3 )
                 throw InputParserError( InputParserError::UNEXPECTED_INPUT, token.ascii() );
+            printf ("Hidden variable continued\n");
 
             auto subToken = subTokens.begin();
             ++subToken;
             unsigned layerIndex = atoi( subToken->ascii() );
             ++subToken;
             unsigned nodeIndex = atoi( subToken->ascii() );
+            printf ("Layer:  %d ; Node: %d \n", layerIndex, nodeIndex);
 
             NLR::NetworkLevelReasoner *nlr = inputQuery.getNetworkLevelReasoner();
+            printf ("Layer:  %d ; Node: %d \n", layerIndex, nodeIndex);
             if ( !nlr )
+            {
+                printf("Not nlr\n");
                 throw InputParserError( InputParserError::NETWORK_LEVEL_REASONING_DISABLED );
+            }
 
             if ( nlr->getNumberOfLayers() < layerIndex )
+            {
+                printf("Bad number of layers.\n");
                 throw InputParserError( InputParserError::HIDDEN_VARIABLE_DOESNT_EXIST_IN_NLR );
+            }
+            printf ("Layer:  %d ; Node: %d \n", layerIndex, nodeIndex);
 
             const NLR::Layer *layer = nlr->getLayer( layerIndex );
+            printf ("Layer:  %d ; Node: %d \n", layerIndex, nodeIndex);
+
             if ( layer->getSize() < nodeIndex || !layer->neuronHasVariable( nodeIndex ) )
                 throw InputParserError( InputParserError::HIDDEN_VARIABLE_DOESNT_EXIST_IN_NLR );
 

@@ -1427,7 +1427,7 @@ class CompositionalVerifier:
         list_of_disjuncts = []
         for conjunct in list_of_conjuncts:
 
-            conjunct.replace(conjunction_var, disjunction_var)
+            disjunct = conjunct.replace(conjunction_var, disjunction_var)
 
             if '<' in conjunct:
                 disjunct = disjunct.replace('<', '>', 1)

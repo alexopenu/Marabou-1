@@ -1387,7 +1387,7 @@ class CompositionalVerifier:
         conj_ipq = MarabouCore.InputQuery()
         print('1')
         print(conjunction_network)
-        MarabouCore.createInputQuery(conj_ipq, conjunction_network, new_property_filename, False)
+        MarabouCore.createInputQuery(conj_ipq, conjunction_network, new_property_filename, use_nlr)
         print('2')
         options = Marabou.createOptions(verbosity=max(2,verbosity), timeoutInSeconds=timeout)
         [vals, stats] = Marabou.solve_query(ipq=conj_ipq, verbose=True, options=options)

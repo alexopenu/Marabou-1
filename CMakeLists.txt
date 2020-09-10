@@ -190,6 +190,8 @@ if (${ENABLE_GUROBI})
   endif()
   add_compile_definitions(ENABLE_GUROBI)
 
+  set(GUROBI_CXX_LIBRARY "$ENV{GUROBI_HOME}/lib/libgurobi_c++.a")
+
   set(GUROBI_LIB1 "gurobi_c++")
   set(GUROBI_LIB2 "gurobi90")
 

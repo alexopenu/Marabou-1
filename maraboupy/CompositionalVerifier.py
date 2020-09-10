@@ -1316,7 +1316,7 @@ class CompositionalVerifier:
         if not property.mixed_properties_present():
 
             if property.h_properties_present():
-                if property.get_original_x_properties():
+                if False:  # property.get_original_x_properties():
                     legal_interpolant_candidate = False
                 elif split_network:
                     list_of_conjuncts = []
@@ -1353,7 +1353,7 @@ class CompositionalVerifier:
                 if property.h_properties_present():
                     print(property.get_original_h_properties())
                 else:
-                    print(property.get_original_y_properties())
+                    print(property.get_original_x_properties())
 
         if verbosity > 1:
             print('The interpolant to be verified is: ', list_of_conjuncts)

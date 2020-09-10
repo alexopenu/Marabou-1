@@ -12,7 +12,7 @@ option(RUN_REGRESS_TEST "run regression tests on build" OFF)
 option(RUN_SYSTEM_TEST "run system tests on build" OFF)
 option(RUN_MEMORY_TEST "run cxxtest testing with ASAN ON" ON)
 option(RUN_PYTHON_TEST "run python API tests if building with python" OFF)
-option(ENABLE_GUROBI "Enable use the Gurobi optimizer" OFF)
+option(ENABLE_GUROBI "Enable use the Gurobi optimizer" ON)
 option(ENABLE_OPENBLAS "Do symbolic bound tighting using blas" ON) # Not available on windows
 option(CODE_COVERAGE "add code coverage" OFF)  # Available only in debug mode
 
@@ -184,6 +184,7 @@ set(LIBS ${Boost_LIBRARIES})
 
 if (${ENABLE_GUROBI})
   message(STATUS "Using Gurobi for LP relaxation for bound tightening")
+  # set(GUROBI_DIR "/usr/local/gurobi/9.0.0")
   if (NOT DEFINED GUROBI_DIR)
     set(GUROBI_DIR $ENV{GUROBI_HOME})
   endif()

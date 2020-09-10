@@ -126,7 +126,7 @@ print('Verifying interpolant by splitting the network.')
 start_time = time.time()
 
 if SPLIT_LAYER_PROPERTY:
-    mcmh_object.verifyInterpolantFromFile(verbosity=3, proceed_to_the_end=False)
+    mcmh_object.verifyInterpolantFromFile(verbosity=3, proceed_to_the_end=False, use_safety_margin=True)
 
 new_start_time = time.time()
 
@@ -135,7 +135,7 @@ print('Time first verification took: ', new_start_time-start_time)
 print('Verifying interpolant using the original network and hidden neuron property.')
 
 if HIDDEN_LAYER_PROPERTY:
-    mcmh_object.verifyInterpolantFromFile(verbosity=3, split_network=False, use_nlr=True)
+    mcmh_object.verifyInterpolantFromFile(verbosity=3, split_network=False, use_safety_margin=True)
 
 current_time = time.time()
 

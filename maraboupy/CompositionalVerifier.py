@@ -1077,30 +1077,6 @@ class CompositionalVerifier:
     def clearGoodSet(self):
         self.good_set = []
 
-    def verifyInputEquations(self, x):
-        for eq in self.input_equations:
-            if not eval(eq):
-                return False
-        return True
-
-    def verifyOutputBounds(self, y):
-        for eq in self.output_bounds:
-            if not eval(eq):
-                return False
-        return True
-
-    def verifyOutputEquations(self, y):
-        for eq in self.output_equations:
-            if not eval(eq):
-                return False
-        return True
-
-    def verifyOutputProperty(self, y):
-        return self.verifyOutputBounds(y) and self.verifyOutputEquations(y)
-
-    def outputVariableToIndex(self, output_variable):
-        return output_variable - self.marabou_nnet.numVars + self.marabou_nnet.outputSize
-
     # This is the firs method to run after creating an object
     def initiateVerificationProcess(self, layer=-1, N=5000, compute_loose_offsets='range',
                                     loose_offset_const=1):
@@ -1277,7 +1253,8 @@ class CompositionalVerifier:
         return failed_disjuncts
 
     def verifyInterpolantFromFile(self, property_filename='', verbosity=0, timeout=0, split_network=True,
-                                  proceed_to_the_end = True, sanity_check = True, use_nlr=False):
+                                  proceed_to_the_end=True, sanity_check=True,
+                                  use_safety_margin = True, safety_margin=0.01):
 
         interpolant_verified = True
 
@@ -1425,6 +1402,8 @@ class CompositionalVerifier:
             print('The conjucts are:')
             print(list_of_conjuncts)
         list_of_disjuncts = []
+        corrupt_disjuncts = 0
+
         for conjunct in list_of_conjuncts:
 
             disjunct = conjunct.replace(conjunction_var, disjunction_var)
@@ -1433,6 +1412,31 @@ class CompositionalVerifier:
                 disjunct = disjunct.replace('<', '>', 1)
             else:
                 disjunct = disjunct.replace('>', '<', 1)
+
+            if use_safety_margin and safety_margin > 0 and '<= 0\n' not in disjunct:
+                disjunct_parsed = disjunct.split()
+                try:
+                    bound = float(disjunct_parsed[-1])
+                except SyntaxError:
+                    warnings.warn('Unexpected format for a bound: ', disjunct)
+                    interpolant_verified = False
+                    corrupt_disjucnts += 1
+                    if proceed_to_the_end:
+                        print('Skipping disjunct.')
+                        continue
+                    else:
+                        print('Abprting verification.')
+                        print('Interpolant verification has failed.')
+                        return
+                if '<' in conjunct:  # This means upper bound!
+                    new_bound_str = str(bound - safety_margin)
+                else:
+                    new_bound_str = str(bound + safety_margin)
+                old_disjunct = disjunct
+                disjunct = disjunct.replace(disjunct_parsed[-1], new_bound_str, 1)
+                if verbosity > 1:
+                    print('Using a safety margin = ', safety_margin)
+                    print('Changed disjunction from ', old_disjunct, ' to ', disjunct)
 
             list_of_disjuncts.append(disjunct)
 
@@ -2106,7 +2110,8 @@ class CompositionalVerifier:
 
         return layer_outputs
 
-    def addRandomValuesToGoodSet(self, N, adjust_bounds=True, check_bad_inputs=True, sanity_check=False):
+    def addRandomValuesToGoodSet(self, N, adjust_bounds=True, check_bad_inputs=True, sanity_check=False,
+                                 use_executables=False):
         assert self.layer >= 0
 
         layer = self.layer
@@ -2117,8 +2122,10 @@ class CompositionalVerifier:
 
             # The input is chosen uniformly at random from within the bounds of input variables
             # Still need to verify that the equations hold; if not, this is not a "legal" input, we discard it
-            if not self.verifyInputEquations(inputs):
+            if not self.marabou_query.property.verify_input_equations(inputs, use_executables=use_executables):
                 continue
+            # if not self.verifyInputEquations(inputs):
+            #     continue
 
             # Evaluating the network at the layer
             layer_output = self.marabou_nnet.evaluateNNet(inputs, last_layer=layer, normalize_inputs=False,
@@ -2135,7 +2142,7 @@ class CompositionalVerifier:
                                                                 normalize_inputs=False,
                                                                 normalize_outputs=False,
                                                                 activate_output_layer=False)
-                if self.marabou_query.property.verify_output_properties(network_output, use_executables=False):
+                if self.marabou_query.property.verify_output_properties(network_output, use_executables=use_executables):
                     print('A counter example found! Randomly chosen input = ', inputs, 'output = ', network_output)
                     if sanity_check:
                         options = Marabou.createOptions(verbosity=0)
@@ -2172,6 +2179,37 @@ class CompositionalVerifier:
         if (true_N < N):
             print('Warning in adding random values to good set: equations failed on some of the random inputs, only ',
                   true_N, ' out of ', N, ' inputs were added')
+
+    def outputVariableToIndex(self, output_variable):
+        return output_variable - self.marabou_nnet.numVars + self.marabou_nnet.outputSize
+
+
+
+    # Currently none of these are in use.
+    def verifyInputEquations(self, x):
+        for eq in self.input_equations:
+            if not eval(eq):
+                return False
+        return True
+
+    def verifyOutputBounds(self, y):
+        for eq in self.output_bounds:
+            if not eval(eq):
+                return False
+        return True
+
+    def verifyOutputEquations(self, y):
+        for eq in self.output_equations:
+            if not eval(eq):
+                return False
+        return True
+
+    def verifyOutputProperty(self, y):
+        return self.verifyOutputBounds(y) and self.verifyOutputEquations(y)
+
+
+
+
 
     # def getSoftUpperBoundForLayer(self, var, two_sided = True):
     #     epsilon = self.epsiloni_twosided['r'][var] if two_sided else self.epsiloni[var]

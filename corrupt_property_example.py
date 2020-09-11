@@ -12,7 +12,7 @@ else:
 if 'MARABOU_DIR' in os.environ.keys():
     MARABOU_DIR  = os.environ['MARABOU_DIR']
 else:
-    MARABOU_DIR = './'
+    MARABOU_DIR = '.'
 
 
 print('Remote run: ', REMOTE)

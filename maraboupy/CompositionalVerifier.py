@@ -1276,9 +1276,12 @@ class CompositionalVerifier:
 
         if verbosity > 0:
             print('\nVerifying the interpolant from a file independently of Compositional Verifier.\n')
+        if verbosity > 1:
+            print('Conjunction network: ', conjunction_network)
+            print('Disjunction network: ', disjunction_network)
         if not property_filename:
             property_filename = self.property_filename2
-            print('Property filename not provided! Using ', self.property_filename2)
+            print('\nProperty filename not provided! Using ', self.property_filename2)
         try:
             property = Property(self.property_filename2, compute_executable_bounds=False,
                                 compute_executable_equations=False, compute_marabou_lists=False)
@@ -1462,7 +1465,9 @@ class CompositionalVerifier:
                     for p in self.marabou_query.property.get_original_x_properties():
                         f2.write(p)
                         print('p=', p)
+                    print('p=', disjunct)
                     f2.write(disjunct)
+
             except:
                 warnings.warn('Something went wrong with writing to the disjuction property file! '
                               'Interpolant verification aborted.')
@@ -1505,6 +1510,9 @@ class CompositionalVerifier:
 
                 if not proceed_to_the_end:
                     return
+            if "x10" in list_of_conjuncts[disjunct_index]:
+                # temp_property = Property(temp_disj_property_filename)
+                sys.exit(0)
 
         if verbosity > 0:
             print('\nDisjunction verification completed.\n')
@@ -1514,6 +1522,10 @@ class CompositionalVerifier:
                     print("Failed disjuncts: ", failed_disjunts)
             else:
                 print("No failed disjuncts.")
+
+            if corrupt_disjuncts:
+                print(corrupt_disjuncts, 'corrupt disjuncts found')
+                print('Interpolant verification has failed!')
 
         if interpolant_verified:
             print('Success! Interpolant verified.')

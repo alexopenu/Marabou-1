@@ -1474,7 +1474,7 @@ class CompositionalVerifier:
                 return
 
             disj_ipq = MarabouCore.InputQuery()
-            MarabouCore.createInputQuery(disj_ipq, disjunction_network, temp_disj_property_filename)
+            status = MarabouCore.createInputQuery(disj_ipq, disjunction_network, temp_disj_property_filename)
             options = Marabou.createOptions(verbosity=max(2, verbosity), timeoutInSeconds=timeout)
             [vals, stats] = Marabou.solve_query(ipq=disj_ipq, verbose=True, options=options)
             bad_vals = self.convertVectorFromDictToList(vals)
@@ -1512,6 +1512,7 @@ class CompositionalVerifier:
                     return
             if "x10" in list_of_conjuncts[disjunct_index]:
                 # temp_property = Property(temp_disj_property_filename)
+                print(status)
                 sys.exit(0)
 
         if verbosity > 0:

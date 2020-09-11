@@ -7,16 +7,18 @@ import getopt
 
 if '/cs' in os.getcwd():
     REMOTE = True
+    if 'MARABOU_DIR' in os.environ.keys():
+        MARABOU_DIR  = os.environ['MARABOU_DIR']
+    else:
+        MARABOU_DIR = './'
 else:
     REMOTE = False
 
 print(REMOTE)
 
 if REMOTE:
-    # os.path.join('/cs/usr/alexus/coding/my_Marabou/Marabou-1')
-    # site.addsitedir('/cs/usr/alexus/coding/my_Marabou/Marabou-1')
-    sys.path.append('/cs/usr/alexus/coding/my_Marabou/Marabou-1')
-    os.chdir('/cs/usr/alexus/coding/my_Marabou/Marabou-1/maraboupy')
+    sys.path.append(MARABOU_DIR)
+    os.chdir(MARABOU_DIR+'/maraboupy')
 else:
     os.chdir('/Users/alexus/coding/my_Marabou/Marabou/maraboupy')
 

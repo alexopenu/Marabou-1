@@ -8,7 +8,7 @@ import getopt
 if '/cs' in os.getcwd():
     REMOTE = True
     if 'MARABOU_DIR' in os.environ.keys():
-        MARABOU_DIR  = os.environ['MARABOU_DIR']
+        MARABOU_DIR = os.environ['MARABOU_DIR']
     else:
         MARABOU_DIR = './'
 else:

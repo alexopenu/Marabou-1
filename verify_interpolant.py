@@ -108,7 +108,7 @@ network_filename1 = "test/ACASXU_experimental_v2a_"+NETWORK+"_input_.nnet"
 network_filename2 = "test/ACASXU_experimental_v2a_"+NETWORK+"_output.nnet"
 
 output_property_file = "output_property_test1_"+NETWORK+".txt"
-input_property_file = "input_property_" + "acas" + NETWORK + "_prop" + PROPERTY + "_level" + str(LAYER) + "_test1.txt"
+input_property_file = "input_property_" + "acas" + NETWORK + "_prop" + PROPERTY + "_layer_" + str(LAYER) + "_test1.txt"
 
 disjunct_network_file = "test/ACASXU_experimental_v2a_"+NETWORK+"_disjunct.nnet"
 

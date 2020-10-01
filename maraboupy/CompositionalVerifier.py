@@ -132,10 +132,14 @@ class invariantOnNeuron:
                  observed_minimum=-np.infty, observed_maximum=np.infty, observed_range=0, observed_mean=0,
                  epsilon_twosided=None,
                  loose_epsilons_compute='range', loose_epsilon_const=0,
-                 basic_statistics: basic_mcmh_statistics = None):
+                 basic_statistics: basic_mcmh_statistics = None,
+                 safety_margin = SAFETY_FACTOR):
 
         self.participates_in_invariant = {'l': participates_in_invariant, 'r': participates_in_invariant}
         self.tight_bounds = tight_bounds
+
+        assert safety_margin >= 0
+        self.safety_margin = safety_margin
 
         assert loose_epsilons_compute in ['range', 'double', 'const']
         self.loose_epsilon_compute = loose_epsilons_compute
@@ -201,6 +205,10 @@ class invariantOnNeuron:
 
         self.computeInitialOffsets()
         self.recomputeAllBounds(recompute_property=True)
+
+    def setSafetyMargin(self, safety_margin: float):
+        assert safety_margin >= 0
+        self.safety_margin = safety_margin
 
     def isActive(self):
         return self.suggested_bounds['r'] > 0
@@ -270,7 +278,7 @@ class invariantOnNeuron:
                                         side] * 1024  # 2^10 (will require ten halves-somewhat arbitrary)
         if use_safety_factor:
             for side in TYPES_OF_BOUNDS:
-                self.offset[side] = max(self.offset[side], SAFETY_FACTOR)
+                self.offset[side] = max(self.offset[side], self.safety_margin)
                 # self.epsilon_twosided[side] = max(self.epsilon_twosided[side], SAFETY_FACTOR)
                 #TODO: figure out what to do with this?
         for side in TYPES_OF_BOUNDS:
@@ -282,8 +290,8 @@ class invariantOnNeuron:
 
     def setEpsilon(self, side: TYPES_OF_BOUNDS, new_epsilon: float, use_safety_factor=True):
         assert side in TYPES_OF_BOUNDS
-        if use_safety_factor and new_epsilon*2 < SAFETY_FACTOR:
-            print('Warning: Trying to set the tight offset for neuron ', self.var, ' ', side, 'to less than ', SAFETY_FACTOR)
+        if use_safety_factor and new_epsilon*2 < self.safety_margin:
+            print('Warning: Trying to set the tight offset for neuron ', self.var, ' ', side, 'to less than ', self.safety_margin)
             print('Set offset rejected')
             return False
         self.epsilon_twosided[side] = new_epsilon
@@ -291,8 +299,8 @@ class invariantOnNeuron:
         return True
 
     def setDelta(self, side: TYPES_OF_BOUNDS, new_delta: float, use_safety_factor=True):
-        if use_safety_factor and new_delta*2 < SAFETY_FACTOR:
-            print('Warning: Trying to set the loose offset for neuron ', self.var, ' ', side, 'to less than ', SAFETY_FACTOR)
+        if use_safety_factor and new_delta*2 < self.safety_margin:
+            print('Warning: Trying to set the loose offset for neuron ', self.var, ' ', side, 'to less than ', self.safety_margin)
             print('Set offset rejected')
             return False
         assert side in TYPES_OF_BOUNDS
@@ -318,8 +326,8 @@ class invariantOnNeuron:
 
     def halfOffset(self, side: TYPES_OF_BOUNDS, use_safety_factor=True):
         offset = self.getOffset(side)
-        if use_safety_factor and offset < SAFETY_FACTOR*2:
-            print('Warning: Trying to set the loose offset for neuron ', self.var, ' ', side, 'to less than ', SAFETY_FACTOR)
+        if use_safety_factor and offset < self.safety_margin*2:
+            print('Warning: Trying to set the loose offset for neuron ', self.var, ' ', side, 'to less than ', self.safety_margin)
             print('Set offset rejected')
             return
         self.setOffset(side, offset / 2)
@@ -445,7 +453,7 @@ class invariantOnNeuron:
         p = 'x' + str(var) + ' >= ' + str(self.suggested_bounds['l'])
         dual_bound = self.suggested_bounds['l']
         if use_safety_factor:
-            dual_bound += SAFETY_FACTOR/2
+            dual_bound += self.safety_margin/2
         dual_p = 'y' + str(var) + ' <= ' + str(dual_bound)
         return p, dual_p
 
@@ -454,7 +462,7 @@ class invariantOnNeuron:
         p = 'x' + str(var) + ' <= ' + str(self.suggested_bounds['r'])
         dual_bound = self.suggested_bounds['r']
         if use_safety_factor:
-            dual_bound -= SAFETY_FACTOR/2
+            dual_bound -= self.safety_margin/2
         dual_p = 'y' + str(var) + ' >= ' + str(dual_bound)
         return p, dual_p
 
@@ -498,9 +506,12 @@ class generalInterpolantCandidate:
 
 
 class layerInterpolateCandidate:
-    def __init__(self, layer=-1, layer_size=0, compute_loose_offsets='range', loose_offset_const=1):
+    def __init__(self, layer=-1, layer_size=0, compute_loose_offsets='range', loose_offset_const=1,
+                 minimal_safety_margin = SAFETY_FACTOR):
         self.layer = layer
         self.layer_size = layer_size
+
+        self.minimal_safety_margin = minimal_safety_margin
 
         assert compute_loose_offsets in ['range', 'double', 'const']
         self.compute_loose_offsets = compute_loose_offsets
@@ -589,7 +600,8 @@ class layerInterpolateCandidate:
             neuron_invariant = invariantOnNeuron(self.layer, var,
                                                  loose_epsilons_compute=self.compute_loose_offsets,
                                                  loose_epsilon_const=self.loose_offset_const,
-                                                 basic_statistics=basic_statistics)
+                                                 basic_statistics=basic_statistics,
+                                                 safety_margin=self.minimal_safety_margin)
             self.addNeuron(neuron_invariant=neuron_invariant)
             # self.list_of_neurons[var].loadFromBasicStatistics(layer,var,basic_statistics)
             self.adjustActivity(var)

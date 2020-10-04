@@ -278,21 +278,24 @@ while (time.time() - start_time < TIMEOUT):
 
         print(epsilon_adjusted)
         if not epsilon_adjusted.keys():
-            print('Nothing adjusted, seems like we are stuck.')
-            exit(0)
+            print('Nothing adjusted, seems like we are stuck for now.')
+            print('Moving to phase 2')
+            break
     else:
         print('success')
         print('number of loops: ', counter)
         conjunction_verified = True
         break
 
-if not conjunction_verified:
-    print('failure')
-    print('number of loops: ', counter)
-    sys.exit(0)
+# if not conjunction_verified:
+#     print('failure')
+#     print('number of loops: ', counter)
+#     sys.exit(0)
 
-print('\nOriginal conjunction modified and verified. Time elapsed', time.time() - start_time)
-
+if conjunction_verified:
+    print('\nOriginal conjunction modified and verified. Time elapsed', time.time() - start_time)
+else:
+    print('\nOriginal conjunction modified but not verified. Time elapsed', time.time() - start_time)
 
 # mcmh_object.layer_interpolant_candidate.excludeFromInvariant(var=14, side='r')
 #
@@ -368,24 +371,25 @@ if exit_due_to_timeout:
 
 if not failed_disjuncts:
     print('No failed disjuncts')
-    print("Interpolant candidate search has succeeded.")
-    print("\n\nMaking sure this is indeed an invariant: \n")
-    print('\nVerifying all the disjuncts: \n')
-    new_start_time = time.time()
-    failed_disjuncts = mcmh_object.verifyAllDisjunctsWithMarabou(truncated_output_layer=False, verbosity=3)
-    if failed_disjuncts:
-        warnings.warn('Failed disjuncts still present!')
-        print('Something went wrong! There are ', len(failed_disjuncts), ' failed disjuncts.')
-        print([(x[0],x[1],mcmh_object.layer_interpolant_candidate[x[0]].suggested_bounds[x[1]],
-                mcmh_object.layer_interpolant_candidate[x[0]].verified_disjunct[x[1]]) for x in failed_disjuncts])
-        failed_disjuncts, _ = mcmh_object.verifyUnverifiedDisjunctsWithMarabou(truncated_output_layer=False)
-        print(len(failed_disjuncts), 'unverified disjuncts have also failed: ')
-        print([(x[0],x[1]) for x in failed_disjuncts])
+    if conjunction_verified:
+        print("Interpolant candidate search has succeeded.")
+        print("\n\nMaking sure this is indeed an invariant: \n")
+        print('\nVerifying all the disjuncts: \n')
+        new_start_time = time.time()
+        failed_disjuncts = mcmh_object.verifyAllDisjunctsWithMarabou(truncated_output_layer=False, verbosity=3)
+        if failed_disjuncts:
+            warnings.warn('Failed disjuncts still present!')
+            print('Something went wrong! There are ', len(failed_disjuncts), ' failed disjuncts.')
+            print([(x[0],x[1],mcmh_object.layer_interpolant_candidate[x[0]].suggested_bounds[x[1]],
+                    mcmh_object.layer_interpolant_candidate[x[0]].verified_disjunct[x[1]]) for x in failed_disjuncts])
+            failed_disjuncts, _ = mcmh_object.verifyUnverifiedDisjunctsWithMarabou(truncated_output_layer=False)
+            print(len(failed_disjuncts), 'unverified disjuncts have also failed: ')
+            print([(x[0],x[1]) for x in failed_disjuncts])
 
-    else:
-        print('All disjuncts clear out.')
+        else:
+            print('All disjuncts clear out.')
 
-    sys.exit(0)
+        sys.exit(0)
 else:
     print('Number of failed disjuncts: ', len(failed_disjuncts))
     print('failed disjuncts: ', failed_disjuncts)

@@ -139,7 +139,7 @@ class invariantOnNeuron:
         self.tight_bounds = tight_bounds
 
         assert safety_margin >= 0
-        self.safety_margin = safety_margin
+        self.safety_margins = {'l': safety_margin, 'r': safety_margin}
 
         assert loose_epsilons_compute in ['range', 'double', 'const']
         self.loose_epsilon_compute = loose_epsilons_compute
@@ -206,9 +206,11 @@ class invariantOnNeuron:
         self.computeInitialOffsets()
         self.recomputeAllBounds(recompute_property=True)
 
-    def setSafetyMargin(self, safety_margin: float):
+    def setSafetyMargin(self, safety_margin: float, side: TYPES_OF_BOUNDS):
         assert safety_margin >= 0
-        self.safety_margin = safety_margin
+        assert side in TYPES_OF_BOUNDS
+        self.safety_margins[side] = safety_margin
+        self.recomputeInterpolantProperty(side)
 
     def isActive(self):
         return self.suggested_bounds['r'] > 0
@@ -278,7 +280,7 @@ class invariantOnNeuron:
                                         side] * 1024  # 2^10 (will require ten halves-somewhat arbitrary)
         if use_safety_factor:
             for side in TYPES_OF_BOUNDS:
-                self.offset[side] = max(self.offset[side], self.safety_margin)
+                self.offset[side] = max(self.offset[side], self.safety_margins[side])
                 # self.epsilon_twosided[side] = max(self.epsilon_twosided[side], SAFETY_FACTOR)
                 #TODO: figure out what to do with this?
         for side in TYPES_OF_BOUNDS:
@@ -290,8 +292,9 @@ class invariantOnNeuron:
 
     def setEpsilon(self, side: TYPES_OF_BOUNDS, new_epsilon: float, use_safety_factor=True):
         assert side in TYPES_OF_BOUNDS
-        if use_safety_factor and new_epsilon*2 < self.safety_margin:
-            print('Warning: Trying to set the tight offset for neuron ', self.var, ' ', side, 'to less than ', self.safety_margin)
+        if use_safety_factor and new_epsilon*2 < self.safety_margins[side]:
+            print('Warning: Trying to set the tight offset for neuron ', self.var, ' ', side, 'to less than ',
+                  self.safety_margins[side])
             print('Set offset rejected')
             return False
         self.epsilon_twosided[side] = new_epsilon
@@ -299,8 +302,9 @@ class invariantOnNeuron:
         return True
 
     def setDelta(self, side: TYPES_OF_BOUNDS, new_delta: float, use_safety_factor=True):
-        if use_safety_factor and new_delta*2 < self.safety_margin:
-            print('Warning: Trying to set the loose offset for neuron ', self.var, ' ', side, 'to less than ', self.safety_margin)
+        if use_safety_factor and new_delta*2 < self.safety_margins[side]:
+            print('Warning: Trying to set the loose offset for neuron ', self.var, ' ', side, 'to less than ',
+                  self.safety_margins[side])
             print('Set offset rejected')
             return False
         assert side in TYPES_OF_BOUNDS
@@ -326,11 +330,13 @@ class invariantOnNeuron:
 
     def halfOffset(self, side: TYPES_OF_BOUNDS, use_safety_factor=True):
         offset = self.getOffset(side)
-        if use_safety_factor and offset < self.safety_margin*2:
-            print('Warning: Trying to set the loose offset for neuron ', self.var, ' ', side, 'to less than ', self.safety_margin)
+        if use_safety_factor and offset < self.safety_margins[side]*2:
+            print('Warning: Trying to set the loose offset for neuron ', self.var, ' ', side, 'to less than ',
+                  self.safety_margins[side])
             print('Set offset rejected')
-            return
+            return False
         self.setOffset(side, offset / 2)
+        return True
 
     def recomputeBounds(self, side, recompute_property=True):
         self.recomputeRealBound(side)
@@ -453,7 +459,7 @@ class invariantOnNeuron:
         p = 'x' + str(var) + ' >= ' + str(self.suggested_bounds['l'])
         dual_bound = self.suggested_bounds['l']
         if use_safety_factor:
-            dual_bound += self.safety_margin/2
+            dual_bound += self.safety_margins['l']/2
         dual_p = 'y' + str(var) + ' <= ' + str(dual_bound)
         return p, dual_p
 
@@ -462,7 +468,7 @@ class invariantOnNeuron:
         p = 'x' + str(var) + ' <= ' + str(self.suggested_bounds['r'])
         dual_bound = self.suggested_bounds['r']
         if use_safety_factor:
-            dual_bound -= self.safety_margin/2
+            dual_bound -= self.safety_margins['r']/2
         dual_p = 'y' + str(var) + ' >= ' + str(dual_bound)
         return p, dual_p
 
@@ -808,7 +814,8 @@ class layerInterpolateCandidate:
 
         return bad_layer_inputs, bad_layer_inputs_dict
 
-    def strengthenEpsilons(self, out_of_bounds_inputs, difference_dict, adjust_epsilons='', number_of_epsilons=1):
+    def strengthenEpsilons(self, out_of_bounds_inputs, difference_dict, adjust_epsilons='', number_of_epsilons=1,
+                           adjust_safety_margin=False):
         assert adjust_epsilons in ['', 'random', 'all', 'half_all', 'half_random']
         assert number_of_epsilons >= 0
 
@@ -818,18 +825,31 @@ class layerInterpolateCandidate:
         weights = [difference for (var, side, difference) in out_of_bounds_inputs]
         if adjust_epsilons == 'random' or adjust_epsilons == 'half_random':
             epsilons_to_adjust = choices(out_of_bounds_inputs, weights=weights, k=number_of_epsilons)
+            using_all = False
         else:
             epsilons_to_adjust = out_of_bounds_inputs
+            using_all = True
 
         offsets_adjusted = {}
-        for (var, side, _) in epsilons_to_adjust:
-            if (var, side) in offsets_adjusted.keys():  # avoid multiple changes of the same bound
-                continue
-            one_offset_adjusted = \
-                self.list_of_neurons[var].strengthenOffset(side, adjust_epsilons, difference_dict[(var, side)])
-            if one_offset_adjusted[2] == True:
-                offsets_adjusted[(var, side)] = (one_offset_adjusted[0],one_offset_adjusted[1])
-                self.updateSuggestedBound(var, side)
+        while True:
+            for (var, side, _) in epsilons_to_adjust:
+                if (var, side) in offsets_adjusted.keys():  # avoid multiple changes of the same bound
+                    continue
+                one_offset_adjusted = \
+                    self.list_of_neurons[var].strengthenOffset(side, adjust_epsilons, difference_dict[(var, side)])
+                if one_offset_adjusted[2] == True:
+                    offsets_adjusted[(var, side)] = (one_offset_adjusted[0],one_offset_adjusted[1])
+                    self.updateSuggestedBound(var, side)
+
+            if offsets_adjusted.keys() or (not using_all) or (not adjust_safety_margin):
+                break
+
+            # Attempting to adjust the safety margins
+            margins_adjusted = False
+            for (var, side, _) in epsilons_to_adjust:
+                margins_adjusted = margins_adjusted or self.reduceSafetyMargin(var, side)
+            if not margins_adjusted:
+                break
 
         return offsets_adjusted
 
@@ -840,7 +860,20 @@ class layerInterpolateCandidate:
             for side in TYPES_OF_BOUNDS:
                 self.list_of_neurons[var].halfOffset(side)
 
+
     # TODO: COMPLETE!
+
+
+    def reduceSafetyMargin(self, var, side, factor=10, maximal_factor=100):
+        current_margin = self.list_of_neurons[var].safety_margin
+        new_margin = current_margin/factor
+        if new_margin < SAFETY_FACTOR/maximal_factor:
+            return False
+
+        self.list_of_neurons[var].setSafetyMargin(new_margin, side)
+        if new_margin < self.minimal_safety_margin:
+            self.minimal_safety_margin = new_margin
+        return True
 
     # def createInterpolandList(self):
 
@@ -1548,14 +1581,16 @@ class CompositionalVerifier:
 
 
 
-    def adjustConjunctionOnBadInput(self, layer_input, adjust_epsilons='random', number_of_epsilons_to_adjust=1):
+    def adjustConjunctionOnBadInput(self, layer_input, adjust_epsilons='random', number_of_epsilons_to_adjust=1,
+                                    adjust_safety_margin=False):
         out_of_bounds_inputs, differene_dict = \
             self.layer_interpolant_candidate.analyzeBadLayerInput(layer_input)
 
         epsilon_adjusted = \
             self.layer_interpolant_candidate.strengthenEpsilons(out_of_bounds_inputs, differene_dict,
                                                                 adjust_epsilons=adjust_epsilons,
-                                                                number_of_epsilons=number_of_epsilons_to_adjust)
+                                                                number_of_epsilons=number_of_epsilons_to_adjust,
+                                                                adjust_safety_margin=adjust_safety_margin)
         return epsilon_adjusted
 
     def adjustDisjunctsOnBadInputs(self, failed_disjuncts: list, truncated_output_layer=False):
@@ -1616,9 +1651,15 @@ class CompositionalVerifier:
                     if verbosity > 0:
                         print('One round of candidate search has found a list of bad inputs, adjusting offsets.')
                     bad_input = argument_list
-                    epsilon_adjusted = self.adjustConjunctionOnBadInput(bad_input, adjust_epsilons='all')
+                    epsilon_adjusted = self.adjustConjunctionOnBadInput(bad_input, adjust_epsilons='all',
+                                                                        adjust_safety_margin=True)
                     if verbosity > 0:
                         print('offsets adjusted: ', epsilon_adjusted)
+                    if not epsilon_adjusted:
+                        print('No epsilons could be adjusted. Simple search for a layer candidate has failed.')
+                        if verbosity > 1:
+                            print('Minimal safety margin: ', self.layer_interpolant_candidate.minimal_safety_margin)
+                        sys.exit(2)
                 else:
                     # no concrete bad inputs; making a radical adjustment
                     self.layer_interpolant_candidate.halfAllOffsets()

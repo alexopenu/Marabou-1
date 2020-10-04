@@ -4,7 +4,7 @@ import os
 import site
 import sys
 import getopt
-
+import datetime
 
 if '/cs' in os.getcwd():
     REMOTE = True
@@ -14,6 +14,7 @@ if '/cs' in os.getcwd():
         MARABOU_DIR = './'
 else:
     REMOTE = False
+    MARABOU_DIR = './'
 
 print(REMOTE)
 
@@ -59,13 +60,16 @@ from random import randint
 start_time = time.time()
 
 
-NETWORK = '1_1'
+NETWORK = '2_4'
 PROPERTY = '4'
 LAYER = 5
 if REMOTE:
     TIMEOUT = 100000
 else:
     TIMEOUT = 600
+
+REDIRECT_OUTPUT = True
+GUROBI = 'ON'
 
 if __name__ == "__main__":
     try:
@@ -88,6 +92,13 @@ if __name__ == "__main__":
         elif opt in ("-p", "--property"):
             PROPERTY = arg
 
+
+current_date_formatted = datetime.datetime.today().strftime ('%d%m%Y')
+stdout_file = MARABOU_DIR + 'cv_test_output_' + str(current_date_formatted) + '_' + NETWORK + '_prop_' + PROPERTY + \
+              '_layer_' + str(LAYER) + '_gurobi_' + GUROBI
+
+if REDIRECT_OUTPUT:
+    sys.stdout = open(stdout_file, 'w')
 
 network_filename = "../resources/nnet/acasxu/ACASXU_experimental_v2a_" + NETWORK + ".nnet"
 print('\nNetwork: ACASXU_experimental_v2a_' + NETWORK + '.nnet\n')
@@ -123,7 +134,9 @@ ipq = MarabouCore.InputQuery()
 MarabouCore.createInputQuery(ipq, network_filename, property_filename)
 Marabou.solve_query(ipq)
 
-print('Marabou time: ', time.time() - current_time)
+marabou_time = time.time() - current_time
+
+print('Marabou time: ', marabou_time)
 
 start_time = time.time()
 
@@ -409,6 +422,9 @@ if status == 'success':
 
     print("\nVerifying the conjunction: \n")
     mcmh_object.verifyConjunctionWithMarabou(add_to_badset=False)
+    print('Gurobi is ', GUROBI)
+    print('Original direct marabou verification time: ', marabou_time)
+    print('Minimal safety margin: ', mcmh_object.layer_interpolant_candidate.minimal_safety_margin)
     print('Total candidate search time: ', search_time)
     print('Total candidate verification time: ', time.time()-new_start_time)
     sys.exit(0)

@@ -277,6 +277,9 @@ while (time.time() - start_time < TIMEOUT):
         epsilon_adjusted = mcmh_object.adjustConjunctionOnBadInput(bad_input, adjust_epsilons='half_all')
 
         print(epsilon_adjusted)
+        if not epsilon_adjusted.keys():
+            print('Nothing adjusted, seems like we are stuck.')
+            exit(0)
     else:
         print('success')
         print('number of loops: ', counter)

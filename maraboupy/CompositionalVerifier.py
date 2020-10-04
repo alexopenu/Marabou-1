@@ -1602,7 +1602,8 @@ class CompositionalVerifier:
             self.layer_interpolant_candidate.strengthenEpsilons(out_of_bounds_inputs, differene_dict,
                                                                 adjust_epsilons=adjust_epsilons,
                                                                 number_of_epsilons=number_of_epsilons_to_adjust,
-                                                                adjust_safety_margin=adjust_safety_margin)
+                                                                adjust_safety_margin=adjust_safety_margin,
+                                                                verbosity=2)
         return epsilon_adjusted
 
     def adjustDisjunctsOnBadInputs(self, failed_disjuncts: list, truncated_output_layer=False):

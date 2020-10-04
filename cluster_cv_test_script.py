@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+#SBATCH -c2
+#SBATCH --time=1-0
 
 import os
 import site
@@ -35,7 +37,6 @@ print(os.getcwd())
 
 # from Marabou import *
 # from MarabouNetworkNNetExtensions import *
-
 # import MarabouCore
 
 from maraboupy.CompositionalVerifier import *
@@ -61,7 +62,7 @@ start_time = time.time()
 
 
 NETWORK = '1_4'
-PROPERTY = '1'
+PROPERTY = '4'
 LAYER = 5
 if REMOTE:
     TIMEOUT = 100000

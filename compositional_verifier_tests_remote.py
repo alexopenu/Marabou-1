@@ -19,7 +19,7 @@ print(REMOTE)
 
 if REMOTE:
     sys.path.append(MARABOU_DIR)
-    os.chdir(MARABOU_DIR+'/maraboupy')
+    os.chdir(MARABOU_DIR+'maraboupy')
 else:
     os.chdir('/Users/alexus/coding/my_Marabou/Marabou/maraboupy')
 
@@ -59,9 +59,9 @@ from random import randint
 start_time = time.time()
 
 
-NETWORK = '2_8'
+NETWORK = '1_1'
 PROPERTY = '4'
-LAYER = 4
+LAYER = 5
 if REMOTE:
     TIMEOUT = 100000
 else:

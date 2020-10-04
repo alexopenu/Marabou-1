@@ -1174,7 +1174,7 @@ class CompositionalVerifier:
 
         self.ipq2 = MarabouCore.InputQuery()
         MarabouCore.createInputQuery(self.ipq2, self.network_filename2, self.property_filename2)
-        options = Marabou.createOptions(verbosity=2, timeoutInSeconds=timeout)
+        options = Marabou.createOptions(verbosity=0, timeoutInSeconds=timeout)
         [vals, stats] = Marabou.solve_query(ipq=self.ipq2, verbose=True, options=options)
         bad_vars = self.convertVectorFromDictToList(vals)
         bad_input = bad_vars[:self.layer_size]
@@ -1206,7 +1206,7 @@ class CompositionalVerifier:
         self.ipq1 = MarabouCore.InputQuery()
         MarabouCore.createInputQuery(self.ipq1, network_filename1, self.property_filename1)
 
-        options = Marabou.createOptions(initialTimeout=timeout, verbosity=2)
+        options = Marabou.createOptions(initialTimeout=timeout, verbosity=0)
 
         [vals, stats] = Marabou.solve_query(self.ipq1, verbose=True, options=options)
         bad_vars = self.convertVectorFromDictToList(vals)

@@ -134,7 +134,8 @@ print("\nVerifying the original query with Marabou for comparison.\n")
 current_time = time.time()
 ipq = MarabouCore.InputQuery()
 MarabouCore.createInputQuery(ipq, network_filename, property_filename)
-Marabou.solve_query(ipq)
+options = Marabou.createOptions(verbosity=0)
+Marabou.solve_query(ipq,options=options)
 
 marabou_time = time.time() - current_time
 

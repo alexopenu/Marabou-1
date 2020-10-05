@@ -93,7 +93,7 @@ if __name__ == "__main__":
             LAYER = int(arg)
         elif opt in ("-p", "--property"):
             PROPERTY = arg
-            elif opt == '-s':
+        elif opt == '-s':
             REDIRECT_OUTPUT = False
         elif opt == '-o':
             VERIFY_ORIGINAL = True

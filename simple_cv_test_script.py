@@ -39,6 +39,8 @@ import time
 
 import numpy as np
 
+LIST_FILE = './list_of_tasks_for_python_sbatch_script'
+
 try:
     with open(LIST_FILE, 'r') as f:
         line = f.readline.strip()

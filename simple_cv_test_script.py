@@ -41,7 +41,7 @@ import numpy as np
 
 LIST_FILE = MARABOU_DIR+'list_of_tasks_for_python_sbatch_script'
 
-try:
+if True:
     with open(LIST_FILE, 'r') as f:
         line = f.readline.strip()
 
@@ -63,7 +63,7 @@ try:
 
         VERIFY_ORIGINAL = False
 
-        if __name__ == "__main__":
+        if True:
             try:
                 opts, args = getopt.getopt(line,"hson:t:l:p:",["network=","timout=","layer=","property="])
             except getopt.GetoptError:
@@ -245,7 +245,7 @@ try:
             sys.exit(3)
 
         line = f.readline.strip()
-except:
+else:
     print("Something went wrong with reading from the instructions file",
           LIST_FILE)
     sys.exit(1)

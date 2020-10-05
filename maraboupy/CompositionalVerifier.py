@@ -373,7 +373,7 @@ class invariantOnNeuron:
             assert False
 
         if round_bound:
-            bound = round(bound, ROUND_TO_DIGITS)
+            bound = round(bound, max(ROUND_TO_DIGITS,int(np.ceil(-np.log10(self.safety_margins[side])))+1))
         self.real_bounds_for_invariant[side] = max(bound, 0)
 
     def recomputeLooseBound(self, side: TYPES_OF_BOUNDS, round_bound=True):
@@ -390,7 +390,7 @@ class invariantOnNeuron:
             assert False
 
         if round_bound:
-            bound = round(bound, ROUND_TO_DIGITS)
+            bound = round(bound, max(ROUND_TO_DIGITS,int(np.ceil(-np.log10(self.safety_margins[side])))+1))
         self.loose_bounds_for_invariant[side] = max(bound, 0)
 
 
@@ -867,7 +867,7 @@ class layerInterpolateCandidate:
 
     # TODO: COMPLETE!
 
-    def reduceSafetyMargin(self, var, side, factor=10, maximal_factor=100, verbosity=0):
+    def reduceSafetyMargin(self, var, side, factor=2, maximal_factor=100, verbosity=0):
         current_margin = self.list_of_neurons[var].safety_margins[side]
         new_margin = current_margin/factor
         if new_margin < SAFETY_FACTOR/maximal_factor:

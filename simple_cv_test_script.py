@@ -41,9 +41,10 @@ import numpy as np
 
 LIST_FILE = MARABOU_DIR+'list_of_tasks_for_python_sbatch_script'
 
-if True:
+try:
     with open(LIST_FILE, 'r') as f:
-        line = f.readline.strip()
+        line = f.readline()
+        line = line.strip()
 
         while (line):
             print('Next line in the instruciton file: ', line)
@@ -244,8 +245,8 @@ if True:
             print('Timeout after ', argument_list[0], 'seconds.')
             sys.exit(3)
 
-        line = f.readline.strip()
-else:
+        line = f.readline().strip()
+except:
     print("Something went wrong with reading from the instructions file",
           LIST_FILE)
     sys.exit(1)

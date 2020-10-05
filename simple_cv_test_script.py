@@ -51,8 +51,8 @@ with open(LIST_FILE, 'r') as f:
 
         start_time = time.time()
 
-        NETWORK = '1_4'
-        PROPERTY = '1'
+        NETWORK = '5_1'
+        PROPERTY = '4'
         LAYER = 5
         if REMOTE:
             TIMEOUT = 100000
@@ -64,30 +64,33 @@ with open(LIST_FILE, 'r') as f:
 
         VERIFY_ORIGINAL = False
 
-        if True:
-            try:
-                opts, args = getopt.getopt(line,"hson:t:l:p:",["network=","timout=","layer=","property="])
-            except getopt.GetoptError:
-                print('Illegal argument in the instruction file: ', line)
-                sys.exit(5)
-            print(opts)
-            print(args)
-            for opt, arg in opts:
-                if opt == '-h':
-                    print('<script name> --network=<network> --timout=<timeout> --layer=<layer> --property=<property>')
-                    sys.exit(0)
-                elif opt in ('-n', "--network"):
-                    NETWORK = arg
-                elif opt in ("-t", "--timeout"):
-                    TIMEOUT = int(arg)
-                elif opt in ("-l", "--layer"):
-                    LAYER = int(arg)
-                elif opt in ("-p", "--property"):
-                    PROPERTY = arg
-                elif opt == '-s':
-                    REDIRECT_OUTPUT = False
-                elif opt == '-o':
-                    VERIFY_ORIGINAL = True
+        line = line.split()
+        print(line)
+
+        try:
+            opts, args = getopt.getopt(line,"hson:t:l:p:",["network=","timout=","layer=","property="])
+        except getopt.GetoptError:
+            print('Illegal argument in the instruction file: ', line)
+            sys.exit(5)
+        print(opts)
+        print(args)
+
+        for opt, arg in opts:
+            if opt == '-h':
+                print('<script name> --network=<network> --timout=<timeout> --layer=<layer> --property=<property>')
+                sys.exit(0)
+            elif opt in ('-n', "--network"):
+                NETWORK = arg
+            elif opt in ("-t", "--timeout"):
+                TIMEOUT = int(arg)
+            elif opt in ("-l", "--layer"):
+                LAYER = int(arg)
+            elif opt in ("-p", "--property"):
+                PROPERTY = arg
+            elif opt == '-s':
+                REDIRECT_OUTPUT = False
+            elif opt == '-o':
+                VERIFY_ORIGINAL = True
 
         current_date_formatted = datetime.datetime.today().strftime ('%d%m%Y')
         stdout_file = MARABOU_DIR + 'cv_test_output_' + str(current_date_formatted) + '_' + NETWORK + '_prop_' + PROPERTY + \

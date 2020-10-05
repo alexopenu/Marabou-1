@@ -233,7 +233,7 @@ for i in range(5):
         break
 
 
-print("\nInterpolant candicate discovered:\n")
+print("\nInterpolant candidate discovered:\n")
 for var in range(mcmh_object.layer_interpolant_candidate.layer_size):
     print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].getSuggestedLowerBound(),
           '<= x' + str(var) + '<= ',

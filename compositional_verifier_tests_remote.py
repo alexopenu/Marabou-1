@@ -71,9 +71,11 @@ else:
 REDIRECT_OUTPUT = True
 GUROBI = 'ON'
 
+VERIFY_ORIGINAL = False
+
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:],"hsn:t:l:p:",["network=","timout=","layer=","property="])
+        opts, args = getopt.getopt(sys.argv[1:],"hson:t:l:p:",["network=","timout=","layer=","property="])
     except getopt.GetoptError:
         print('verify_interpolant.py --network=<network> --timout=<timeout> --layer=<layer> --property=<property>')
         sys.exit(5)
@@ -91,9 +93,10 @@ if __name__ == "__main__":
             LAYER = int(arg)
         elif opt in ("-p", "--property"):
             PROPERTY = arg
-        elif opt == '-s':
+            elif opt == '-s':
             REDIRECT_OUTPUT = False
-
+        elif opt == '-o':
+            VERIFY_ORIGINAL = True
 
 current_date_formatted = datetime.datetime.today().strftime ('%d%m%Y')
 stdout_file = MARABOU_DIR + 'cv_test_output_' + str(current_date_formatted) + '_' + NETWORK + '_prop_' + PROPERTY + \
@@ -130,12 +133,13 @@ mcmh_object.initiateVerificationProcess(N=5000, compute_loose_offsets='range')
 test_split_network(mcmh_object.marabou_nnet, mcmh_object.nnet_object1, mcmh_object.nnet_object2, layer=LAYER)
 
 
-print("\nVerifying the original query with Marabou for comparison.\n")
 current_time = time.time()
-ipq = MarabouCore.InputQuery()
-MarabouCore.createInputQuery(ipq, network_filename, property_filename)
-options = Marabou.createOptions(verbosity=0)
-Marabou.solve_query(ipq,options=options)
+if VERIFY_ORIGINAL:
+    print("\nVerifying the original query with Marabou for comparison.\n")
+    ipq = MarabouCore.InputQuery()
+    MarabouCore.createInputQuery(ipq, network_filename, property_filename)
+    options = Marabou.createOptions(verbosity=0)
+    Marabou.solve_query(ipq,options=options)
 
 marabou_time = time.time() - current_time
 

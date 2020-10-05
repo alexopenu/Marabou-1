@@ -244,6 +244,10 @@ with open(LIST_FILE, 'r') as f:
             print('Interpolant search has failed. A counterexample found between observed layer bounds. Check if SAT?')
             print('Bad input is ', argument_list)
 
+        if status == "safety_margin_failure":
+            print('Raw conjuction is not too weak, but could not find an interpolant with a safety margin')
+            print('Minimal safety margin: ', argument_list[0])
+
         if status == 'timeout':
             print('Timeout after ', argument_list[0], 'seconds.')
             sys.exit(3)

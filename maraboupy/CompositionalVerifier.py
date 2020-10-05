@@ -1672,7 +1672,10 @@ class CompositionalVerifier:
                         print('No epsilons could be adjusted. Simple search for a layer candidate has failed.')
                         if verbosity > 1:
                             print('Minimal safety margin: ', self.layer_interpolant_candidate.minimal_safety_margin)
-                        sys.exit(2)
+                        raw_conjunction_bad_input = self.verifyRawConjunction()
+                        if raw_conjunction_bad_input:
+                            return "raw_conjunction_too_weak", [raw_conjunction_bad_input]
+                        return "safety_margin_failure", [self.layer_interpolant_candidate.minimal_safety_margin]
                 else:
                     # no concrete bad inputs; making a radical adjustment
                     self.layer_interpolant_candidate.halfAllOffsets()

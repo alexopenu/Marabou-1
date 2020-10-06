@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #SBATCH -c2
-#SBATCH --time=2-0
+#SBATCH --time=1-0
 
 
 import os
@@ -39,7 +39,7 @@ import time
 
 import numpy as np
 
-LIST_FILE = MARABOU_DIR+'list_of_tasks_for_python_sbatch_script'
+LIST_FILE = MARABOU_DIR+'list_of_tasks_for_python_sbatch_script1'
 
 
 instruction_lines = []

@@ -255,7 +255,8 @@ for line in instruction_lines:
         print('Minimal safety margin: ', argument_list[0])
         print('Checking if raw conjunction is an interpolant with no safety margin')
         new_start_time = time.time()
-        raw_interpolant_found = mcmh_object.verifyInterpolantFromFile(verbosity=2, use_safety_margin=False)
+        raw_interpolant_found = mcmh_object.verifyInterpolantFromFile(verbosity=1, use_safety_margin=False,
+                                                                      sanity_check=False)
         if raw_interpolant_found:
             print('Raw conjunction is an interpolant! But search with safety margin has failed.')
         else:

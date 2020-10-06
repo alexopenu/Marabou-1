@@ -253,7 +253,9 @@ for line in instruction_lines:
     if status == "safety_margin_failure":
         print('Raw conjuction is not too weak, but could not find an interpolant with a safety margin')
         print('Minimal safety margin: ', argument_list[0])
-
+        print('Checking if raw conjunction is an interpolant with no safety margin')
+        mcmh_object.verifyInterpolantFromFile(use_safety_margin=False)
+        
     if status == 'timeout':
         print('Timeout after ', argument_list[0], 'seconds.')
         sys.exit(3)

@@ -1587,9 +1587,10 @@ class CompositionalVerifier:
 
         if interpolant_verified:
             print('Success! Interpolant verified.')
+            return True
         else:
             print("Failure, not an interpolant.")
-
+            return False
 
 
 

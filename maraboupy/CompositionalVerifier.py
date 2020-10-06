@@ -1567,10 +1567,10 @@ class CompositionalVerifier:
 
                 if not proceed_to_the_end:
                     return
-            if "x10" in list_of_conjuncts[disjunct_index]:
-                # temp_property = Property(temp_disj_property_filename)
-                print(status)
-                sys.exit(0)
+            # if "x10" in list_of_conjuncts[disjunct_index]:
+            #     # temp_property = Property(temp_disj_property_filename)
+            #     print(status)
+            #     sys.exit(0)
 
         if verbosity > 0:
             print('\nDisjunction verification completed.\n')

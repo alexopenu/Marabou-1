@@ -99,7 +99,7 @@ for line in instruction_lines:
             REDIRECT_OUTPUT = False
         elif opt == '-o':
             VERIFY_ORIGINAL = True
-        elif opt -- '-m':
+        elif opt == '-m':
             USE_SAFETY_MARGIN = False
 
     current_date_formatted = datetime.datetime.today().strftime ('%d%m%Y')

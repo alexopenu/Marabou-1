@@ -457,20 +457,20 @@ class invariantOnNeuron:
 
         return old_offset, new_offset, status
 
-    def computeLowerBoundProperty(self, use_safety_margin=self.use_safety_margin):
+    def computeLowerBoundProperty(self):
         var = self.var
         p = 'x' + str(var) + ' >= ' + str(self.suggested_bounds['l'])
         dual_bound = self.suggested_bounds['l']
-        if use_safety_margin:
+        if self.use_safety_margin:
             dual_bound += self.safety_margins['l']/2
         dual_p = 'y' + str(var) + ' <= ' + str(dual_bound)
         return p, dual_p
 
-    def computeUpperBoundProperty(self, use_safety_margin=self.use_safety_margin):
+    def computeUpperBoundProperty(self):
         var = self.var
         p = 'x' + str(var) + ' <= ' + str(self.suggested_bounds['r'])
         dual_bound = self.suggested_bounds['r']
-        if use_safety_margin:
+        if self.use_safety_margin:
             dual_bound -= self.safety_margins['r']/2
         dual_p = 'y' + str(var) + ' >= ' + str(dual_bound)
         return p, dual_p

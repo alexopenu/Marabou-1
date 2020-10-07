@@ -70,11 +70,13 @@ for line in instruction_lines:
 
     VERIFY_ORIGINAL = False
 
+    USE_SAFETY_MARGIN = True
+
     line = line.split()
     print(line)
 
     try:
-        opts, args = getopt.getopt(line,"hson:t:l:p:",["network=","timout=","layer=","property="])
+        opts, args = getopt.getopt(line,"hsmon:t:l:p:",["network=","timout=","layer=","property="])
     except getopt.GetoptError:
         print('Illegal argument in the instruction file: ', line)
         sys.exit(5)
@@ -97,6 +99,8 @@ for line in instruction_lines:
             REDIRECT_OUTPUT = False
         elif opt == '-o':
             VERIFY_ORIGINAL = True
+        elif opt -- '-m':
+            USE_SAFETY_MARGIN = False
 
     current_date_formatted = datetime.datetime.today().strftime ('%d%m%Y')
     stdout_file = MARABOU_DIR + 'cv_test_output_' + str(current_date_formatted) + '_' + NETWORK + '_prop_' + PROPERTY + \
@@ -131,8 +135,7 @@ for line in instruction_lines:
     print(network_filename2)
 
     mcmh_object = CompositionalVerifier(network_filename=network_filename, property_filename=property_filename,
-                                        layer=LAYER)
-
+                                        layer=LAYER, use_safety_margin=USE_SAFETY_MARGIN)
 
     # mcmh_object.verify(timeout=TIMEOUT, layer=LAYER,
     #                    network_filename1=network_filename1,
@@ -253,19 +256,19 @@ for line in instruction_lines:
     if status == "safety_margin_failure":
         print('Raw conjuction is not too weak, but could not find an interpolant with a safety margin')
         print('Minimal safety margin: ', argument_list[0])
-        print('Checking if raw conjunction is an interpolant with no safety margin')
-        new_start_time = time.time()
-        raw_interpolant_found = mcmh_object.verifyInterpolantFromFile(verbosity=1, use_safety_margin=False,
-                                                                      sanity_check=False)
-        if raw_interpolant_found:
-            print('Raw conjunction is an interpolant! But search with safety margin has failed.')
-        else:
-            print('No interpolant found. Search with safety margin has failed, and the raw conjunstion is not '
-                  'an interpolant.')
-        print('Minimal safety margin: ', argument_list[0])
+        # print('Checking if raw conjunction is an interpolant with no safety margin')
+        # new_start_time = time.time()
+        # raw_interpolant_found = mcmh_object.verifyInterpolantFromFile(verbosity=1, use_safety_margin=False,
+        #                                                               sanity_check=False)
+        # if raw_interpolant_found:
+        #     print('Raw conjunction is an interpolant! But search with safety margin has failed.')
+        # else:
+        #     print('No interpolant found. Search with safety margin has failed, and the raw conjunstion is not '
+        #           'an interpolant.')
+        # print('Minimal safety margin: ', argument_list[0])
         print('Original marabou direct verification time: ', marabou_time)
         print('Total candidate search time: ', search_time)
-        print ('Raw intyerpolant verification time: ', time.time()-new_start_time)
+        # print ('Raw intyerpolant verification time: ', time.time()-new_start_time)
 
     if status == 'timeout':
         print('Timeout after ', argument_list[0], 'seconds.')

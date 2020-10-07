@@ -133,13 +133,16 @@ class invariantOnNeuron:
                  epsilon_twosided=None,
                  loose_epsilons_compute='range', loose_epsilon_const=0,
                  basic_statistics: basic_mcmh_statistics = None,
-                 safety_margin = SAFETY_FACTOR):
+                 use_safety_margin=True,
+                 safety_margin=SAFETY_FACTOR):
 
         self.participates_in_invariant = {'l': participates_in_invariant, 'r': participates_in_invariant}
         self.tight_bounds = tight_bounds
 
         assert safety_margin >= 0
         self.safety_margins = {'l': safety_margin, 'r': safety_margin}
+
+        self.use_safety_margin = use_safety_margin
 
         assert loose_epsilons_compute in ['range', 'double', 'const']
         self.loose_epsilon_compute = loose_epsilons_compute
@@ -454,20 +457,20 @@ class invariantOnNeuron:
 
         return old_offset, new_offset, status
 
-    def computeLowerBoundProperty(self, use_safety_factor=True):
+    def computeLowerBoundProperty(self, use_safety_margin=self.use_safety_margin):
         var = self.var
         p = 'x' + str(var) + ' >= ' + str(self.suggested_bounds['l'])
         dual_bound = self.suggested_bounds['l']
-        if use_safety_factor:
+        if use_safety_margin:
             dual_bound += self.safety_margins['l']/2
         dual_p = 'y' + str(var) + ' <= ' + str(dual_bound)
         return p, dual_p
 
-    def computeUpperBoundProperty(self, use_safety_factor=True):
+    def computeUpperBoundProperty(self, use_safety_margin=self.use_safety_margin):
         var = self.var
         p = 'x' + str(var) + ' <= ' + str(self.suggested_bounds['r'])
         dual_bound = self.suggested_bounds['r']
-        if use_safety_factor:
+        if use_safety_margin:
             dual_bound -= self.safety_margins['r']/2
         dual_p = 'y' + str(var) + ' >= ' + str(dual_bound)
         return p, dual_p
@@ -513,11 +516,12 @@ class generalInterpolantCandidate:
 
 class layerInterpolateCandidate:
     def __init__(self, layer=-1, layer_size=0, compute_loose_offsets='range', loose_offset_const=1,
-                 minimal_safety_margin = SAFETY_FACTOR):
+                 minimal_safety_margin = SAFETY_FACTOR, use_safety_margin=True):
         self.layer = layer
         self.layer_size = layer_size
 
         self.minimal_safety_margin = minimal_safety_margin
+        self.use_safety_margin = use_safety_margin
 
         assert compute_loose_offsets in ['range', 'double', 'const']
         self.compute_loose_offsets = compute_loose_offsets
@@ -607,7 +611,8 @@ class layerInterpolateCandidate:
                                                  loose_epsilons_compute=self.compute_loose_offsets,
                                                  loose_epsilon_const=self.loose_offset_const,
                                                  basic_statistics=basic_statistics,
-                                                 safety_margin=self.minimal_safety_margin)
+                                                 safety_margin=self.minimal_safety_margin,
+                                                 use_safety_margin=self.use_safety_margin)
             self.addNeuron(neuron_invariant=neuron_invariant)
             # self.list_of_neurons[var].loadFromBasicStatistics(layer,var,basic_statistics)
             self.adjustActivity(var)
@@ -953,10 +958,11 @@ class layerInterpolateCandidate:
 
 class CompositionalVerifier:
 
-    def __init__(self, network_filename: str, property_filename: str, layer=-1, verbosity=0):
+    def __init__(self, network_filename: str, property_filename: str, layer=-1, use_safety_margin=True, verbosity=0):
         self.marabou_query = MarabouNetworkQuery(network_filename=network_filename, property_filename=property_filename,
                                                  compute_ipq=False,
-                                                 compute_ipq_directly=True, tighten_bounds=True, verbosity=verbosity)
+                                                 compute_ipq_directly=True, tighten_bounds=True,
+                                                 verbosity=verbosity)
 
         self.network_filename = network_filename
         self.property_filename = property_filename

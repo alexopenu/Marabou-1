@@ -516,7 +516,7 @@ class generalInterpolantCandidate:
 
 class layerInterpolateCandidate:
     def __init__(self, layer=-1, layer_size=0, compute_loose_offsets='range', loose_offset_const=1,
-                 minimal_safety_margin = SAFETY_FACTOR, use_safety_margin=True):
+                 minimal_safety_margin=SAFETY_FACTOR, use_safety_margin=True):
         self.layer = layer
         self.layer_size = layer_size
 
@@ -989,7 +989,7 @@ class CompositionalVerifier:
         self.x_properties = []
         self.y_properties = []
 
-        self.layer_interpolant_candidate = layerInterpolateCandidate()
+        self.layer_interpolant_candidate = layerInterpolateCandidate(use_safety_margin=use_safety_margin)
         self.general_interpolant_candidate = generalInterpolantCandidate()  # Currently not supported
 
         # Setting x_properties and y_properties to their correct values
@@ -1001,6 +1001,8 @@ class CompositionalVerifier:
         # Lists of the variables corresponding to the layer
         self.layer_bVars = []
         self.layer_fVars = []
+
+        self.use_safety_margin = use_safety_margin
 
         self.epsilon = 0.01
 

@@ -302,6 +302,7 @@ std::pair<std::map<int, double>, Statistics> preprocess(InputQuery &inputQuery, 
     // Returns: statistics
     std::map<int, double> ret;
     Statistics retStats;
+    Engine engine;
     int output=-1;
     if(redirect.length()>0)
         output=redirectOutputToFile(redirect);
@@ -309,10 +310,7 @@ std::pair<std::map<int, double>, Statistics> preprocess(InputQuery &inputQuery, 
 
         options.setOptions();
 
-        Engine engine;
-
         engine.processInputQuery(inputQuery);
-
     }
     catch(const MarabouError &e){
         printf( "Caught a MarabouError. Code: %u. Message: %s\n", e.getCode(), e.getUserMessage() );
@@ -348,7 +346,7 @@ PYBIND11_MODULE(MarabouCore, m) {
                 - stats (:class:`~maraboupy.MarabouCore.Statistics`): A Statistics object to how Marabou performed
         )pbdoc",
         py::arg("inputQuery"), py::arg("options"), py::arg("redirect") = "");
-       m.def("preprocess", &preprocess, R"pbdoc(
+   m.def("preprocess", &preprocess, R"pbdoc(
         Takes a reference to an InputQuery and preprocesses it with Marabou preprocessor
 
         Args:

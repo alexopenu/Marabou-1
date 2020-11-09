@@ -249,6 +249,34 @@ std::pair<std::map<int, double>, Statistics> solve(InputQuery &inputQuery, Marab
     return std::make_pair(ret, retStats);
 }
 
+/* The default parameters here are just for readability, you should specify
+ * them in the to make them work*/
+std::pair<std::map<int, double>, Statistics> preprocess(InputQuery &inputQuery, MarabouOptions &options,
+                                                   std::string redirect=""){
+    // The main purpose of this function is to preprocess the input inquery (e.g., compute gurobi bounds)
+    // Arguments: InputQuery object, filename to redirect output
+    // Returns: statistics
+    std::map<int, double> ret;
+    Statistics retStats;
+    int output=-1;
+    if(redirect.length()>0)
+        output=redirectOutputToFile(redirect);
+    try{
+
+        options.setOptions();
+
+        Engine engine;
+
+        engine.processInputQuery(inputQuery);
+
+    }
+    catch(const MarabouError &e){
+        printf( "Caught a MarabouError. Code: %u. Message: %s\n", e.getCode(), e.getUserMessage() );
+    }
+    return std::make_pair(ret, *(engine.getStatistics()));
+}
+
+
 void saveQuery(InputQuery& inputQuery, std::string filename){
     inputQuery.saveQuery(String(filename));
 }
@@ -276,6 +304,19 @@ PYBIND11_MODULE(MarabouCore, m) {
                 - stats (:class:`~maraboupy.MarabouCore.Statistics`): A Statistics object to how Marabou performed
         )pbdoc",
         py::arg("inputQuery"), py::arg("options"), py::arg("redirect") = "");
+       m.def("preprocess", &preprocess, R"pbdoc(
+        Takes a reference to an InputQuery and preprocesses it with Marabou preprocessor
+
+        Args:
+            inputQuery (:class:`~maraboupy.MarabouCore.InputQuery`): Marabou input query to be preproccessed
+            options (class:`~maraboupy.MarabouCore.Options`): Object defining the options used for Marabou
+            redirect (str, optional): Filepath to direct standard output, defaults to ""
+
+        Returns:
+                - stats (:class:`~maraboupy.MarabouCore.Statistics`): A Statistics object to how Marabou performed
+        )pbdoc",
+        py::arg("inputQuery"), py::arg("options"), py::arg("redirect") = "");
+
     m.def("saveQuery", &saveQuery, R"pbdoc(
         Serializes the inputQuery in the given filename
 

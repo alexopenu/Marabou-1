@@ -39,7 +39,7 @@ import time
 
 import numpy as np
 
-LIST_FILE = MARABOU_DIR+'list_of_tasks_for_python_sbatch_script1'
+LIST_FILE = MARABOU_DIR+'list_of_tasks_for_python_sbatch_script2'
 
 
 instruction_lines = []

@@ -4,7 +4,7 @@
 
 
 
-LIST_FILE = './list_of_tasks_for_python_sbatch_script'
+LIST_FILE = './list_of_tasks_for_python_sbatch_script4'
 SCRIPT_NAME = './compositional_verifier_tests_remote.py'
 
 import os

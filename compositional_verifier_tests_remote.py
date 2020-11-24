@@ -268,7 +268,7 @@ if RETRIEVE_GUROBI_BOUNDS:
     print('Preprocessing time: ', time.time() - current_time)
     print('\nComparing the bounds.\n')
     print('Layer = ', mcmh_object.layer)
-    print('\n\n')
+    print('\n')
     print("{:<15} {:<42} {:<27} {:<27} {:<27} {:<27} {:<27}".format('node',
                                                                     'Gurobi lower',
                                                                     'Candidate real lower',
@@ -276,13 +276,13 @@ if RETRIEVE_GUROBI_BOUNDS:
                                                                     'Candidate upper',
                                                                     'Candidate real upper',
                                                                     'Gurobi upper'))
-    print("{:<15} {:<42} {:<27} {:<27} {:<27} {:<27} {:<27}".format('____',
-                                                                    '______________________',
-                                                                    '______________________',
-                                                                    '______________________',
-                                                                    '______________________',
-                                                                    '______________________',
-                                                                    '______________________'))
+    print("{:<15} {:<42} {:<27} {:<27} {:<27} {:<27} {:<27}".format('--------',
+                                                                    '--------------------------------',
+                                                                    '----------------------',
+                                                                    '----------------------',
+                                                                    '----------------------',
+                                                                    '----------------------',
+                                                                    '--------------------------------'))
     for var in range(mcmh_object.layer_interpolant_candidate.layer_size):
         node = mcmh_object.marabou_nnet.nodeTo_b(mcmh_object.layer,var)
         print("{:<15} {:<42} {:<27} {:<27} {:<27} {:<27} {:<27}".format(
@@ -295,7 +295,7 @@ if RETRIEVE_GUROBI_BOUNDS:
             ipq.getUpperBound(node)))
 
     if not PERFORM_INTERPOLANT_SEARCH:
-        print('Not performing candidate verification.')
+        print('\nNot performing candidate verification.')
         sys.exit(0)
 
 # marabou_time = time.time() - current_time

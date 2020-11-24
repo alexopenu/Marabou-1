@@ -260,10 +260,10 @@ if RETRIEVE_GUROBI_BOUNDS:
     current_time = time.time()
 
     print("\nRetrieving Gurobi bounds for comparison.\n")
-    ipq = MarabouCore.InputQuery()
-    MarabouCore.createInputQuery(ipq, network_filename, property_filename)
+    ipq1 = MarabouCore.InputQuery()
+    MarabouCore.createInputQuery(ipq1, network_filename, property_filename)
     # options = Marabou.createOptions(verbosity=2)
-    MarabouCore.preprocess(ipq)
+    ipq = MarabouCore.preprocess(ipq1)
     print('Preprocessing done.')
     print('Preprocessing time: ', time.time() - current_time)
     print('\nComparing the bounds.\n')

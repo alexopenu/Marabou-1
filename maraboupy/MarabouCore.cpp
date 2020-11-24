@@ -295,7 +295,7 @@ std::pair<std::map<int, double>, Statistics> solve(InputQuery &inputQuery, Marab
 
 /* The default parameters here are just for readability, you should specify
  * them to make them work*/
-Statistics preprocess(InputQuery &inputQuery, std::string redirect=""){
+InputQuery preprocess(InputQuery &inputQuery, std::string redirect=""){
     // The main purpose of this function is to preprocess the input inquery (e.g., compute gurobi bounds)
     // Arguments: InputQuery object, filename to redirect output
     // Returns: engine statistics
@@ -314,7 +314,8 @@ Statistics preprocess(InputQuery &inputQuery, std::string redirect=""){
     if(output != -1)
         restoreOutputStream(output);
 
-    return *(engine.getStatistics());
+    //return *(engine.getStatistics());
+    return (inputQuery);
 }
 
 void saveQuery(InputQuery& inputQuery, std::string filename){

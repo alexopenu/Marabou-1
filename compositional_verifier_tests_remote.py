@@ -6,6 +6,8 @@ import sys
 import getopt
 import datetime
 
+# from tabulate import tabulate
+
 if '/cs' in os.getcwd():
     REMOTE = True
     if 'MARABOU_DIR' in os.environ.keys():
@@ -68,22 +70,28 @@ if REMOTE:
 else:
     TIMEOUT = 600
 
+PERFORM_INTERPOLANT_SEARCH = True
+
 REDIRECT_OUTPUT = True
 GUROBI = 'ON'
 
+RETRIEVE_GUROBI_BOUNDS = True
+
 VERIFY_ORIGINAL = False
+
 
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:],"hson:t:l:p:",["network=","timout=","layer=","property="])
+        opts, args = getopt.getopt(sys.argv[1:],"hsobrgn:t:l:p:",["network=","timeout=","layer=","property=", "no-search",
+                                                                 "no-redirect", "verify-original", "no-gurobi"])
     except getopt.GetoptError:
-        print('verify_interpolant.py --network=<network> --timout=<timeout> --layer=<layer> --property=<property>')
+        print('verify_interpolant.py --network=<network> --timeout=<timeout> --layer=<layer> --property=<property>')
         sys.exit(5)
     print(opts)
     print(args)
     for opt, arg in opts:
         if opt == '-h':
-            print('verify_interpolant.py --network=<network> --timout=<timeout> --layer=<layer> --property=<property>')
+            print('verify_interpolant.py --network=<network> --timeout=<timeout> --layer=<layer> --property=<property>')
             sys.exit(0)
         elif opt in ('-n', "--network"):
             NETWORK = arg
@@ -93,14 +101,21 @@ if __name__ == "__main__":
             LAYER = int(arg)
         elif opt in ("-p", "--property"):
             PROPERTY = arg
-        elif opt == '-s':
+        elif opt in ('-s', "--no-redirect"):
             REDIRECT_OUTPUT = False
-        elif opt == '-o':
+        elif opt in ('-o', "--verify-original"):
             VERIFY_ORIGINAL = True
+        elif opt in ('-r', "--no-search"):
+            PERFORM_INTERPOLANT_SEARCH = False
+        elif opt in ('-b', "--no-bounds"):
+            RETRIEVE_GUROBI_BOUNDS = False
+        elif opt in ('-g', "--no-gurobi"):
+            GUROBI = 'OFF'
+            # RETRIEVE_GUROBI_BOUNDS = False  # ??
 
 current_date_formatted = datetime.datetime.today().strftime ('%d%m%Y')
 stdout_file = MARABOU_DIR + 'cv_test_output_' + str(current_date_formatted) + '_' + NETWORK + '_prop_' + PROPERTY + \
-              '_layer_' + str(LAYER) + '_gurobi_' + GUROBI
+              '_layer_' + str(LAYER) + '_gurobi_' + GUROBI + '_search='+ str(PERFORM_INTERPOLANT_SEARCH)
 
 if REDIRECT_OUTPUT:
     sys.stdout = open(stdout_file, 'w')
@@ -238,6 +253,58 @@ for var in range(mcmh_object.layer_interpolant_candidate.layer_size):
     print(mcmh_object.layer_interpolant_candidate.list_of_neurons[var].getSuggestedLowerBound(),
           '<= x' + str(var) + '<= ',
           mcmh_object.layer_interpolant_candidate.list_of_neurons[var].getSuggestedUpperBound())
+    
+    
+    
+if RETRIEVE_GUROBI_BOUNDS:
+    current_time = time.time()
+
+    print("\nRetrieving Gurobi bounds for comparison.\n")
+    ipq = MarabouCore.InputQuery()
+    MarabouCore.createInputQuery(ipq, network_filename, property_filename)
+    # options = Marabou.createOptions(verbosity=2)
+    MarabouCore.preprocess(ipq)
+    print('Preprocessing done.')
+    print('Preprocessing time: ', time.time() - current_time)
+    print('\nComparing the bounds.\n')
+    print('Layer = ', mcmh_object.layer)
+    print('\n\n')
+    print("{:<15} {:<42} {:<20} {:<20} {:<20} {:<20} {:<20}".format('node',
+                                                                    'Gurobi lower',
+                                                                    'Candidate real lower',
+                                                                    'Candidate lower',
+                                                                    'Candidate upper',
+                                                                    'Candidate real upper',
+                                                                    'Gurobi upper'))
+    print("{:<15} {:<42} {:<20} {:<20} {:<20} {:<20} {:<20}".format('____',
+                                                                    '______________________',
+                                                                    '______________________',
+                                                                    '______________________',
+                                                                    '______________________',
+                                                                    '______________________',
+                                                                    '______________________'))
+    for var in range(mcmh_object.layer_interpolant_candidate.layer_size):
+        node = mcmh_object.marabou_nnet.nodeTo_b(mcmh_object.layer,var)
+        print("{:<15} {:<42} {:<20} {:<20} {:<20} {:<20} {:<20}".format(
+            'node: '+str(var),
+            ipq.getLowerBound(node),
+            mcmh_object.layer_interpolant_candidate.list_of_neurons[var].real_bounds_for_invariant['l'],
+            mcmh_object.layer_interpolant_candidate.list_of_neurons[var].getSuggestedLowerBound(),
+            mcmh_object.layer_interpolant_candidate.list_of_neurons[var].getSuggestedUpperBound(),
+            mcmh_object.layer_interpolant_candidate.list_of_neurons[var].real_bounds_for_invariant['r'],
+            ipq.getUpperBound(node)))
+
+    if not PERFORM_INTERPOLANT_SEARCH:
+        print('Not performing candidate verification.')
+        sys.exit(0)
+
+# marabou_time = time.time() - current_time
+#
+# print('Marabou time: ', marabou_time)
+
+# print('\n Bpounds discovered by Gurobi: ')
+#     for var in range(mcmh_object.layer_interpolant_candidate.layer_size):
+#         print()
 
 # bad_input, _ = mcmh_object.verifyConjunctionWithMarabou(add_to_badset=True)
 #

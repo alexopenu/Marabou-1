@@ -13,6 +13,10 @@ import getopt
 
 import subprocess
 
+print('Reading the command file ' LIST_FILE)
+
+command_list = []
+
 try:
     with open(LIST_FILE, 'r') as f:
         line = f.readline()
@@ -21,12 +25,20 @@ try:
             next_command = line.split()
             next_command.insert(0, SCRIPT_NAME)
             print('Next bash command: ', next_command)
-            subprocess.run(next_command)
-            print('Finished with command, ', next_command)
+            command_list.append(next_command)
+
             line = f.readline()
 except:
     print("Something went wrong with reading from the file",
           LIST_FILE)
     sys.exit(1)
+
+print('Successfully read the command file.')
+print('Executing the sequence of commands.')
+
+for next_command in command_list:
+    print('Next bash command: ', next_command)
+    subprocess.run(next_command)
+    print('Finished with command, ', next_command)
 
 print('Done with the master script.')

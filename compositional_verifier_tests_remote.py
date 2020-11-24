@@ -269,14 +269,14 @@ if RETRIEVE_GUROBI_BOUNDS:
     print('\nComparing the bounds.\n')
     print('Layer = ', mcmh_object.layer)
     print('\n\n')
-    print("{:<15} {:<42} {:<20} {:<20} {:<20} {:<20} {:<20}".format('node',
+    print("{:<15} {:<42} {:<27} {:<27} {:<27} {:<27} {:<27}".format('node',
                                                                     'Gurobi lower',
                                                                     'Candidate real lower',
                                                                     'Candidate lower',
                                                                     'Candidate upper',
                                                                     'Candidate real upper',
                                                                     'Gurobi upper'))
-    print("{:<15} {:<42} {:<20} {:<20} {:<20} {:<20} {:<20}".format('____',
+    print("{:<15} {:<42} {:<27} {:<27} {:<27} {:<27} {:<27}".format('____',
                                                                     '______________________',
                                                                     '______________________',
                                                                     '______________________',
@@ -285,7 +285,7 @@ if RETRIEVE_GUROBI_BOUNDS:
                                                                     '______________________'))
     for var in range(mcmh_object.layer_interpolant_candidate.layer_size):
         node = mcmh_object.marabou_nnet.nodeTo_b(mcmh_object.layer,var)
-        print("{:<15} {:<42} {:<20} {:<20} {:<20} {:<20} {:<20}".format(
+        print("{:<15} {:<42} {:<27} {:<27} {:<27} {:<27} {:<27}".format(
             'node: '+str(var),
             ipq.getLowerBound(node),
             mcmh_object.layer_interpolant_candidate.list_of_neurons[var].real_bounds_for_invariant['l'],

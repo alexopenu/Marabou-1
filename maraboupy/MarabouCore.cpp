@@ -315,7 +315,7 @@ InputQuery preprocess(InputQuery &inputQuery, std::string redirect=""){
         restoreOutputStream(output);
 
     //return *(engine.getStatistics());
-    return (inputQuery);
+    return &(engine.getInputQuery());
 }
 
 void saveQuery(InputQuery& inputQuery, std::string filename){

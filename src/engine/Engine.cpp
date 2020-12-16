@@ -1105,8 +1105,8 @@ bool Engine::processInputQuery( InputQuery &inputQuery, bool preprocess )
 
         delete[] constraintMatrix;
 
+        std::cout << "\nMILP timeout: " << Options::get()->getMILPSolverBoundTighteningType() <<  "\n";
         if ( preprocess )
-            std::cout << "\nMILP timeout: " << Options::get()->getMILPSolverBoundTighteningType() <<  "\n";
             performMILPSolverBoundedTightening();
 
         if ( _splittingStrategy == DivideStrategy::Auto )

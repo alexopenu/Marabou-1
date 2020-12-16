@@ -1106,6 +1106,7 @@ bool Engine::processInputQuery( InputQuery &inputQuery, bool preprocess )
         delete[] constraintMatrix;
 
         if ( preprocess )
+            std::cout << "\nMILP timeout: " << Options::getFloat(TIMEOUT_FACTOR) <<  "\n";
             performMILPSolverBoundedTightening();
 
         if ( _splittingStrategy == DivideStrategy::Auto )

@@ -29,7 +29,6 @@ Options::Options()
     initializeDefaultValues();
     _optionParser.initialize();
     String strategyString = String( _stringOptions.get( Options::MILP_SOLVER_BOUND_TIGHTENING_TYPE ) );
-    std::cout << "\nMILP timeout: " << getFloat(TIMEOUT_FACTOR) <<  "\n";
 }
 
 Options::Options( const Options & )

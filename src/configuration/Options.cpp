@@ -28,6 +28,7 @@ Options::Options()
 {
     initializeDefaultValues();
     _optionParser.initialize();
+    _optionParser.printHelpMessage();
 }
 
 Options::Options( const Options & )

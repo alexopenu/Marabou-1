@@ -28,7 +28,6 @@ Options::Options()
 {
     initializeDefaultValues();
     _optionParser.initialize();
-    String strategyString = String( _stringOptions.get( Options::MILP_SOLVER_BOUND_TIGHTENING_TYPE ) );
 }
 
 Options::Options( const Options & )

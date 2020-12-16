@@ -269,7 +269,12 @@ if RETRIEVE_GUROBI_BOUNDS:
     print("\nRetrieving Gurobi bounds for comparison.\n")
     ipq1 = MarabouCore.InputQuery()
     MarabouCore.createInputQuery(ipq1, network_filename, property_filename)
-    options = Marabou.createOptions(verbosity=2, MILPSolverBoundTighteningType="lp", MILPSolverTimeout=120.0)
+    if USE_MILP_TIGHTENING:
+        MILPSolverBoundTighteningType = "milp"
+    else:
+        MILPSolverBoundTighteningType = "lp"
+    options = Marabou.createOptions(verbosity=2, MILPSolverBoundTighteningType=MILPSolverBoundTighteningType,
+                                    MILPSolverTimeout=MILP_TIMEOUT)
     ipq = MarabouCore.preprocess(ipq1, options)
     print('Preprocessing done.')
     print('Preprocessing time: ', time.time() - current_time)

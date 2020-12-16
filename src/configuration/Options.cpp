@@ -28,7 +28,7 @@ Options::Options()
 {
     initializeDefaultValues();
     _optionParser.initialize();
-    printf("\nMILP timeout: %g, Tightening strategy: %s\n", getFloat(TIMEOUT_FACTOR), getString(SPLITTING_STRATEGY));
+    std::cout << "\nMILP timeout: " << getFloat(TIMEOUT_FACTOR) << " Tightening strategy: " << getString(SPLITTING_STRATEGY) << "\n";
 }
 
 Options::Options( const Options & )

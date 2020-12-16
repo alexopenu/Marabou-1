@@ -189,8 +189,10 @@ struct MarabouOptions {
         , _verbosity( Options::get()->getInt( Options::VERBOSITY ) )
         , _timeoutInSeconds( Options::get()->getInt( Options::TIMEOUT ) )
         , _timeoutFactor( Options::get()->getFloat( Options::TIMEOUT_FACTOR ) )
+        , _MILPSolverTimeout( Options::get()->getFloat( Options::MILP_SOLVER_TIMEOUT ) )
         , _splittingStrategyString( Options::get()->getString( Options::SPLITTING_STRATEGY ).ascii() )
         , _sncSplittingStrategyString( Options::get()->getString( Options::SNC_SPLITTING_STRATEGY ).ascii() )
+        , _MILPSolverBoundTighteningType( Options::get()->getString( Options::MILP_SOLVER_BOUND_TIGHTENING_TYPE ).ascii() )
     {};
 
   void setOptions()

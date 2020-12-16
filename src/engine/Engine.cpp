@@ -1106,6 +1106,7 @@ bool Engine::processInputQuery( InputQuery &inputQuery, bool preprocess )
         delete[] constraintMatrix;
 
         std::cout << "\nMILP timeout: " << Options::get()->getFloat(Options::MILP_SOLVER_TIMEOUT) <<  "\n";
+        std::cout << "\nMILP strategy: " << Options::get()->getMILPSolverBoundTighteningType() <<  "\n";
         if ( preprocess )
             performMILPSolverBoundedTightening();
 

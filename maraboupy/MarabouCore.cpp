@@ -354,16 +354,17 @@ PYBIND11_MODULE(MarabouCore, m) {
         py::arg("inputQuery"), py::arg("options"), py::arg("redirect") = "");
 
    m.def("preprocess", &preprocess, R"pbdoc(
-        Takes a reference to an InputQuery and preprocesses it with Marabou preprocessor
+        Takes a reference to an InputQuery and preproccesses it with Marabou preprocessor. 
 
         Args:
             inputQuery (:class:`~maraboupy.MarabouCore.InputQuery`): Marabou input query to be preproccessed
+            options (class:`~maraboupy.MarabouCore.Options`): Object defining the options used for Marabou
             redirect (str, optional): Filepath to direct standard output, defaults to ""
 
         Returns:
-                - stats (:class:`~maraboupy.MarabouCore.Statistics`): A Statistics object to how Marabou performed
+                InputQuery (:class:`~maraboupy.MarabouCore.InputQuery`): the preprocessed input query
         )pbdoc",
-        py::arg("inputQuery"), py::arg("redirect") = "");
+        py::arg("inputQuery"), py::arg("options"), py::arg("redirect") = "");
 
     m.def("saveQuery", &saveQuery, R"pbdoc(
         Serializes the inputQuery in the given filename

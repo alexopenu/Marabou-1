@@ -79,11 +79,14 @@ RETRIEVE_GUROBI_BOUNDS = True
 
 VERIFY_ORIGINAL = False
 
+MILP_TIMEOUT = 0.0
+USE_MILP_TIGHTENING = False
+
 
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:],"hsobrgn:t:l:p:",["network=","timeout=","layer=","property=", "no-search",
-                                                                 "no-redirect", "verify-original", "no-gurobi"])
+        opts, args = getopt.getopt(sys.argv[1:],"hsobrgn:t:l:p:m:",["network=","timeout=","layer=","property=", "no-search",
+                                                                 "no-redirect", "verify-original", "no-gurobi", "milp-timeout"])
     except getopt.GetoptError:
         print('verify_interpolant.py --network=<network> --timeout=<timeout> --layer=<layer> --property=<property>')
         sys.exit(5)
@@ -112,6 +115,10 @@ if __name__ == "__main__":
         elif opt in ('-g', "--no-gurobi"):
             GUROBI = 'OFF'
             # RETRIEVE_GUROBI_BOUNDS = False  # ??
+        elif opt in ('-m', "--milp-timeout"):
+            USE_MILP_TIGHTENING = True
+            if arg:
+                MILP_TIMEOUT = float(arg)
 
 current_date_formatted = datetime.datetime.today().strftime ('%d%m%Y')
 stdout_file = MARABOU_DIR + 'cv_test_output_' + str(current_date_formatted) + '_' + NETWORK + '_prop_' + PROPERTY + \

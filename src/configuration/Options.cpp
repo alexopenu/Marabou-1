@@ -28,7 +28,8 @@ Options::Options()
 {
     initializeDefaultValues();
     _optionParser.initialize();
-    std::cout << "\nMILP timeout: " << getFloat(TIMEOUT_FACTOR) << " Tightening strategy: " << getString(SPLITTING_STRATEGY) << "\n";
+    String strategyString = String( _stringOptions.get( Options::MILP_SOLVER_BOUND_TIGHTENING_TYPE ) );
+    std::cout << "\nMILP timeout: " << getFloat(TIMEOUT_FACTOR) << " Tightening strategy: " << strategyString << "\n";
 }
 
 Options::Options( const Options & )

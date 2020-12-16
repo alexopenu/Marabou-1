@@ -210,10 +210,12 @@ struct MarabouOptions {
 
     // float options
     Options::get()->setFloat( Options::TIMEOUT_FACTOR, _timeoutFactor );
+    Options::get()->setFloat( Options::MILP_SOLVER_TIMEOUT, _MILPSolverTimeout );
 
     // string options
     Options::get()->setString( Options::SPLITTING_STRATEGY, _splittingStrategyString );
     Options::get()->setString( Options::SNC_SPLITTING_STRATEGY, _sncSplittingStrategyString );
+    Options::get()->setString( Options::MILP_SOLVER_BOUND_TIGHTENING_TYPE, _MILPSolverBoundTighteningType );
   }
 
     bool _snc;
@@ -226,8 +228,10 @@ struct MarabouOptions {
     unsigned _verbosity;
     unsigned _timeoutInSeconds;
     float _timeoutFactor;
+    float _MILPSolverTimeout
     std::string _splittingStrategyString;
     std::string _sncSplittingStrategyString;
+    std::string _MILPSolverBoundTighteningType
 };
 
 /* The default parameters here are just for readability, you should specify
@@ -295,7 +299,7 @@ std::pair<std::map<int, double>, Statistics> solve(InputQuery &inputQuery, Marab
 
 /* The default parameters here are just for readability, you should specify
  * them to make them work*/
-InputQuery preprocess(InputQuery &inputQuery, std::string redirect=""){
+InputQuery preprocess(InputQuery &inputQuery, MarabouOptions &options, std::string redirect=""){
     // The main purpose of this function is to preprocess the input inquery (e.g., compute gurobi bounds)
     // Arguments: InputQuery object, filename to redirect output
     // Returns: engine statistics
@@ -305,6 +309,7 @@ InputQuery preprocess(InputQuery &inputQuery, std::string redirect=""){
     if(redirect.length()>0)
         output=redirectOutputToFile(redirect);
     try{
+        options.setOptions();
         engine.processInputQuery(inputQuery);
     }
     catch(const MarabouError &e){

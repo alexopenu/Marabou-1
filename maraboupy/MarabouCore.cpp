@@ -228,10 +228,10 @@ struct MarabouOptions {
     unsigned _verbosity;
     unsigned _timeoutInSeconds;
     float _timeoutFactor;
-    float _MILPSolverTimeout
+    float _MILPSolverTimeout;
     std::string _splittingStrategyString;
     std::string _sncSplittingStrategyString;
-    std::string _MILPSolverBoundTighteningType
+    std::string _MILPSolverBoundTighteningType;
 };
 
 /* The default parameters here are just for readability, you should specify

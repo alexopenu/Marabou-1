@@ -312,6 +312,7 @@ InputQuery preprocess(InputQuery &inputQuery, MarabouOptions &options, std::stri
         output=redirectOutputToFile(redirect);
     try{
         options.setOptions();
+        std.cout << "\nMILP Timeout: " << Options::get()->getFloat( Options::MILP_SOLVER_TIMEOUT ) << "\n";
         engine.processInputQuery(inputQuery);
     }
     catch(const MarabouError &e){

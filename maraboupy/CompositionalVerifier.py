@@ -1673,8 +1673,11 @@ class CompositionalVerifier:
                     if verbosity > 0:
                         print('One round of candidate search has found a list of bad inputs, adjusting offsets.')
                     bad_input = argument_list
-                    epsilon_adjusted = self.adjustConjunctionOnBadInput(bad_input, adjust_epsilons='all',
+                    epsilon_adjusted = self.adjustConjunctionOnBadInput(bad_input, adjust_epsilons='random',
+                                                                        number_of_epsilons_to_adjust=5,
                                                                         adjust_safety_margin=True)
+                    # TODO: the choice of number_of_epsilons_to_adjust should follow some heuristics?
+
                     if verbosity > 0:
                         print('offsets adjusted: ', epsilon_adjusted)
                     if not epsilon_adjusted:

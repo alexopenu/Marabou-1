@@ -1161,7 +1161,6 @@ void Engine::performMILPSolverBoundedTightening()
 
         case MILPSolverBoundTighteningType::MILP_ENCODING:
         case MILPSolverBoundTighteningType::MILP_ENCODING_INCREMENTAL:
-            printf("\nHello!\n");
             _networkLevelReasoner->MILPPropagation();
             break;
         case MILPSolverBoundTighteningType::ITERATIVE_PROPAGATION:

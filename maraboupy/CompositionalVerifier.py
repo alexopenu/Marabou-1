@@ -285,7 +285,7 @@ class invariantOnNeuron:
             for side in TYPES_OF_BOUNDS:
                 self.offset[side] = max(self.offset[side], self.safety_margins[side])
                 # self.epsilon_twosided[side] = max(self.epsilon_twosided[side], SAFETY_FACTOR)
-                #TODO: figure out what to do with this?
+                # TODO: figure out what to do with this?
         for side in TYPES_OF_BOUNDS:
             self.deltas[side] = self.offset[side]
 
@@ -295,7 +295,7 @@ class invariantOnNeuron:
 
     def setEpsilon(self, side: TYPES_OF_BOUNDS, new_epsilon: float, use_safety_factor=True):
         assert side in TYPES_OF_BOUNDS
-        if use_safety_factor and new_epsilon*2 < self.safety_margins[side]:
+        if use_safety_factor and new_epsilon * 2 < self.safety_margins[side]:
             print('Warning: Trying to set the tight offset for neuron ', self.var, ' ', side, 'to less than ',
                   self.safety_margins[side])
             print('Set offset rejected')
@@ -306,7 +306,7 @@ class invariantOnNeuron:
 
     def setDelta(self, side: TYPES_OF_BOUNDS, new_delta: float, use_safety_factor=True):
         assert side in TYPES_OF_BOUNDS
-        if use_safety_factor and new_delta*2 < self.safety_margins[side]:
+        if use_safety_factor and new_delta * 2 < self.safety_margins[side]:
             print('Warning: Trying to set the loose offset for neuron ', self.var, ' ', side, 'to less than ',
                   self.safety_margins[side])
             print('Set offset rejected')
@@ -333,7 +333,7 @@ class invariantOnNeuron:
 
     def halfOffset(self, side: TYPES_OF_BOUNDS, use_safety_factor=True):
         offset = self.getOffset(side)
-        if use_safety_factor and offset < self.safety_margins[side]*2:
+        if use_safety_factor and offset < self.safety_margins[side] * 2:
             print('Warning: Trying to set the loose offset for neuron ', self.var, ' ', side, 'to less than ',
                   self.safety_margins[side])
             print('Set offset rejected')
@@ -376,7 +376,7 @@ class invariantOnNeuron:
             assert False
 
         if round_bound:
-            bound = round(bound, max(ROUND_TO_DIGITS,int(np.ceil(-np.log10(self.safety_margins[side])))+1))
+            bound = round(bound, max(ROUND_TO_DIGITS, int(np.ceil(-np.log10(self.safety_margins[side]))) + 1))
         self.real_bounds_for_invariant[side] = max(bound, 0)
 
     def recomputeLooseBound(self, side: TYPES_OF_BOUNDS, round_bound=True):
@@ -393,9 +393,8 @@ class invariantOnNeuron:
             assert False
 
         if round_bound:
-            bound = round(bound, max(ROUND_TO_DIGITS,int(np.ceil(-np.log10(self.safety_margins[side])))+1))
+            bound = round(bound, max(ROUND_TO_DIGITS, int(np.ceil(-np.log10(self.safety_margins[side]))) + 1))
         self.loose_bounds_for_invariant[side] = max(bound, 0)
-
 
     def recomputeSuggestedBound(self, side: TYPES_OF_BOUNDS, recompute_property=True):
         self.suggested_bounds[side] = self.getSuggestedBound(side)
@@ -462,7 +461,7 @@ class invariantOnNeuron:
         p = 'x' + str(var) + ' >= ' + str(self.suggested_bounds['l'])
         dual_bound = self.suggested_bounds['l']
         if self.use_safety_margin:
-            dual_bound += self.safety_margins['l']/2
+            dual_bound += self.safety_margins['l'] / 2
         dual_p = 'y' + str(var) + ' <= ' + str(dual_bound)
         return p, dual_p
 
@@ -471,7 +470,7 @@ class invariantOnNeuron:
         p = 'x' + str(var) + ' <= ' + str(self.suggested_bounds['r'])
         dual_bound = self.suggested_bounds['r']
         if self.use_safety_margin:
-            dual_bound -= self.safety_margins['r']/2
+            dual_bound -= self.safety_margins['r'] / 2
         dual_p = 'y' + str(var) + ' >= ' + str(dual_bound)
         return p, dual_p
 
@@ -843,10 +842,10 @@ class layerInterpolateCandidate:
                 one_offset_adjusted = \
                     self.list_of_neurons[var].strengthenOffset(side, adjust_epsilons, difference_dict[(var, side)])
                 if one_offset_adjusted[2] == True:
-                    offsets_adjusted[(var, side)] = (one_offset_adjusted[0],one_offset_adjusted[1])
+                    offsets_adjusted[(var, side)] = (one_offset_adjusted[0], one_offset_adjusted[1])
                     self.updateSuggestedBound(var, side)
 
-            if verbosity>1:
+            if verbosity > 1:
                 print('offsets to adjust: ', offsets_adjusted)
             if offsets_adjusted.keys() or (not using_all) or (not adjust_safety_margin):
                 break
@@ -869,13 +868,12 @@ class layerInterpolateCandidate:
             for side in TYPES_OF_BOUNDS:
                 self.list_of_neurons[var].halfOffset(side)
 
-
     # TODO: COMPLETE!
 
     def reduceSafetyMargin(self, var, side, factor=2, maximal_factor=100, verbosity=0):
         current_margin = self.list_of_neurons[var].safety_margins[side]
-        new_margin = current_margin/factor
-        if new_margin < SAFETY_FACTOR/maximal_factor:
+        new_margin = current_margin / factor
+        if new_margin < SAFETY_FACTOR / maximal_factor:
             if verbosity > 0:
                 print('Adjusting safety margin for variable ', var, ' side ', side, ' failed.')
                 if verbosity > 1:
@@ -1319,12 +1317,12 @@ class CompositionalVerifier:
 
     def verifyInterpolantFromFile(self, property_filename='', verbosity=0, timeout=0, split_network=True,
                                   proceed_to_the_end=True, sanity_check=True,
-                                  use_safety_margin = True, safety_margin=0.01):
+                                  use_safety_margin=True, safety_margin=0.01):
 
         interpolant_verified = True
 
-        hidden_layer_index_f = str(self.layer*2)
-        hidden_layer_index_b = str(self.layer*2-1)
+        hidden_layer_index_f = str(self.layer * 2)
+        hidden_layer_index_b = str(self.layer * 2 - 1)
         hidden_var_f = 'h_' + hidden_layer_index_f + '_'
         hidden_var_b = 'h_' + hidden_layer_index_b + '_'
 
@@ -1393,7 +1391,7 @@ class CompositionalVerifier:
 
         if verbosity > 0 and new_property_file_necessary:
             print('The interpolant has been recomputed based on the provided value of split_network = ', split_network)
-            if verbosity>1:
+            if verbosity > 1:
                 print('The old interpolant was: ')
                 if property.h_properties_present():
                     print(property.get_original_h_properties())
@@ -1436,7 +1434,7 @@ class CompositionalVerifier:
         print(conjunction_network)
         MarabouCore.createInputQuery(conj_ipq, conjunction_network, new_property_filename)
         print('2')
-        options = Marabou.createOptions(verbosity=max(2,verbosity), timeoutInSeconds=timeout)
+        options = Marabou.createOptions(verbosity=max(2, verbosity), timeoutInSeconds=timeout)
         [vals, stats] = Marabou.solve_query(ipq=conj_ipq, verbose=True, options=options)
         bad_vals = self.convertVectorFromDictToList(vals)
         bad_output = bad_vals[-conj_ipq.getNumOutputVariables():]
@@ -1563,11 +1561,11 @@ class CompositionalVerifier:
 
                     sanity_check_network_output = nnet_object.evaluateNNet(bad_input,
                                                                            activate_output_layer=False)
-                    if verbosity>0:
+                    if verbosity > 0:
                         print('Sanity check output: ', sanity_check_network_output)
-                    if verbosity>1:
+                    if verbosity > 1:
                         print('Difference between the outputs: ')
-                        print(sanity_check_network_output-bad_vals)
+                        print(sanity_check_network_output - bad_vals)
 
                     temp_disj_property = Property(temp_disj_property_filename, compute_marabou_lists=False)
                     print('Re-checking whether the property holds with python Property class: ',
@@ -1599,8 +1597,6 @@ class CompositionalVerifier:
         else:
             print("Failure, not an interpolant.")
             return False
-
-
 
     def adjustConjunctionOnBadInput(self, layer_input, adjust_epsilons='random', number_of_epsilons_to_adjust=1,
                                     adjust_safety_margin=False):
@@ -1673,8 +1669,11 @@ class CompositionalVerifier:
                     if verbosity > 0:
                         print('One round of candidate search has found a list of bad inputs, adjusting offsets.')
                     bad_input = argument_list
-                    epsilon_adjusted = self.adjustConjunctionOnBadInput(bad_input, adjust_epsilons='all',
+                    epsilon_adjusted = self.adjustConjunctionOnBadInput(bad_input, adjust_epsilons='random',
+                                                                        number_of_epsilons_to_adjust=5,
                                                                         adjust_safety_margin=True)
+                    # TODO: the choice of number_of_epsilons_to_adjust should follow some heuristics?
+
                     if verbosity > 0:
                         print('offsets adjusted: ', epsilon_adjusted)
                     if not epsilon_adjusted:
@@ -1918,7 +1917,6 @@ class CompositionalVerifier:
                 result = 'out_of_bounds'
 
         return result, one_out_of_bounds_inputs, one_differene_dict, output
-
 
     def createOriginalInputPropertyFile(self):
         property_filename1 = self.property_filename1
@@ -2233,7 +2231,8 @@ class CompositionalVerifier:
                                                                 normalize_inputs=False,
                                                                 normalize_outputs=False,
                                                                 activate_output_layer=False)
-                if self.marabou_query.property.verify_output_properties(network_output, use_executables=use_executables):
+                if self.marabou_query.property.verify_output_properties(network_output,
+                                                                        use_executables=use_executables):
                     print('A counter example found! Randomly chosen input = ', inputs, 'output = ', network_output)
                     if sanity_check:
                         options = Marabou.createOptions(verbosity=0)
@@ -2274,8 +2273,6 @@ class CompositionalVerifier:
     def outputVariableToIndex(self, output_variable):
         return output_variable - self.marabou_nnet.numVars + self.marabou_nnet.outputSize
 
-
-
     # Currently none of these are in use.
     def verifyInputEquations(self, x):
         for eq in self.input_equations:
@@ -2297,10 +2294,6 @@ class CompositionalVerifier:
 
     def verifyOutputProperty(self, y):
         return self.verifyOutputBounds(y) and self.verifyOutputEquations(y)
-
-
-
-
 
     # def getSoftUpperBoundForLayer(self, var, two_sided = True):
     #     epsilon = self.epsiloni_twosided['r'][var] if two_sided else self.epsiloni[var]

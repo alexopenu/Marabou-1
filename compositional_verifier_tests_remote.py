@@ -274,7 +274,7 @@ if RETRIEVE_GUROBI_BOUNDS:
     else:
         MILPSolverBoundTighteningType = "lp"
     options = Marabou.createOptions(verbosity=2, MILPSolverBoundTighteningType=MILPSolverBoundTighteningType,
-                                    MILPSolverTimeout=MILP_TIMEOUT)
+                                    MILPSolverTimeout=MILP_TIMEOUT, solveWithMILP=True)
     ipq = MarabouCore.preprocess(ipq1, options)
     print('Preprocessing done.')
     print('Preprocessing time: ', time.time() - current_time)

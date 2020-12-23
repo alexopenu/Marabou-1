@@ -61,15 +61,20 @@ start_time = time.time()
 
 
 NETWORK = '1_4'
-PROPERTY = '1'
+PROPERTY = '4'
 LAYER = 5
 if REMOTE:
     TIMEOUT = 100000
 else:
     TIMEOUT = 600
 
-REDIRECT_OUTPUT = True
-GUROBI = 'ON'
+if REMOTE:
+    REDIRECT_OUTPUT = True
+    GUROBI = 'ON'
+else:
+    REDIRECT_OUTPUT = False
+    GUROBI = False
+
 
 VERIFY_ORIGINAL = False
 

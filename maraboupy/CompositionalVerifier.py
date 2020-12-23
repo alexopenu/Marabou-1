@@ -821,39 +821,52 @@ class layerInterpolateCandidate:
 
     def strengthenEpsilons(self, out_of_bounds_inputs, difference_dict, adjust_epsilons='', number_of_epsilons=1,
                            adjust_safety_margin=False, verbosity=0):
+        NUMBER_OF_ATTEMPT_ROUNDS_FOR_RANDOM_ADJUSTMENT = 10
+        # TODO: REPLACE BY A PARAMETER THAT CAN BE ADJUSTED?
+
         assert adjust_epsilons in ['', 'random', 'all', 'half_all', 'half_random']
         assert number_of_epsilons >= 0
+        # TODO: Remove for computational efficiency?
 
         if not adjust_epsilons:
             return []
 
         weights = [difference for (var, side, difference) in out_of_bounds_inputs]
         if adjust_epsilons == 'random' or adjust_epsilons == 'half_random':
-            epsilons_to_adjust = choices(out_of_bounds_inputs, weights=weights, k=number_of_epsilons)
+            epsilons_to_adjust = choices(out_of_bounds_inputs, weights=weights,
+                                         k=number_of_epsilons*NUMBER_OF_ATTEMPT_ROUNDS_FOR_RANDOM_ADJUSTMENT)
+            one_round_length = number_of_epsilons
+            number_of_rounds = NUMBER_OF_ATTEMPT_ROUNDS_FOR_RANDOM_ADJUSTMENT
             using_all = False
         else:
             epsilons_to_adjust = out_of_bounds_inputs
+            one_round_length = len(epsilons_to_adjust)
+            number_of_rounds = 1
             using_all = True
 
         offsets_adjusted = {}
         while True:
-            for (var, side, _) in epsilons_to_adjust:
-                if (var, side) in offsets_adjusted.keys():  # avoid multiple changes of the same bound
-                    continue
-                one_offset_adjusted = \
-                    self.list_of_neurons[var].strengthenOffset(side, adjust_epsilons, difference_dict[(var, side)])
-                if one_offset_adjusted[2] == True:
-                    offsets_adjusted[(var, side)] = (one_offset_adjusted[0],one_offset_adjusted[1])
-                    self.updateSuggestedBound(var, side)
+            for round in range(number_of_rounds):
+                epsilons_to_adjust_in_round = epsilons_to_adjust[round*one_round_length:(round+1)*one_round_length]
+                for (var, side, _) in epsilons_to_adjust_in_round:
+                    if (var, side) in offsets_adjusted.keys():  # avoid multiple changes of the same bound
+                        continue
+                    one_offset_adjusted = \
+                        self.list_of_neurons[var].strengthenOffset(side, adjust_epsilons, difference_dict[(var, side)])
+                    if one_offset_adjusted[2] == True:
+                        offsets_adjusted[(var, side)] = (one_offset_adjusted[0],one_offset_adjusted[1])
+                        self.updateSuggestedBound(var, side)
+                if offsets_adjusted.keys():
+                    break
 
-            if verbosity>1:
+            if verbosity > 1:
                 print('offsets to adjust: ', offsets_adjusted)
-            if offsets_adjusted.keys() or (not using_all) or (not adjust_safety_margin):
+            if offsets_adjusted.keys() or (not adjust_safety_margin):  # or (not using_all)?
                 break
 
             # Attempting to adjust the safety margins
             margins_adjusted = False
-            for (var, side, _) in epsilons_to_adjust:
+            for (var, side, _) in epsilons_to_adjust[:one_round_length*2]: # TODO: adjust? Make flexible? Choose randomly?
                 if verbosity > 0:
                     print('Attempting to adjust safety margin for variable ', var, ' side ', side)
                 margins_adjusted = margins_adjusted or self.reduceSafetyMargin(var, side, verbosity=verbosity)

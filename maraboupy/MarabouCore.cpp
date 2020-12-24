@@ -188,8 +188,10 @@ struct MarabouOptions {
         , _onlineDivides( Options::get()->getInt( Options::NUM_ONLINE_DIVIDES ) )
         , _verbosity( Options::get()->getInt( Options::VERBOSITY ) )
         , _timeoutInSeconds( Options::get()->getInt( Options::TIMEOUT ) )
+        , _splitThreshold( Options::get()->getInt( Options::CONSTRAINT_VIOLATION_THRESHOLD ) )
         , _timeoutFactor( Options::get()->getFloat( Options::TIMEOUT_FACTOR ) )
         , _MILPSolverTimeout( Options::get()->getFloat( Options::MILP_SOLVER_TIMEOUT ) )
+        , _preprocessorBoundTolerance( Options::get()->getFloat( Options::PREPROCESSOR_BOUND_TOLERANCE ) )
         , _splittingStrategyString( Options::get()->getString( Options::SPLITTING_STRATEGY ).ascii() )
         , _sncSplittingStrategyString( Options::get()->getString( Options::SNC_SPLITTING_STRATEGY ).ascii() )
         , _MILPSolverBoundTighteningType( Options::get()->getString( Options::MILP_SOLVER_BOUND_TIGHTENING_TYPE ).ascii() )
@@ -209,10 +211,12 @@ struct MarabouOptions {
     Options::get()->setInt( Options::NUM_ONLINE_DIVIDES, _onlineDivides );
     Options::get()->setInt( Options::VERBOSITY, _verbosity );
     Options::get()->setInt( Options::TIMEOUT, _timeoutInSeconds );
+    Options::get()->setInt( Options::CONSTRAINT_VIOLATION_THRESHOLD, _splitThreshold );
 
     // float options
     Options::get()->setFloat( Options::TIMEOUT_FACTOR, _timeoutFactor );
     Options::get()->setFloat( Options::MILP_SOLVER_TIMEOUT, _MILPSolverTimeout );
+    Options::get()->setFloat( Options::PREPROCESSOR_BOUND_TOLERANCE, _preprocessorBoundTolerance );
 
     // string options
     Options::get()->setString( Options::SPLITTING_STRATEGY, _splittingStrategyString );
@@ -229,8 +233,10 @@ struct MarabouOptions {
     unsigned _onlineDivides;
     unsigned _verbosity;
     unsigned _timeoutInSeconds;
+    unsigned _splitThreshold;
     float _timeoutFactor;
     float _MILPSolverTimeout;
+    float _preprocessorBoundTolerance;
     std::string _splittingStrategyString;
     std::string _sncSplittingStrategyString;
     std::string _MILPSolverBoundTighteningType;
@@ -454,7 +460,9 @@ PYBIND11_MODULE(MarabouCore, m) {
         .def_readwrite("_onlineDivides", &MarabouOptions::_onlineDivides)
         .def_readwrite("_timeoutInSeconds", &MarabouOptions::_timeoutInSeconds)
         .def_readwrite("_timeoutFactor", &MarabouOptions::_timeoutFactor)
+        .def_readwrite("_preprocessorBoundTolerance", &MarabouOptions::_preprocessorBoundTolerance)
         .def_readwrite("_verbosity", &MarabouOptions::_verbosity)
+        .def_readwrite("_splitThreshold", &MarabouOptions::_splitThreshold)
         .def_readwrite("_snc", &MarabouOptions::_snc)
         .def_readwrite("_solveWithMILP", &MarabouOptions::_solveWithMILP)
         .def_readwrite("_restoreTreeStates", &MarabouOptions::_restoreTreeStates)

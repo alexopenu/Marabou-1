@@ -152,7 +152,10 @@ void NetworkLevelReasoner::MILPPropagation()
     milpFormulator.setCutoff( 0 );
 
     if ( Options::get()->getMILPSolverBoundTighteningType() == MILP_ENCODING )
+    {
         milpFormulator.optimizeBoundsWithMILPEncoding( _layerIndexToLayer );
+        std::cout << "\nPerforming Milp tightening in MILPPropagation()\n";
+    }
     else if ( Options::get()->getMILPSolverBoundTighteningType() == MILP_ENCODING_INCREMENTAL )
         milpFormulator.optimizeBoundsWithIncrementalMILPEncoding( _layerIndexToLayer );
 }

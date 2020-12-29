@@ -120,13 +120,10 @@ def solve_query(ipq, filename="", verbose=True, options=None):
 def createOptions(numWorkers=1, initialTimeout=5, initialDivides=0, onlineDivides=2,
                   timeoutInSeconds=0, timeoutFactor=1.5, verbosity=2, snc=False,
                   splittingStrategy="auto", sncSplittingStrategy="auto",
-<<<<<<< HEAD
-                  restoreTreeStates=False, solveWithMILP=False, MILPSolverTimeout=0,
+                  solveWithMILP=False, MILPSolverTimeout=0,
                   MILPSolverBoundTighteningType="lp"):
-=======
-                  restoreTreeStates=False, splitThreshold=20, solveWithMILP=False,
+                  restoreTreeStates=False, splitThreshold=20,
                   preprocessorBoundTolerance=0.0000000001):
->>>>>>> guy-master
     """Create an options object for how Marabou should solve the query
 
     Args:
@@ -143,15 +140,11 @@ def createOptions(numWorkers=1, initialTimeout=5, initialDivides=0, onlineDivide
         splittingStrategy (string, optional): Specifies which partitioning strategy to use (auto/largest-interval/relu-violation/polarity/earliest-relu)
         sncSplittingStrategy (string, optional): Specifies which partitioning strategy to use in the DNC mode (auto/largest-interval/polarity).
         restoreTreeStates (bool, optional): Whether to restore tree states in dnc mode, defaults to False
-<<<<<<< HEAD
         solveWithMILP (bool, optional): Whther to solve the input query with a MILP encoding. Currently only works when Gurobi is installed. Defaults to False.
         MILPSolverTimeout (float, optional): Timeout duration for MILP
         MILPSolverBoundTighteningType (string, optional): Default is "lp" for "lp relaxation", other options are
             "lp-inc" (lp incremental) , "milp" (for MILP tightening), "milp-inc", "iter-prop" (iteractive), "none".
-=======
-        solveWithMILP ( bool, optional): Whther to solve the input query with a MILP encoding. Currently only works when Gurobi is installed. Defaults to False.
         preprocessorBoundTolerance ( float, optional): epsilon value for preprocess bound tightening . Defaults to 10^-10.
->>>>>>> guy-master
     Returns:
         :class:`~maraboupy.MarabouCore.Options`
     """
@@ -169,10 +162,7 @@ def createOptions(numWorkers=1, initialTimeout=5, initialDivides=0, onlineDivide
     options._restoreTreeStates = restoreTreeStates
     options._splitThreshold = splitThreshold
     options._solveWithMILP = solveWithMILP
-<<<<<<< HEAD
     options._MILPSolverTimeout = MILPSolverTimeout
     options._MILPSolverBoundTighteningType = MILPSolverBoundTighteningType
-=======
     options._preprocessorBoundTolerance = preprocessorBoundTolerance
->>>>>>> guy-master
     return options

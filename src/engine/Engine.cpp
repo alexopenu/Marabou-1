@@ -1124,6 +1124,7 @@ bool Engine::processInputQuery( InputQuery &inputQuery, bool preprocess )
     catch ( const InfeasibleQueryException & )
     {
         ENGINE_LOG( "processInputQuery done\n" );
+        std::cout << "\nInfeasible query!\n UNSAT. \n"
 
         struct timespec end = TimeUtils::sampleMicro();
         _statistics.setPreprocessingTime( TimeUtils::timePassed( start, end ) );

@@ -2,18 +2,16 @@
 #SBATCH -c2
 #SBATCH --time=2-0
 
+# import os
+import sys
+# import getopt
+import subprocess
 
 
 LIST_FILE = './list_of_tasks_for_python_sbatch_script'
 SCRIPT_NAME = './compositional_verifier_tests_remote.py'
 
-import os
-import sys
-import getopt
-
-import subprocess
-
-print('Reading the command file ' LIST_FILE)
+print('Reading the command file ', LIST_FILE)
 
 command_list = []
 
@@ -23,7 +21,8 @@ try:
         while (line):
             print('Next line in the file: ', line)
             next_command = line.split()
-            next_command.insert(0, SCRIPT_NAME)
+            if next_command[0][0] == '-': #  No script in the command line,
+                next_command.insert(0, SCRIPT_NAME)
             print('Next bash command: ', next_command)
             command_list.append(next_command)
 

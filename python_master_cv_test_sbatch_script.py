@@ -21,10 +21,11 @@ if True:
         while (line):
             print('Next line in the file: ', line)
             next_command = line.split()
-            if next_command and next_command[0] and next_command[0][0] == '-': #  No script in the command line,
-                next_command.insert(0, SCRIPT_NAME)
-            print('Next bash command: ', next_command)
-            command_list.append(next_command)
+            if next_command and next_command[0]:
+                if next_command[0][0] == '-': #  No script in the command line,
+                    next_command.insert(0, SCRIPT_NAME)
+                print('Next bash command: ', next_command)
+                command_list.append(next_command)
 
             line = f.readline()
 else:

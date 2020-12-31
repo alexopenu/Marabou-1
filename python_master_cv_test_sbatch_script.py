@@ -15,7 +15,7 @@ print('Reading the command file ', LIST_FILE)
 
 command_list = []
 
-try:
+if True:
     with open(LIST_FILE, 'r') as f:
         line = f.readline()
         while (line):
@@ -27,7 +27,7 @@ try:
             command_list.append(next_command)
 
             line = f.readline()
-except:
+else:
     print("Something went wrong with reading from the file",
           LIST_FILE)
     sys.exit(1)

@@ -8,7 +8,7 @@ import sys
 import subprocess
 
 
-LIST_FILE = './list_of_tasks_for_python_sbatch_script'
+LIST_FILE = './list_of_tasks_for_python_sbatch_script_master'
 SCRIPT_NAME = './compositional_verifier_tests_remote.py'
 
 print('Reading the command file ', LIST_FILE)

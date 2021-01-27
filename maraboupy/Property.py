@@ -19,7 +19,7 @@ import re
 
 from maraboupy import MarabouCore
 
-#from MarabouCore import *
+# from MarabouCore import *
 
 TYPES_OF_PROPERTIES_BY_VARIABLE = ['x', 'y', 'h', 'm']
 TYPES_OF_IO_PROPERTIES_BY_VARIABLE = ['x', 'y', 'm']
@@ -131,8 +131,6 @@ class Property:
             self.compute_executable_equations()
         if compute_marabou_lists:
             self.computeMarabouPropertyObjects()
-
-
 
     def get_input_bounds(self):
         """Returns the list of bounds on the input variables
@@ -314,7 +312,7 @@ class Property:
                     self.exec_equations[t].append(exec_equation)
         self.exec_equations_computed = True
 
-    def compute_executables(self,recompute=False):
+    def compute_executables(self, recompute=False):
         """Computes the list of executable properties
 
          Args:
@@ -436,7 +434,6 @@ class Property:
         """
         return self.verify_bounds_exec(x=x, y=y) and self.verify_equations_exec(x=x, y=y)
 
-
     def verify_specific_io_properties(self, x=[], y=[], input=True, output=True, bdds=True, eqs=True,
                                       use_executables=False):
         '''
@@ -469,7 +466,6 @@ class Property:
     def verify_input_equations(self, x, use_executables=False):
         return self.verify_specific_io_equations(x=x, y=[], input=True, output=False, use_executables=use_executables)
 
-
     def property_dict_getter_by_type(self, class_of_property: CLASSES_OF_PROPERTY, use_executables=False):
         '''
         returns the appropriate dictionary
@@ -495,7 +491,6 @@ class Property:
 
         return self.bounds
 
-
     def get_specific_properties(self, class_of_property, type_of_property, use_executables=False):
         '''
         Returns a list of properties of the appropriate types
@@ -510,7 +505,6 @@ class Property:
         assert type_of_property in TYPES_OF_PROPERTIES_BY_VARIABLE
 
         return self.property_dict_getter_by_type(class_of_property, use_executables)[type_of_property]
-
 
     def verify_specific_io_bounds(self, x=[], y=[], input=False, output=False, use_executables=False):
         '''
@@ -592,8 +586,6 @@ class Property:
 
         return True
 
-
-
     def verify_specific_properties(self, x=[], y=[], input=False, output=False, bdds=False, eqs=False,
                                    use_executables=False):
         '''
@@ -640,7 +632,6 @@ class Property:
 
         return True
 
-
     def verify_property_by_index(self, index, x, y, class_of_property: CLASSES_OF_PROPERTY,
                                  type_of_property: TYPES_OF_PROPERTIES_BY_VARIABLE, use_executables=False):
         '''
@@ -684,15 +675,12 @@ class Property:
         if not self.marabou_property_objects_computed:
             print('Computing Marabou-compatible property objects')
             self.computeMarabouPropertyObjects()
-        for (variable,  indices, type_of_bound, bound) in self.marabou_bounds:
+        for (variable, indices, type_of_bound, bound) in self.marabou_bounds:
             if variable == 'x':  # Input variable
                 var_index = ipq.inputVariableByIndex(indices)
                 if type_of_bound == 'l':
                     pass
                 # TODO: complete!
-
-
-
 
     def readPropertyFile(self, property_filename):
 
@@ -820,7 +808,7 @@ class Property:
             print('Something went wrong while parsing the property file', property_filename)
             sys.exit(1)
 
-    def computeMarabouPropertyObjects(self, recompute = False):
+    def computeMarabouPropertyObjects(self, recompute=False):
         if self.marabou_property_objects_computed:
             if recompute:
                 self.marabou_property_objects_computed = False
@@ -842,7 +830,7 @@ class Property:
                     variable, indices = tokens[0][0], tokens[0][1:]
                     assert variable == t
                     assert variable in TYPES_OF_VARIABLES
-                    if variable[0] == 'h': # Hidden variable: double index
+                    if variable[0] == 'h':  # Hidden variable: double index
                         indices = re.split('_', indices)
                         assert len(indices) == 2
                         assert re.match('(\d)+$', indices[0])
@@ -869,7 +857,7 @@ class Property:
                                       'property objects.')
                         return
 
-                    self.marabou_bounds.append((variable,  indices, type_of_bound, bound))
+                    self.marabou_bounds.append((variable, indices, type_of_bound, bound))
 
                     continue
 
@@ -924,7 +912,7 @@ class Property:
                     else:  # x or y
                         try:
                             indices = int(addend[2])
-                            assert indices>=0
+                            assert indices >= 0
                         except:
                             warnings.warn('Unexpected index for a variable. '
                                           'Failed to compute Marabou-compatible property objects.')

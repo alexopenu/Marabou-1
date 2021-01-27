@@ -392,6 +392,7 @@ class MarabouNetworkNNet(MarabouNetwork.MarabouNetwork):
 
     def nodeTo_b(self, layer, node):
         """Get variable number for the backward variable corresponding to layer, node
+
         Args:
             layer (int): Layer number
             node (int): Node index within layer

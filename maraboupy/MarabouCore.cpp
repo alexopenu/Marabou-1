@@ -476,7 +476,7 @@ PYBIND11_MODULE(MarabouCore, m) {
         .def_readwrite("_splittingStrategy", &MarabouOptions::_splittingStrategyString)
         .def_readwrite("_sncSplittingStrategy", &MarabouOptions::_sncSplittingStrategyString)
         .def_readwrite("_MILPSolverTimeout", &MarabouOptions::_MILPSolverTimeout)
-        .def_readwrite("_MILPSolverBoundTighteningType", &MarabouOptions::_MILPSolverBoundTighteningType);
+        .def_readwrite("_MILPSolverBoundTighteningType", &MarabouOptions::_MILPSolverBoundTighteningType)
         .def_readwrite("_tighteningStrategy", &MarabouOptions::_tighteningStrategyString);
     py::enum_<PiecewiseLinearFunctionType>(m, "PiecewiseLinearFunctionType")
         .value("ReLU", PiecewiseLinearFunctionType::RELU)

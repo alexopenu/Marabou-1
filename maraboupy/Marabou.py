@@ -120,6 +120,8 @@ def solve_query(ipq, filename="", verbose=True, options=None):
 def createOptions(numWorkers=1, initialTimeout=5, initialDivides=0, onlineDivides=2,
                   timeoutInSeconds=0, timeoutFactor=1.5, verbosity=2, snc=False,
                   splittingStrategy="auto", sncSplittingStrategy="auto",
+                  MILPSolverTimeout=0,
+                  MILPSolverBoundTighteningType="lp",
                   restoreTreeStates=False, splitThreshold=20, solveWithMILP=False,
                   preprocessorBoundTolerance=0.0000000001, dumpBounds=False,
                   tighteningStrategy="deeppoly" ):
@@ -139,7 +141,10 @@ def createOptions(numWorkers=1, initialTimeout=5, initialDivides=0, onlineDivide
         splittingStrategy (string, optional): Specifies which partitioning strategy to use (auto/largest-interval/relu-violation/polarity/earliest-relu)
         sncSplittingStrategy (string, optional): Specifies which partitioning strategy to use in the SnC mode (auto/largest-interval/polarity).
         restoreTreeStates (bool, optional): Whether to restore tree states in dnc mode, defaults to False
-        solveWithMILP ( bool, optional): Whther to solve the input query with a MILP encoding. Currently only works when Gurobi is installed. Defaults to False.
+        solveWithMILP (bool, optional): Whther to solve the input query with a MILP encoding. Currently only works when Gurobi is installed. Defaults to False.
+        MILPSolverTimeout (float, optional): Timeout duration for MILP
+        MILPSolverBoundTighteningType (string, optional): Default is "lp" for "lp relaxation", other options are
+            "lp-inc" (lp incremental) , "milp" (for MILP tightening), "milp-inc", "iter-prop" (iteractive), "none".
         preprocessorBoundTolerance ( float, optional): epsilon value for preprocess bound tightening . Defaults to 10^-10.
         dumpBounds (bool, optional): Print out the bounds of each neuron after preprocessing. defaults to False
         tighteningStrategy (string, optional): The abstract-interpretation-based bound tightening techniques used during the search (deeppoly/sbt/none). default to deeppoly.
@@ -160,6 +165,8 @@ def createOptions(numWorkers=1, initialTimeout=5, initialDivides=0, onlineDivide
     options._restoreTreeStates = restoreTreeStates
     options._splitThreshold = splitThreshold
     options._solveWithMILP = solveWithMILP
+    options._MILPSolverTimeout = MILPSolverTimeout
+    options._MILPSolverBoundTighteningType = MILPSolverBoundTighteningType
     options._preprocessorBoundTolerance = preprocessorBoundTolerance
     options._dumpBounds = dumpBounds
     options._tighteningStrategy = tighteningStrategy

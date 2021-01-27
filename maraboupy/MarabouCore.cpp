@@ -191,9 +191,11 @@ struct MarabouOptions {
         , _timeoutInSeconds( Options::get()->getInt( Options::TIMEOUT ) )
         , _splitThreshold( Options::get()->getInt( Options::CONSTRAINT_VIOLATION_THRESHOLD ) )
         , _timeoutFactor( Options::get()->getFloat( Options::TIMEOUT_FACTOR ) )
+        , _MILPSolverTimeout( Options::get()->getFloat( Options::MILP_SOLVER_TIMEOUT ) )
         , _preprocessorBoundTolerance( Options::get()->getFloat( Options::PREPROCESSOR_BOUND_TOLERANCE ) )
         , _splittingStrategyString( Options::get()->getString( Options::SPLITTING_STRATEGY ).ascii() )
         , _sncSplittingStrategyString( Options::get()->getString( Options::SNC_SPLITTING_STRATEGY ).ascii() )
+        , _MILPSolverBoundTighteningType( Options::get()->getString( Options::MILP_SOLVER_BOUND_TIGHTENING_TYPE ).ascii() )
         , _tighteningStrategyString( Options::get()->getString( Options::SYMBOLIC_BOUND_TIGHTENING_TYPE ).ascii() )
     {};
 
@@ -216,11 +218,13 @@ struct MarabouOptions {
 
     // float options
     Options::get()->setFloat( Options::TIMEOUT_FACTOR, _timeoutFactor );
+    Options::get()->setFloat( Options::MILP_SOLVER_TIMEOUT, _MILPSolverTimeout );
     Options::get()->setFloat( Options::PREPROCESSOR_BOUND_TOLERANCE, _preprocessorBoundTolerance );
 
     // string options
     Options::get()->setString( Options::SPLITTING_STRATEGY, _splittingStrategyString );
     Options::get()->setString( Options::SNC_SPLITTING_STRATEGY, _sncSplittingStrategyString );
+    Options::get()->setString( Options::MILP_SOLVER_BOUND_TIGHTENING_TYPE, _MILPSolverBoundTighteningType );
     Options::get()->setString( Options::SYMBOLIC_BOUND_TIGHTENING_TYPE, _tighteningStrategyString );
   }
 
@@ -236,9 +240,11 @@ struct MarabouOptions {
     unsigned _timeoutInSeconds;
     unsigned _splitThreshold;
     float _timeoutFactor;
+    float _MILPSolverTimeout;
     float _preprocessorBoundTolerance;
     std::string _splittingStrategyString;
     std::string _sncSplittingStrategyString;
+    std::string _MILPSolverBoundTighteningType;
     std::string _tighteningStrategyString;
 };
 
@@ -305,6 +311,33 @@ std::pair<std::map<int, double>, Statistics> solve(InputQuery &inputQuery, Marab
     return std::make_pair(ret, retStats);
 }
 
+/* The default parameters here are just for readability, you should specify
+ * them to make them work*/
+InputQuery preprocess(InputQuery &inputQuery, MarabouOptions &options, std::string redirect=""){
+    // The main purpose of this function is to preprocess the input inquery (e.g., compute gurobi bounds)
+    // Arguments: InputQuery object, filename to redirect output
+    // Returns: engine statistics
+
+    Engine engine;
+    int output=-1;
+    if(redirect.length()>0)
+        output=redirectOutputToFile(redirect);
+    try{
+        options.setOptions();
+        std::cout << "\nMILP Timeout: " << Options::get()->getFloat( Options::MILP_SOLVER_TIMEOUT ) << "\n";
+        engine.processInputQuery(inputQuery);
+    }
+    catch(const MarabouError &e){
+        printf( "Caught a MarabouError. Code: %u. Message: %s\n", e.getCode(), e.getUserMessage() );
+    }
+
+    if(output != -1)
+        restoreOutputStream(output);
+
+    //return *(engine.getStatistics());
+    return *(engine.getInputQuery());
+}
+
 void saveQuery(InputQuery& inputQuery, std::string filename){
     inputQuery.saveQuery(String(filename));
 }
@@ -332,6 +365,20 @@ PYBIND11_MODULE(MarabouCore, m) {
                 - stats (:class:`~maraboupy.MarabouCore.Statistics`): A Statistics object to how Marabou performed
         )pbdoc",
         py::arg("inputQuery"), py::arg("options"), py::arg("redirect") = "");
+
+   m.def("preprocess", &preprocess, R"pbdoc(
+        Takes a reference to an InputQuery and preproccesses it with Marabou preprocessor. 
+
+        Args:
+            inputQuery (:class:`~maraboupy.MarabouCore.InputQuery`): Marabou input query to be preproccessed
+            options (class:`~maraboupy.MarabouCore.Options`): Object defining the options used for Marabou
+            redirect (str, optional): Filepath to direct standard output, defaults to ""
+
+        Returns:
+                InputQuery (:class:`~maraboupy.MarabouCore.InputQuery`): the preprocessed input query
+        )pbdoc",
+        py::arg("inputQuery"), py::arg("options"), py::arg("redirect") = "");
+
     m.def("saveQuery", &saveQuery, R"pbdoc(
         Serializes the inputQuery in the given filename
 
@@ -428,6 +475,8 @@ PYBIND11_MODULE(MarabouCore, m) {
         .def_readwrite("_restoreTreeStates", &MarabouOptions::_restoreTreeStates)
         .def_readwrite("_splittingStrategy", &MarabouOptions::_splittingStrategyString)
         .def_readwrite("_sncSplittingStrategy", &MarabouOptions::_sncSplittingStrategyString)
+        .def_readwrite("_MILPSolverTimeout", &MarabouOptions::_MILPSolverTimeout)
+        .def_readwrite("_MILPSolverBoundTighteningType", &MarabouOptions::_MILPSolverBoundTighteningType);
         .def_readwrite("_tighteningStrategy", &MarabouOptions::_tighteningStrategyString);
     py::enum_<PiecewiseLinearFunctionType>(m, "PiecewiseLinearFunctionType")
         .value("ReLU", PiecewiseLinearFunctionType::RELU)

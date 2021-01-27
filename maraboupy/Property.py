@@ -844,7 +844,7 @@ class Property:
                     else:  # x or y
                         assert re.match('(\d)+$', indices)
                         try:
-                            indices = int(indices)
+                            indices = [int(indices)]
                         except:
                             warnings.warn('Unexpected variable index in a bound. Failed to compute Marabou-compatible'
                                           'property objects.')

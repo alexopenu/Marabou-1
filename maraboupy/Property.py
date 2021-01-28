@@ -460,7 +460,7 @@ class Property:
         return self.verify_specific_io_properties(x=[], y=y, input=False, output=True, bdds=True, eqs=True,
                                                   use_executables=use_executables)
 
-    def verify_output_eqautions(self, y, use_executables=False):
+    def verify_output_equations(self, y, use_executables=False):
         return self.verify_specific_io_equations(x=[], y=y, input=False, output=True, use_executables=use_executables)
 
     def verify_input_equations(self, x, use_executables=False):
@@ -871,11 +871,11 @@ class Property:
                     return
 
                 if tokens[-2] == '<=':
-                    equation_type = MarabouCore.EquationType.LE
+                    equation_type = MarabouCore.Equation.LE
                 elif tokens[-2] == '>=':
-                    equation_type = MarabouCore.EquationType.GE
+                    equation_type = MarabouCore.Equation.GE
                 elif tokens[-2] == '=':
-                    equation_type = MarabouCore.EquationType.EQ
+                    equation_type = MarabouCore.Equation.EQ
                 else:
                     warnings.warn('Unexpected equation type. '
                                   'Failed to compute Marabou-compatible property objects.')
@@ -911,8 +911,8 @@ class Property:
                             return
                     else:  # x or y
                         try:
-                            indices = int(addend[2])
-                            assert indices >= 0
+                            indices = [int(addend[2])]
+                            assert indices[0] >= 0
                         except:
                             warnings.warn('Unexpected index for a variable. '
                                           'Failed to compute Marabou-compatible property objects.')

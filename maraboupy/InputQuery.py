@@ -29,14 +29,18 @@ class InputQuery:
         self.property = Property.Property(property_filename="")
         self.ipq_initialized = False
         self.network_initialized = False
-        # self.marabou_options = MarabouCore.MarabouOptions()
+        self.marabou_options = MarabouCore.Options()
         self.ipq_preprocessed = False
 
 
     def initializeFromNNet(self, network_filename: str, property_filename = ""):
         nnet = Marabou.read_nnet(filename=network_filename)
-        self.initializeFromNetwork(marabou_network=nnet)
-
+        self.network = nnet
+        # self.initializeFromNetwork(marabou_network=nnet)
+        MarabouCore.createInputQuery(self.ipq, network_filename, property_filename)
+        self.network_initialized = True
+        self.ipq_initialized = True
+        self.num_vars = self.ipq.getNumberOfVariables()
 
     def initializeFromNetwork(self, marabou_network: MarabouNetwork.MarabouNetwork):
         self.network = marabou_network
@@ -145,11 +149,10 @@ class InputQuery:
             warnings.warn("Layer or index out of bounds! Can't compute a hidden variable index.")
             assert False
 
-
     def addEquation(self, e: MarabouUtils.Equation):
         eq = MarabouCore.Equation(e.EquationType)
 
-        for (c, var) in e.addendList:
+        for (c, var) in reversed(e.addendList):
             assert var < self.num_vars
             eq.addAddend(c, var)
         eq.setScalar(e.scalar)
@@ -171,7 +174,7 @@ class InputQuery:
         assert var < self.num_vars
         return self.ipq.getLowerBound(var)
 
-    def setOptions(self, options):
+    def setOptions(self, options: MarabouCore.Options):
         self.marabou_options = options
 
     def preprocess(self):

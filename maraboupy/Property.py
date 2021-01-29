@@ -69,7 +69,7 @@ class Property:
         Computes lists of equations and bounds (stored as strings) that can be parsed and evaluated by python's parser
 
         NOTE: asserts that all equations and bounds are of the legal form,  only mention input (x) ,
-        output (y) , or hidden (ws) variables
+        output (y) , or hidden (h) variables
 
         NOTE: changes the names of variables  xi to x[i] and yi to y[i]
 
@@ -264,7 +264,7 @@ class Property:
         Returns:
             (bool)
         """
-        return (len(self.properties_list['m']) > 0)
+        return len(self.properties_list['m']) > 0
 
     def h_properties_present(self):
         """Returns True if there are properties on hidden neurons, False otherwise
@@ -272,7 +272,7 @@ class Property:
         Returns:
             (bool)
         """
-        return (len(self.properties_list['h']) > 0)
+        return len(self.properties_list['h']) > 0
 
     def compute_executable_bounds(self, recompute=False):
         """ Computes the list of executable bounds for later efficiency of evaluation
@@ -720,7 +720,7 @@ class Property:
         # matches a substring of the form y??? where ? are digits
 
         reg_hidden = re.compile(r'[h][_](\d+)[_](\d+)')
-        # matches a substring of the form ws_???_??? where ? are digits
+        # matches a substring of the form h_???_??? where ? are digits
 
         reg_equation = re.compile(r'[+-][xy](\d+) ([+-][xy](\d+) )+(<=|>=|=) [+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$')
         # matches a string that is a legal equation with input (x??) or output (y??) variables

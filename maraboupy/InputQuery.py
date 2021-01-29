@@ -32,7 +32,6 @@ class InputQuery:
         self.marabou_options = MarabouCore.Options()
         self.ipq_preprocessed = False
 
-
     def initializeFromNNet(self, network_filename: str, property_filename = ""):
         nnet = Marabou.read_nnet(filename=network_filename)
         self.network = nnet
@@ -152,7 +151,7 @@ class InputQuery:
     def addEquation(self, e: MarabouUtils.Equation):
         eq = MarabouCore.Equation(e.EquationType)
 
-        for (c, var) in reversed(e.addendList):
+        for (c, var) in reversed(e.addendList):  # Comes out more consistent with the Marabou parser.
             assert var < self.num_vars
             eq.addAddend(c, var)
         eq.setScalar(e.scalar)
